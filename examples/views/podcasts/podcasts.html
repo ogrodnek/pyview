@@ -1,0 +1,37 @@
+<div>
+    <h1>🎙️ Podcasts</h1>
+    <div style="padding-bottom: 8px; padding-top: 8px; display: flex;">
+        {% for p in podcasts %}
+        <div
+            style="margin-right: 16px; padding-bottom: 8px; width: fit-content; border-bottom: .3rem solid {% if p.id == currentPodcast.id %} red {% else %} transparent {% endif %};">
+            <a data-phx-link="patch" data-phx-link-state="push" href="/podcasts?id={{p.id}}">
+                <img width="64" height="64" src="{{ p.coverUrl }}" alt="{{ p.title }}" />
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="row">
+        <div class="col">
+            <div style="max-width: 500px;">
+                <h2 style="margin-top: 0;">{{ currentPodcast.title }}</h2>
+                <p>
+                    <small>
+                        {{ currentPodcast.description }}
+                    </small>
+                </p>
+                <h5>Recent Episodes</h5>
+                <ul>
+                    {% for e in currentPodcast.episodes %}
+                    <li>
+                        <div>
+                            {{ e.title }}
+                        </div>
+                        <small>{{ e.published }}</small>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

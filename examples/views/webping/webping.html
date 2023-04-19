@@ -1,0 +1,30 @@
+<button style="margin-left: 0" phx-click="ping">Ping</button>
+<span style="font-style: italic">Auto-updating every 10 seconds...</span>
+<div class="row">
+    {% for site in sites %}
+    <div class="col">
+        <blockquote class="{% if site.status == 'Error' %}warn{% else %}hint{% endif %}">
+            <span style="font-size: larger">{{ site.url }}</span>
+        </blockquote>
+
+        <div style="width: 100; height: 50">
+            {{ site.points | svg_chart(300, 100)}}
+        </div>
+
+        <table>
+            <tr>
+                <th>response (ms)</th>
+                <th>status</th>
+                <th>date</th>
+            </tr>
+            {% for r in site.responses|reversed %}
+            <tr style="font-size: 12px; font-family: monospace;">
+                <td>{{ r.time_formatted }}</td>
+                <td>{{ r.status }}</td>
+                <td>{{ r.date | dtformat('%m-%d %I:%M:%S %p') }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endfor %}
+</div>

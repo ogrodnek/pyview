@@ -1,0 +1,17 @@
+site_name: PyView
+theme:
+  name: material
+  palette:
+    primary: white
+    accent: pink
+  logo: images/pyview_logo_512.png
+
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/ogrodnek/pyview
+
+# repo_url: https://github.com/ogrodnek/pyview
+
+copyright: Copyright &copy; 2023 Larry Ogrodnek

@@ -1,0 +1,54 @@
+<h1>⚽ Fifa Audiences</h1>
+<p>
+    <i>from <a href="https://fivethirtyeight.com/features/how-to-break-fifa/">How to Break FIFA
+            (FiveThirtyEight)</a></i>
+</p>
+<div id="audiences">
+    <div style="display: flex; justify-content: space-between;">
+        <form phx-change="select-per-page">
+            Show
+            <select name="perPage">
+                <option value="10" {% if paging.perPage == 10 %} selected{% endif %}>10</option>
+                <option value="25" {% if paging.perPage == 25 %} selected{% endif %}>25</option>
+                <option value="50" {% if paging.perPage == 50 %} selected{% endif %}>50</option>
+            </select>
+            <label for="perPage">per page</label>
+        </form>
+        <div class="float-right" style="align-self: baseline">
+            {{ paging.firstResult }} - {{ paging.lastResult }} of {{ paging.totalResults }}
+            {% if paging.hasPrev %}
+            <a data-phx-link="patch" data-phx-link-state="push"
+                href="/fifa?page={{paging.prevPage}}&perPage={{paging.perPage}}">Prev</a>
+            {% endif %}
+            {% if paging.hasNext %}
+            <a data-phx-link="patch" data-phx-link-state="push"
+                href="/fifa?page={{paging.nextPage}}&perPage={{paging.perPage}}">Next</a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Country</th>
+                    <th>Confederation</th>
+                    <th>Population Share</th>
+                    <th>TV Audience Share</th>
+                    <th>GDP Weighted Share</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in audiences %}
+                <tr>
+                    <td>{{ a.country }}</td>
+                    <td>{{ a.confederation }}</td>
+                    <td>{{ a.population_share }}</td>
+                    <td>{{ a.tv_audience_share }}</td>
+                    <td>{{ a.gdp_weighted_share }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+    </div>
+</div>

@@ -1,0 +1,44 @@
+<div>
+    <h1>⏰ Plant Watering Schedule</h1>
+    <form method="post" phx-submit="save" phx-change="validate" autocomplete="off">
+        <div class="container">
+            <div class="row">
+                <div class="col">
+                    <label for="input_name">Name</label>
+                    <input type="text" id="input_name" phx-debounce="2000" value="{{changeset.attrs.name}}"
+                        name="name" />
+                    <span phx-feedback-for="name"><small>{{changeset.errors.get("name", "")}}</small></span>
+                </div>
+                <div class="col">
+                    <label for="input_schedule">Watering Schedule (days)</label>
+                    <input type="text" id="input_schedule" phx-debounce="blur"
+                        value="{{changeset.attrs.watering_schedule_days}}" name="watering_schedule_days" />
+                    <span
+                        phx-feedback-for="watering_schedule_days"><small>{{changeset.errors.get("watering_schedule_days", "")}}</small></span>
+                </div>
+                <div class="col" style="align-self: flex-end;margin-bottom: 8px;">
+                    <button type="submit" phx-disable-with="Saving...">Add</button>
+                </div>
+            </div>
+        </div>
+    </form>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Watering Schedule</th>
+            <th>Last Watered</th>
+            <th></th>
+        </tr>
+        {% for plant in plants %}
+        <tr {%if plant.needs_watering %}style="background-color: #fff0f0" {% endif %}>
+            <td>{{plant.name}}</td>
+            <td>{{plant.watering_schedule_days}}</td>
+            <td>{{plant.last_watered | dtformat('%m-%d %I:%M %p')}}</td>
+            <td><button phx-click="water" phx-value-id="{{plant.id}}">🚰</button></td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+<div>
+    <button phx-click="reset">Reset</button>
+</div>

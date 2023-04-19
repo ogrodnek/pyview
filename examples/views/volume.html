@@ -1,0 +1,18 @@
+<div id="light">
+  <h1>🎧 Volume Control</h1>
+  <div>
+    <div>{{volume}}%</div>
+    <progress id="volume_control" style="width: 300px; height: 2em; opacity: calc({{volume}}/100);" value="{{volume}}"
+      max="100"></progress>
+  </div>
+  <div>
+    <button phx-click="off" phx-window-keydown="key_update" phx-key="ArrowLeft">⬅️ Silence</button>
+    <button phx-click="down" phx-window-keydown="key_update" phx-key="ArrowDown">⬇️ Turn Down</button>
+    <button phx-click="up" phx-window-keydown="key_update" phx-key="ArrowUp">⬆️ Turn Up</button>
+    <button phx-click="on" phx-window-keydown="key_update" phx-key="ArrowRight">➡️ Cranked</button>
+  </div>
+
+  <div>
+    <h5>Try using the keys too!</h5>
+  </div>
+</div>

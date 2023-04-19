@@ -1,0 +1,26 @@
+<div>
+    <h1>🚀 Server Status</h1>
+    <div class="row">
+        <div class="col">
+            <div class="card info">
+                <p>Memory Used (MB)</p>
+                <p>{{ mem }}</p>
+            </div>
+        </div>
+        <div class="col">
+            <div class="col card info">
+                <p>Memory Used (%)</p>
+                <p>{{ mem_pct }}</p>
+            </div>
+        </div>
+        <div class="col">
+            <div class="col card info">
+                <p>CPU Used (%)</p>
+                <p>{{ cpu_pct }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <button phx-click="refresh">Refresh</button>
+    </div>
+</div>

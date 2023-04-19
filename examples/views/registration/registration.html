@@ -1,0 +1,30 @@
+<div class="container" style="width: 100%; display: flex;">
+    <div style="width: 50%;">
+        <h1>Registration</h1>
+        <form method="post" phx-submit="register" phx-change="validate" autocomplete="off">
+            <div style="padding-bottom: 8px;">
+                <label for="name">Name</label>
+                {{ changeset | input_tag("name") }}
+                {{ changeset | error_tag("name") }}
+            </div>
+            <div>
+                <label for="email">Email</label>
+                {{ changeset | input_tag("email") }}
+                {{ changeset | error_tag("email") }}
+            </div>
+            <div>
+                <label for="password">Password</label>
+                {{ changeset | input_tag("password", {"type" : "password"}) }}
+                {{ changeset | error_tag("password") }}
+            </div>
+            <div>
+                <label for="password_confirmation">Password (again)</label>
+                {{ changeset | input_tag("password_confirmation", {"type" : "password"}) }}
+                {{ changeset | error_tag("password_confirmation") }}
+            </div>
+            <div>
+                <button type="submit" phx-disable-with="Registering...">Register</button>
+            </div>
+        </form>
+    </div>
+</div>

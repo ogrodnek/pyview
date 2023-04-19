@@ -1,0 +1,28 @@
+<div>
+    <h1>JS Commands</h1>
+    <p>PyView JS commands support is a work in progress.</p>
+    <p>
+        See the <a href="https://hexdocs.pm/phoenix_live_view/Phoenix.LiveView.JS.html">Phoenix LiveView JS docs</a>
+        for an idea of what's coming.
+    </p>
+    <h3>Show/Hide</h3>
+    <button phx-click='{{("show", "#bq") | js}}'>Show</button>
+    <button phx-click='{{("hide", "#bq") | js}}'>Hide</button>
+    <blockquote id="bq" class="hint">
+        <p>JS Commands let you update the DOM without making a trip to the server.</p>
+    </blockquote>
+    <hr />
+    <h3>Toggle</h3>
+    <button phx-click='{{("toggle", "#bq2") | js}}'>Toggle</button>
+    <blockquote id="bq2" class="hint">
+        <p>JS Commands let you update the DOM without making a trip to the server.</p>
+    </blockquote>
+    <h3>Add/Remove Class</h3>
+    <button phx-click='{{("add_class", "#bq3", ["hint"]) | js}}'>Add "hint"</button>
+    <button phx-click='{{("add_class", "#bq3", ["warn"]) | js}}'>Add "warn"</button>
+    <button phx-click='{{("remove_class", "#bq3", ["warn", "hint"]) | js}}'>Remove all</button>
+
+    <blockquote id="bq3">
+        <p>JS Commands let you update the DOM without making a trip to the server.</p>
+    </blockquote>
+</div>
