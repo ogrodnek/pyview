@@ -5,7 +5,8 @@ from typing import Any, TypeVar, Generic, TYPE_CHECKING, Optional
 from urllib.parse import urlencode
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from pyview.vendor.flet.pubsub import PubSubHub, PubSub
-from pyview.events import InfoEventWithPayload
+from pyview.events import InfoEvent
+import datetime
 
 
 if TYPE_CHECKING:
@@ -44,21 +45,24 @@ class LiveViewSocket(Generic[T]):
         await self.pub_sub.send_all_on_topic_async(topic, message)
 
     async def _topic_callback_internal(self, topic, message):
-        await self.send_info(InfoEventWithPayload(topic, message))
+        await self.send_info(InfoEvent(topic, message))
 
     def schedule_info(self, event, seconds):
         id = f"{self.topic}:{event}"
-        scheduler.add_job(
-            self.send_info, args=[event], id=id, trigger="interval", seconds=seconds
-        )
+        scheduler.add_job(self.send_info, args=[event], id=id, trigger="interval", seconds=seconds)
         self.scheduled_jobs.append(id)
+
+    def schedule_info_once(self, event):
+        scheduler.add_job(
+            self.send_info, args=[event], trigger="date", run_date=datetime.datetime.now(), misfire_grace_time=None
+        )
 
     def diff(self, render: dict[str, Any]) -> dict[str, Any]:
         # TODO: not a real diff
         del render["s"]
         return render
 
-    async def send_info(self, event):
+    async def send_info(self, event: InfoEvent):
         await self.liveview.handle_info(event, self)
         r = await self.liveview.render(self.context)
         resp = [None, None, self.topic, "diff", self.diff(r.tree())]
@@ -70,12 +74,13 @@ class LiveViewSocket(Generic[T]):
                 print("Removing job", id)
                 scheduler.remove_job(id)
 
-    async def push_patch(self, path: str, params: dict[str, Any]):
+    async def push_patch(self, path: str, params: dict[str, Any] = {}):
         # or "replace"
         kind = "push"
 
-        # to =  urljoin(path, urlencode(params))
-        to = path + "?" + urlencode(params)
+        to = path
+        if params:
+            to = to + "?" + urlencode(params)
 
         message = [
             None,

@@ -1,11 +1,8 @@
 from dataclasses import dataclass
-from typing import Any, Union
+from typing import Any
 
 
 @dataclass
-class InfoEventWithPayload:
-    event: str
-    payload: Any
-
-
-InfoEvent = Union[InfoEventWithPayload, str]
+class InfoEvent:
+    name: str
+    payload: Any = None

@@ -22,9 +22,7 @@ class FifaAudienceLiveView(LiveView[FifaContext]):
 
         socket.context["audiences"] = audiences
 
-        await socket.push_patch(
-            "/audiences", {"page": paging.page, "perPage": paging.perPage}
-        )
+        await socket.push_patch("/fifa", {"page": paging.page, "perPage": paging.perPage})
 
     async def handle_params(self, url, params, socket: LiveViewSocket[FifaContext]):
         paging = socket.context["paging"]

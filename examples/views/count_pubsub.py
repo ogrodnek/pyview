@@ -34,4 +34,4 @@ class CountLiveViewPubSub(LiveView[Count]):
             socket.context.count = int(params["c"][0])
 
     async def handle_info(self, event, socket: LiveViewSocket[Count]):
-        socket.context.count = event.payload  # type: ignore
+        socket.context.count = event.payload

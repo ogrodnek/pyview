@@ -5,6 +5,7 @@ from collections import deque
 from .chart import Point
 import time
 import aiohttp
+from pyview.events import InfoEvent
 
 
 @dataclass
@@ -47,10 +48,10 @@ class PingLiveView(LiveView[PingContext]):
         )
         if socket.connected:
             socket.schedule_info("ping", 10)
-            await self.handle_info("ping", socket)
+            await self.handle_info(InfoEvent("ping"), socket)
 
     async def handle_event(self, event, payload, socket: LiveViewSocket[PingContext]):
-        await self.handle_info("ping", socket)
+        await self.handle_info(InfoEvent("ping"), socket)
 
     async def ping(self, site: PingSite):
         start = time.time_ns()
@@ -58,9 +59,7 @@ class PingLiveView(LiveView[PingContext]):
             async with session.head(site.url) as response:
                 status = response.status
                 diff = (time.time_ns() - start) / 1_000_000
-                site.responses.append(
-                    PingResponse(status, diff, datetime.datetime.now())
-                )
+                site.responses.append(PingResponse(status, diff, datetime.datetime.now()))
                 site.status = "OK" if status == 200 else "Error"
 
     async def handle_info(self, event, socket: LiveViewSocket[PingContext]):
