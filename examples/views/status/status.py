@@ -1,6 +1,8 @@
-from pyview import LiveView, LiveViewSocket
 import os
 import psutil
+
+from pyview import LiveView, LiveViewSocket
+from pyview.events import InfoEvent
 from dataclasses import dataclass
 
 
@@ -42,7 +44,7 @@ class StatusLiveView(LiveView[StatusContext]):
             socket.schedule_info("refresh", 5)
 
     async def handle_event(self, event, payload, socket: LiveViewSocket[StatusContext]):
-        await self.handle_info("refresh", socket)
+        await self.handle_info(InfoEvent("refresh"), socket)
 
     async def handle_info(self, event, socket: LiveViewSocket[StatusContext]):
         socket.context = StatusContext()
