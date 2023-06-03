@@ -8,7 +8,7 @@ class Volume:
 
 
 class VolumeLiveView(LiveView[Volume]):
-    async def mount(self, socket: LiveViewSocket[Volume]):
+    async def mount(self, socket: LiveViewSocket[Volume], _session):
         socket.context = Volume()
 
     async def handle_event(self, event, payload, socket: LiveViewSocket[Volume]):

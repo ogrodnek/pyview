@@ -38,7 +38,7 @@ class StatusContext:
 
 
 class StatusLiveView(LiveView[StatusContext]):
-    async def mount(self, socket: LiveViewSocket[StatusContext]):
+    async def mount(self, socket: LiveViewSocket[StatusContext], _session):
         socket.context = StatusContext()
         if socket.connected:
             socket.schedule_info("refresh", 5)

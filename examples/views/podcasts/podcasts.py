@@ -12,7 +12,7 @@ class PodcastContext:
 
 
 class PodcastLiveView(LiveView):
-    async def mount(self, socket: LiveViewSocket[PodcastContext]):
+    async def mount(self, socket: LiveViewSocket[PodcastContext], _session):
         casts = podcasts()
         socket.context = PodcastContext(casts[0], casts)
 

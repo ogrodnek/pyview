@@ -9,7 +9,7 @@ class FifaContext(TypedDict):
 
 
 class FifaAudienceLiveView(LiveView[FifaContext]):
-    async def mount(self, socket: LiveViewSocket[FifaContext]):
+    async def mount(self, socket: LiveViewSocket[FifaContext], _session):
         paging = Paging(1, 10)
         audiences = list_items(paging)
         socket.context = {"audiences": audiences, "paging": paging}
