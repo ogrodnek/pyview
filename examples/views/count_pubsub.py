@@ -14,7 +14,7 @@ class Count:
 
 
 class CountLiveViewPubSub(LiveView[Count]):
-    async def mount(self, socket: LiveViewSocket[Count]):
+    async def mount(self, socket: LiveViewSocket[Count], _session):
         socket.context = Count()
         if socket.connected:
             await socket.subscribe("count")

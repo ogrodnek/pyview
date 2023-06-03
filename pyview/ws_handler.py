@@ -5,6 +5,7 @@ from urllib.parse import urlparse, parse_qs
 from pyview.live_socket import LiveViewSocket
 from pyview.live_routes import LiveViewLookup
 from pyview.csrf import validate_csrf_token
+from pyview.session import deserialize_session
 
 
 class LiveSocketHandler:
@@ -31,7 +32,11 @@ class LiveSocketHandler:
                 if not validate_csrf_token(payload["params"]["_csrf_token"], topic):
                     raise Exception("Invalid CSRF token")
 
-                await lv.mount(socket)
+                session = {}
+                if "session" in payload:
+                    session = deserialize_session(payload["session"])
+
+                await lv.mount(socket, session)
                 await lv.handle_params(url, parse_qs(url.query), socket)
 
                 rendered = await _render(socket)
@@ -66,9 +71,7 @@ class LiveSocketHandler:
                     "phx_reply",
                     {"response": {}, "status": "ok"},
                 ]
-                await self.manager.send_personal_message(
-                    json.dumps(resp), socket.websocket
-                )
+                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
                 continue
 
             if event == "event":
@@ -86,9 +89,7 @@ class LiveSocketHandler:
                     "phx_reply",
                     {"response": {"diff": rendered}, "status": "ok"},
                 ]
-                await self.manager.send_personal_message(
-                    json.dumps(resp), socket.websocket
-                )
+                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
                 continue
 
             if event == "live_patch":
@@ -105,9 +106,7 @@ class LiveSocketHandler:
                     "phx_reply",
                     {"response": {"diff": rendered}, "status": "ok"},
                 ]
-                await self.manager.send_personal_message(
-                    json.dumps(resp), socket.websocket
-                )
+                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
                 continue
 
 

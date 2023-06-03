@@ -39,7 +39,7 @@ timeout = aiohttp.ClientTimeout(total=10)
 
 
 class PingLiveView(LiveView[PingContext]):
-    async def mount(self, socket: LiveViewSocket[PingContext]):
+    async def mount(self, socket: LiveViewSocket[PingContext], _session):
         socket.context = PingContext(
             [
                 PingSite("https://pyview.rocks"),

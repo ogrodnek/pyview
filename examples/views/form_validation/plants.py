@@ -18,14 +18,12 @@ class PlantsContext:
 
 
 class PlantsLiveView(LiveView[PlantsContext]):
-    async def mount(self, socket: LiveViewSocket[PlantsContext]):
+    async def mount(self, socket: LiveViewSocket[PlantsContext], _session):
         socket.context = PlantsContext(plants())
 
     async def handle_event(self, event, payload, socket: LiveViewSocket[PlantsContext]):
         if event == "water":
-            plant = next(
-                (p for p in socket.context.plants if p.id == payload["id"]), None
-            )
+            plant = next((p for p in socket.context.plants if p.id == payload["id"]), None)
             if plant:
                 print(f"Watering {plant.name}...")
                 plant.last_watered = datetime.now()
