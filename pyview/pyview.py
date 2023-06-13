@@ -2,7 +2,6 @@ from starlette.applications import Starlette
 from fastapi import WebSocket
 from fastapi.responses import HTMLResponse
 from starlette.middleware.gzip import GZipMiddleware
-from starlette.middleware.sessions import SessionMiddleware
 from starlette.routing import Route
 from starlette.requests import Request
 import uuid
@@ -11,7 +10,7 @@ from urllib.parse import parse_qs
 from pyview.live_socket import UnconnectedSocket
 from pyview.csrf import generate_csrf_token
 from pyview.session import serialize_session
-from pyview.secret import get_secret
+from pyview.auth import AuthProviderFactory
 from .ws_handler import LiveSocketHandler
 from .live_view import LiveView
 from .live_routes import LiveViewLookup
@@ -44,14 +43,14 @@ class PyView(Starlette):
 
         self.add_websocket_route("/live/websocket", live_websocket_endpoint)
         self.add_middleware(GZipMiddleware)
-        # self.add_middleware(SessionMiddleware, secret_key=get_secret())
 
-    def add_live_view(self, path: str, view: Callable[[], LiveView]):
+    def add_live_view(self, path: str, view: type[LiveView]):
         async def lv(request: Request):
             return await liveview_container(self.rootTemplate, self.view_lookup, request)
 
         self.view_lookup.add(path, view)
-        self.routes.append(Route(path, lv, methods=["GET"]))
+        auth = AuthProviderFactory.get(view)
+        self.routes.append(Route(path, auth.wrap(lv), methods=["GET"]))
 
 
 async def liveview_container(template: RootTemplate, view_lookup: LiveViewLookup, request: Request):
