@@ -6,6 +6,11 @@ from pyview.live_socket import LiveViewSocket
 from pyview.live_routes import LiveViewLookup
 from pyview.csrf import validate_csrf_token
 from pyview.session import deserialize_session
+from pyview.auth import AuthProviderFactory
+
+
+class AuthError(Exception):
+    pass
 
 
 class LiveSocketHandler:
@@ -13,6 +18,10 @@ class LiveSocketHandler:
         self.routes = routes
         self.manager = ConnectionManager()
         self.sessions = 0
+
+    async def check_auth(self, websocket: WebSocket, lv):
+        if not await AuthProviderFactory.get(lv).has_required_auth(websocket):
+            raise AuthError()
 
     async def handle(self, websocket: WebSocket):
         await self.manager.connect(websocket)
@@ -27,6 +36,7 @@ class LiveSocketHandler:
             if event == "phx_join":
                 url = urlparse(payload["url"])
                 lv = self.routes.get(url.path)
+                await self.check_auth(websocket, lv)
                 socket = LiveViewSocket(websocket, topic, lv)
 
                 if not validate_csrf_token(payload["params"]["_csrf_token"], topic):
@@ -56,6 +66,10 @@ class LiveSocketHandler:
             self.manager.disconnect(websocket)
             if socket:
                 await socket.close()
+            self.sessions -= 1
+        except AuthError:
+            await websocket.close()
+            self.manager.disconnect(websocket)
             self.sessions -= 1
 
     async def handle_connected(self, socket: LiveViewSocket):
