@@ -9,7 +9,7 @@ from pyview.session import deserialize_session
 from pyview.auth import AuthProviderFactory
 
 
-class AuthError(Exception):
+class AuthException(Exception):
     pass
 
 
@@ -21,7 +21,7 @@ class LiveSocketHandler:
 
     async def check_auth(self, websocket: WebSocket, lv):
         if not await AuthProviderFactory.get(lv).has_required_auth(websocket):
-            raise AuthError()
+            raise AuthException()
 
     async def handle(self, websocket: WebSocket):
         await self.manager.connect(websocket)
@@ -34,13 +34,13 @@ class LiveSocketHandler:
             data = await websocket.receive_text()
             [joinRef, mesageRef, topic, event, payload] = json.loads(data)
             if event == "phx_join":
+                if not validate_csrf_token(payload["params"]["_csrf_token"], topic):
+                    raise AuthException("Invalid CSRF token")
+
                 url = urlparse(payload["url"])
                 lv = self.routes.get(url.path)
                 await self.check_auth(websocket, lv)
                 socket = LiveViewSocket(websocket, topic, lv)
-
-                if not validate_csrf_token(payload["params"]["_csrf_token"], topic):
-                    raise Exception("Invalid CSRF token")
 
                 session = {}
                 if "session" in payload:
@@ -63,13 +63,11 @@ class LiveSocketHandler:
                 await self.handle_connected(socket)
 
         except WebSocketDisconnect:
-            self.manager.disconnect(websocket)
             if socket:
                 await socket.close()
             self.sessions -= 1
-        except AuthError:
+        except AuthException:
             await websocket.close()
-            self.manager.disconnect(websocket)
             self.sessions -= 1
 
     async def handle_connected(self, socket: LiveViewSocket):
@@ -136,18 +134,10 @@ async def _render(socket: LiveViewSocket):
 
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: list[WebSocket] = []
+        pass
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
-        self.active_connections.append(websocket)
-
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
 
     async def send_personal_message(self, message: str, websocket: WebSocket):
         await websocket.send_text(message)
-
-    async def broadcast(self, message: str):
-        for connection in self.active_connections:
-            await connection.send_text(message)
