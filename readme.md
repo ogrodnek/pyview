@@ -12,9 +12,21 @@ PyView enables dynamic, real-time web apps, using server-rendered HTML.
 
 `pip install pyview-web`
 
+## Quickstart
+
+There's a [cookiecutter](https://github.com/cookiecutter/cookiecutter) template available
+
+```
+cookiecutter gh:ogrodnek/pyview-cookiecutter
+```
+
 # Live Examples
 
 [https://examples.pyview.rocks/](https://examples.pyview.rocks/)
+
+## Other Examples
+
+- [pyview AI chat](https://github.com/pyview/pyview-example-ai-chat)
 
 ## Simple Counter
 
