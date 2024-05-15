@@ -43,7 +43,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.9.16"
-fastapi = "0.89.1"
+fastapi = "0.109.1"
 uvicorn = "0.20.0"
 wsproto = "1.2.0"
 APScheduler = "3.9.1.post1"
