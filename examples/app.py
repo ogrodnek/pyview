@@ -2,6 +2,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.routing import Route
 from pyview import PyView, defaultRootTemplate
+from markupsafe import Markup
 
 from .views import (
     CountLiveView,
@@ -24,7 +25,12 @@ css = """
 <link rel="stylesheet" href="https://unpkg.com/nprogress@0.2.0/nprogress.css" />
 """
 
-app.rootTemplate = defaultRootTemplate(css)
+
+def content_wrapper(_context, content: Markup) -> Markup:
+    return Markup("<a href='/'>Home</a>") + content
+
+
+app.rootTemplate = defaultRootTemplate(css=Markup(css), content_wrapper=content_wrapper)
 
 routes = [
     (
