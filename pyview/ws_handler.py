@@ -1,6 +1,6 @@
 from typing import Optional
-from fastapi import WebSocket, WebSocketDisconnect
 import json
+from starlette.websockets import WebSocket, WebSocketDisconnect
 from urllib.parse import urlparse, parse_qs
 from pyview.live_socket import LiveViewSocket
 from pyview.live_routes import LiveViewLookup
@@ -83,7 +83,9 @@ class LiveSocketHandler:
                     "phx_reply",
                     {"response": {}, "status": "ok"},
                 ]
-                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+                await self.manager.send_personal_message(
+                    json.dumps(resp), socket.websocket
+                )
                 continue
 
             if event == "event":
@@ -101,7 +103,9 @@ class LiveSocketHandler:
                     "phx_reply",
                     {"response": {"diff": rendered}, "status": "ok"},
                 ]
-                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+                await self.manager.send_personal_message(
+                    json.dumps(resp), socket.websocket
+                )
                 continue
 
             if event == "live_patch":
@@ -118,7 +122,9 @@ class LiveSocketHandler:
                     "phx_reply",
                     {"response": {"diff": rendered}, "status": "ok"},
                 ]
-                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+                await self.manager.send_personal_message(
+                    json.dumps(resp), socket.websocket
+                )
                 continue
 
 

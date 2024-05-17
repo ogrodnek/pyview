@@ -1,5 +1,5 @@
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
+from starlette.responses import HTMLResponse
+from starlette.staticfiles import StaticFiles
 from starlette.routing import Route
 from pyview import PyView, defaultRootTemplate
 from markupsafe import Markup
