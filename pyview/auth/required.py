@@ -25,7 +25,7 @@ class RequiredScopeAuthProvider(AuthProvider):
     ) -> typing.Callable[_P, typing.Any]:
         return starlette_requires(self.scopes, self.status_code, self.redirect)(func)
 
-    def has_required_auth(self, websocket: WebSocket) -> bool:
+    async def has_required_auth(self, websocket: WebSocket) -> bool:
         return has_required_scope(websocket, self.scopes)
 
 
