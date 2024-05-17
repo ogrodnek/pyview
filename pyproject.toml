@@ -42,14 +42,15 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.9.16"
-fastapi = "0.111.0"
+python = ">=3.9,<3.12"
+starlette = "0.37.2"
 uvicorn = "0.20.0"
 wsproto = "1.2.0"
 APScheduler = "3.9.1.post1"
 psutil = "^5.9.4"
 markupsafe = "^2.1.2"
 itsdangerous = "^2.1.2"
+pydantic = "^2.7.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^6.0.0"

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from fastapi import WebSocket
+from starlette.websockets import WebSocket
 import json
 from typing import Any, TypeVar, Generic, TYPE_CHECKING, Optional
 from urllib.parse import urlencode
@@ -49,12 +49,18 @@ class LiveViewSocket(Generic[T]):
 
     def schedule_info(self, event, seconds):
         id = f"{self.topic}:{event}"
-        scheduler.add_job(self.send_info, args=[event], id=id, trigger="interval", seconds=seconds)
+        scheduler.add_job(
+            self.send_info, args=[event], id=id, trigger="interval", seconds=seconds
+        )
         self.scheduled_jobs.append(id)
 
     def schedule_info_once(self, event):
         scheduler.add_job(
-            self.send_info, args=[event], trigger="date", run_date=datetime.datetime.now(), misfire_grace_time=None
+            self.send_info,
+            args=[event],
+            trigger="date",
+            run_date=datetime.datetime.now(),
+            misfire_grace_time=None,
         )
 
     def diff(self, render: dict[str, Any]) -> dict[str, Any]:
