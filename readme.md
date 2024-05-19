@@ -27,6 +27,7 @@ cookiecutter gh:ogrodnek/pyview-cookiecutter
 ## Other Examples
 
 - [pyview AI chat](https://github.com/pyview/pyview-example-ai-chat)
+- [pyview auth example](https://github.com/pyview/pyview-example-auth) (using [authlib](https://docs.authlib.org/en/latest/))
 
 ## Simple Counter
 
