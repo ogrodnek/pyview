@@ -80,7 +80,7 @@ count.html:
 ## Additional Thanks
 
 - We're using the [pubsub implementation from flet](https://github.com/flet-dev/flet)
-- PyView is built on top of [FastAPI](https://fastapi.tiangolo.com), and of course, [Starlette](https://www.starlette.io/).
+- PyView is built on top of [Starlette](https://www.starlette.io/).
 
 # Status
 
