@@ -1,5 +1,4 @@
 from .count import CountLiveView
-from .count import CountLiveView
 from .volume import VolumeLiveView
 from .fifa import FifaAudienceLiveView
 from .status import StatusLiveView
@@ -9,3 +8,21 @@ from .registration import RegistrationLiveView
 from .count_pubsub import CountLiveViewPubSub
 from .js_commands import JsCommandsLiveView
 from .webping import PingLiveView
+from .checkboxes import CheckboxLiveView
+from .presence import PresenceLiveView
+
+__all__ = [
+    "CountLiveView",
+    "CountLiveView",
+    "VolumeLiveView",
+    "FifaAudienceLiveView",
+    "StatusLiveView",
+    "PodcastLiveView",
+    "PlantsLiveView",
+    "RegistrationLiveView",
+    "CountLiveViewPubSub",
+    "JsCommandsLiveView",
+    "PingLiveView",
+    "CheckboxLiveView",
+    "PresenceLiveView",
+]
