@@ -1,0 +1,6 @@
+<div>
+    {% for checkbox in checkboxes %}
+    <input phx-click="toggle" phx-value-index="{{ loop.index }}" name="a_{{loop.index}}" id="col_{{loop.index}}"
+        type="checkbox" value="{{ checkbox }}" {% if checkbox %}checked{% endif %} />
+    {% endfor %}
+</div>

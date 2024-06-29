@@ -15,6 +15,8 @@ from .views import (
     RegistrationLiveView,
     JsCommandsLiveView,
     PingLiveView,
+    CheckboxLiveView,
+    PresenceLiveView,
 )
 
 app = PyView()
@@ -102,6 +104,24 @@ routes = [
         """
      Another example of pushing updates from the backend to the client.
      """,
+    ),
+    (
+        "/checkboxes",
+        CheckboxLiveView,
+        "Checkboxes",
+        "checkboxes",
+        """
+        A silly multi-user game where you can click checkboxes.
+        """,
+    ),
+    (
+        "/presence",
+        PresenceLiveView,
+        "Presence",
+        "presence",
+        """
+        A simple example of presence tracking.  Open this example in multiple windows
+        """,
     ),
 ]
 
