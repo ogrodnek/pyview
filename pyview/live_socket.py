@@ -54,12 +54,12 @@ class LiveViewSocket(Generic[T]):
         )
         self.scheduled_jobs.append(id)
 
-    def schedule_info_once(self, event):
+    def schedule_info_once(self, event, seconds=None):
         scheduler.add_job(
             self.send_info,
             args=[event],
             trigger="date",
-            run_date=datetime.datetime.now(),
+            run_date=datetime.datetime.now() + datetime.timedelta(seconds=seconds or 0),
             misfire_grace_time=None,
         )
 
@@ -114,3 +114,8 @@ class LiveViewSocket(Generic[T]):
         for id in self.scheduled_jobs:
             scheduler.remove_job(id)
         await self.pub_sub.unsubscribe_all_async()
+
+        try:
+            await self.liveview.disconnect(self)
+        except Exception:
+            pass

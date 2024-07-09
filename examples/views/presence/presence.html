@@ -1,0 +1,81 @@
+<style>
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        50% {
+            transform: scale(1.5);
+            opacity: 0.7;
+        }
+
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .user-list {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .user-item {
+        display: flex;
+        align-items: center;
+        margin: 5px;
+        width: 45%;
+    }
+
+    .color-circle {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        margin-right: 10px;
+    }
+
+    .flash-message {
+        padding: 15px;
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        display: block;
+        animation: fadeInOut 5s ease-in-out forwards;
+    }
+
+    .flash-message.joined {
+        background-color: #A5D6A7;
+        color: #1B5E20;
+    }
+
+    .flash-message.left {
+        background-color: #FFCDD2;
+        color: #B71C1C;
+    }
+</style>
+
+<div style="padding: 8px">
+    <div style="padding-top: 12px; font-style: italic; font-size: smaller;">
+        <a href="/presence" target="_blank">Open this example in multiple windows</a> to see the connected list
+        update as users join and leave.
+    </div>
+    {% if message %}
+    <div class="flash-message {{message.action}}">{{message.user.name}} {{message.action}}</div>
+    {% endif %}
+    <h1>Hello <span style="color: {{current_user.color}};">{{current_user.name}}</span>!</h1>
+    <h2>{{connected|len}} Connected User{%if connected|len > 1 %}s{%endif%}</h2>
+    <ul class="user-list">
+        {% for user in connected %}
+        <li class="user-item">
+            <span class="color-circle" style="background-color: {{ user.color }};
+                         {% if current_user == user %}animation: pulse 2.5s infinite ease-in-out;{% endif %}">
+            </span>
+            <span>{{ user.name }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
