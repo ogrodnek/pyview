@@ -3,11 +3,15 @@ from .live_socket import LiveViewSocket, UnconnectedSocket
 from pyview.template import LiveTemplate, template_file, RenderedContent, LiveRender
 import inspect
 from pyview.events import InfoEvent
+from urllib.parse import ParseResult
 
 T = TypeVar("T")
 
 AnySocket = Union[LiveViewSocket[T], UnconnectedSocket[T]]
 Session = dict[str, Any]
+
+# TODO: ideally this would always be a ParseResult, but we need to update push_patch
+URL = Union[ParseResult, str]
 
 
 class LiveView(Generic[T]):
@@ -23,7 +27,10 @@ class LiveView(Generic[T]):
     async def handle_info(self, event: InfoEvent, socket: LiveViewSocket[T]):
         pass
 
-    async def handle_params(self, url, params, socket: AnySocket):
+    async def handle_params(self, url: URL, params, socket: AnySocket):
+        pass
+
+    async def disconnect(self, socket: LiveViewSocket[T]):
         pass
 
     async def render(self, assigns: T) -> RenderedContent:

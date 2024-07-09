@@ -105,15 +105,15 @@ routes = [
      Another example of pushing updates from the backend to the client.
      """,
     ),
-    (
-        "/checkboxes",
-        CheckboxLiveView,
-        "Checkboxes",
-        "checkboxes",
-        """
-        A silly multi-user game where you can click checkboxes.
-        """,
-    ),
+    # (
+    #     "/checkboxes",
+    #     CheckboxLiveView,
+    #     "Checkboxes",
+    #     "checkboxes",
+    #     """
+    #     A silly multi-user game where you can click checkboxes.
+    #     """,
+    # ),
     (
         "/presence",
         PresenceLiveView,

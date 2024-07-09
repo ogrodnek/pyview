@@ -6,7 +6,7 @@
         }
 
         50% {
-            transform: scale(1.2);
+            transform: scale(1.5);
             opacity: 0.7;
         }
 
@@ -59,9 +59,14 @@
 </style>
 
 <div style="padding: 8px">
+    <div style="padding-top: 12px; font-style: italic; font-size: smaller;">
+        <a href="/presence" target="_blank">Open this example in multiple windows</a> to see the connected list
+        update as users join and leave.
+    </div>
     {% if message %}
     <div class="flash-message {{message.action}}">{{message.user.name}} {{message.action}}</div>
     {% endif %}
+    <h1>Hello <span style="color: {{current_user.color}};">{{current_user.name}}</span>!</h1>
     <h2>{{connected|len}} Connected User{%if connected|len > 1 %}s{%endif%}</h2>
     <ul class="user-list">
         {% for user in connected %}

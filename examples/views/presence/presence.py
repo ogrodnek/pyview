@@ -36,13 +36,6 @@ class PresenceLiveView(LiveView[PresenceContext]):
             await socket.subscribe("presence")
 
     async def handle_info(self, event, socket: LiveViewSocket[PresenceContext]):
-        if event.name == "disconnect":
-            USER_REPO.unregister_avatar(socket.context.current_user)
-
-            await socket.broadcast(
-                "presence", {"user": socket.context.current_user, "action": "left"}
-            )
-
         if event.name == "presence":
             socket.context.message = Message(
                 user=event.payload["user"], action=event.payload["action"]
@@ -52,3 +45,10 @@ class PresenceLiveView(LiveView[PresenceContext]):
 
         if event.name == "clear_message":
             socket.context.message = None
+
+    async def disconnect(self, socket: LiveViewSocket[PresenceContext]):
+        USER_REPO.unregister_avatar(socket.context.current_user)
+
+        await socket.broadcast(
+            "presence", {"user": socket.context.current_user, "action": "left"}
+        )

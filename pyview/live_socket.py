@@ -114,4 +114,8 @@ class LiveViewSocket(Generic[T]):
         for id in self.scheduled_jobs:
             scheduler.remove_job(id)
         await self.pub_sub.unsubscribe_all_async()
-        await self.liveview.handle_info(InfoEvent("disconnect", None), self)
+
+        try:
+            await self.liveview.disconnect(self)
+        except Exception:
+            pass

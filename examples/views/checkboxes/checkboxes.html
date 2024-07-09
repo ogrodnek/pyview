@@ -1,6 +1,19 @@
+<style>
+    .large-checkbox {
+        zoom: 1.5;
+    }
+</style>
+<div>
+    <p>Original idea from <a href="https://onemillioncheckboxes.com/">One Million Checkboxes</a> by <a
+            href="https://eieio.games/">eieio.games</a>.</p>
+    <p style="padding-top: 12px; padding-bottom: 12px; font-style: italic; font-size: smaller;">
+        <a href="/checkboxes" target="_blank">Open this example in multiple windows</a> to see the checkboxes update
+        across all clients.
+    </p>
+</div>
 <div>
     {% for checkbox in checkboxes %}
-    <input phx-click="toggle" phx-value-index="{{ loop.index }}" name="a_{{loop.index}}" id="col_{{loop.index}}"
-        type="checkbox" value="{{ checkbox }}" {% if checkbox %}checked{% endif %} />
+    <input class="large-checkbox" phx-click="toggle" phx-value-index="{{ loop.index }}" name="a_{{loop.index}}"
+        id="col_{{loop.index}}" type="checkbox" value="{{ checkbox }}" {% if checkbox %}checked{% endif %} />
     {% endfor %}
 </div>

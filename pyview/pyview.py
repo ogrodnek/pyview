@@ -5,7 +5,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from starlette.routing import Route
 from starlette.requests import Request
 import uuid
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlparse
 
 from pyview.live_socket import UnconnectedSocket
 from pyview.csrf import generate_csrf_token
@@ -54,7 +54,7 @@ async def liveview_container(
     session = request.session if "session" in request.scope else {}
 
     await lv.mount(s, session)
-    await lv.handle_params(url, parse_qs(url.query), s)
+    await lv.handle_params(urlparse(url._url), parse_qs(url.query), s)
     r = await lv.render(s.context)
 
     id = str(uuid.uuid4())

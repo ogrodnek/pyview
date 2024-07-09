@@ -1,44 +1,48 @@
 from pyview import LiveView, LiveViewSocket
 from typing import TypedDict
+import random
 
-from pyview.vendor.ibis import filters
+
+class CheckboxManager:
+    checkboxes: list[bool]
+
+    def __init__(self):
+        self.checkboxes = [False] * 500
+
+    def toggle(self, index: int):
+        self.checkboxes[index] = not self.checkboxes[index]
+        return self.checkboxes[index]
+
+    def random_toggle(self):
+        index = random.randint(0, len(self.checkboxes) - 1)
+        return index, self.toggle(index)
 
 
-@filters.register
-def mod(a: int, b: int) -> bool:
-    return a % b == 0
+CHECKBOXES = CheckboxManager()
 
 
 class CheckboxContext(TypedDict):
     checkboxes: list[bool]
 
 
-GLOBAL_CHECKBOXES = [False] * 500
-
-
 class CheckboxLiveView(LiveView[CheckboxContext]):
     async def mount(self, socket: LiveViewSocket[CheckboxContext], _session):
-        # random list of 100 true/false values
-        socket.context = {"checkboxes": GLOBAL_CHECKBOXES}
+        socket.context = {"checkboxes": CHECKBOXES.checkboxes}
 
         if socket.connected:
             await socket.subscribe("checkboxes")
+            socket.schedule_info("random_toggle", 3)
 
     async def handle_event(
         self, event, payload, socket: LiveViewSocket[CheckboxContext]
     ):
         if event == "toggle":
-
             index = int(payload["index"])
-            value = not socket.context["checkboxes"][index]
-
-            global GLOBAL_CHECKBOXES
-            GLOBAL_CHECKBOXES[index] = value
+            value = CHECKBOXES.toggle(index)
 
             await socket.broadcast("checkboxes", {"index": index, "value": value})
 
     async def handle_info(self, event, socket: LiveViewSocket[CheckboxContext]):
-        index = event.payload["index"]
-        value = event.payload["value"]
-
-        print("index", index, "value", value)
+        if event == "random_toggle":
+            index, value = CHECKBOXES.random_toggle()
+            await socket.broadcast("checkboxes", {"index": index, "value": value})
