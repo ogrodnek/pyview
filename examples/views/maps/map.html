@@ -1,46 +1,36 @@
 <style>
     body {
-        font-family: Arial, sans-serif;
-        padding: 8;
         max-width: max-content;
+        padding-left: 24px;
     }
 
     .map_wrapper {
         display: grid;
         grid-template-columns: 300px 1fr;
-        gap: 20px;
-        padding: 20px;
-    }
-
-    .content {
-        padding: 20px;
-        border-radius: 8px;
-    }
-
-    .sidebar {
-        padding: 20px;
-        border-radius: 8px;
-        overflow: visible;
+        gap: 12px;
+        padding: 12px;
     }
 
     .sidebar ul {
         list-style-type: none;
         padding: 0;
+        margin: 0;
     }
 
     .sidebar ul li {
-        margin-bottom: 10px;
+        margin-bottom: 4px;
     }
 
     .sidebar ul li a {
         display: inline-block;
-        padding: 5px;
+        padding: 4px;
         color: inherit;
     }
 
     .sidebar ul li a .icon {
         transition: transform 0.3s ease;
         display: inline-block;
+        padding-right: 4px;
     }
 
     .sidebar ul li a:hover .name {
@@ -51,9 +41,14 @@
     .sidebar ul li a:hover .icon {
         transform: scale(1.5);
     }
+
+    #map {
+        height: 640px;
+        width: 800px;
+    }
 </style>
 
-<h1>National Park Planner</h1>
+<h1>🌲 National Park Planner</h1>
 
 <div class="map_wrapper">
     <div class="sidebar">
@@ -70,7 +65,7 @@
     </div>
     <div class="content">
         <div id="map_wrapper" phx-update="ignore">
-            <div id="map" phx-hook="ParksMap" data-parks="{{parks|json_encode}}" style="height: 800px; width: 1024px;">
+            <div id="map" phx-hook="ParksMap" data-parks="{{parks|json_encode}}">
 
             </div>
         </div>
