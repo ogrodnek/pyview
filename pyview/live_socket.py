@@ -29,6 +29,7 @@ class UnconnectedSocket(Generic[T]):
 class LiveViewSocket(Generic[T]):
     context: T
     live_title: Optional[str] = None
+    pending_events: list[tuple[str, Any]]
 
     def __init__(self, websocket: WebSocket, topic: str, liveview: LiveView):
         self.websocket = websocket
@@ -37,6 +38,7 @@ class LiveViewSocket(Generic[T]):
         self.scheduled_jobs = []
         self.connected = True
         self.pub_sub = PubSub(pub_sub_hub, topic)
+        self.pending_events = []
 
     async def subscribe(self, topic: str):
         await self.pub_sub.subscribe_topic_async(topic, self._topic_callback_internal)
@@ -108,6 +110,9 @@ class LiveViewSocket(Generic[T]):
             await self.websocket.send_text(json.dumps(message))
         except Exception as e:
             print("Error sending message", e)
+
+    async def push_event(self, event: str, value: dict[str, Any]):
+        self.pending_events.append((event, value))
 
     async def close(self):
         self.connected = False
