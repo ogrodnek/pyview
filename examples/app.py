@@ -17,14 +17,28 @@ from .views import (
     PingLiveView,
     CheckboxLiveView,
     PresenceLiveView,
+    MapLiveView,
 )
 
 app = PyView()
-app.mount("/static", StaticFiles(packages=[("pyview", "static")]), name="static")
+app.mount(
+    "/static",
+    StaticFiles(packages=[("pyview", "static"), ("examples.views.maps", "static")]),
+    name="static",
+)
 
 css = """
 <link rel="stylesheet" href="https://classless.de/classless.css">
 <link rel="stylesheet" href="https://unpkg.com/nprogress@0.2.0/nprogress.css" />
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
+ <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+
+<script defer type="text/javascript" src="/static/map.js"></script>
 """
 
 
@@ -121,6 +135,16 @@ routes = [
         "presence",
         """
         A simple example of presence tracking.  Open this example in multiple windows
+        """,
+    ),
+    (
+        "/maps",
+        MapLiveView,
+        "Maps",
+        "maps",
+        """
+        A simple example of using Leaflet.js with PyView, and sending information back and 
+        forth between the liveview and the JS library.
         """,
     ),
 ]

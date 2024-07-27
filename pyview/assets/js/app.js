@@ -26,7 +26,7 @@ import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
 import NProgress from "nprogress";
 
-let Hooks = {};
+let Hooks = window.Hooks ?? {};
 
 let scrollAt = () => {
   let scrollTop = document.documentElement.scrollTop || document.body.scrollTop;

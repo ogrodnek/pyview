@@ -1,0 +1,33 @@
+<div>
+    <h1>File Upload with Phoenix LiveView</h1>
+    <form id="upload-form" phx-change="validate" phx-submit="save" enctype="multipart/form-data">
+        <input type="file" id="file-input" name="file" multiple>
+        <button type="submit">Upload</button>
+    </form>
+
+    <div id="progress-bar" style="display: none;">
+        <h2>Uploading...</h2>
+        <progress id="upload-progress" max="100" value="0"></progress>
+    </div>
+
+    <div id="uploaded-files">
+        <h2>Uploaded Files:</h2>
+        <!-- Uploaded files will be dynamically inserted here by LiveView -->
+    </div>
+</div>
+
+<script>
+    document.addEventListener('phx:page-loading-start', info => {
+        document.getElementById('progress-bar').style.display = 'block';
+    });
+
+    document.addEventListener('phx:page-loading-stop', info => {
+        document.getElementById('progress-bar').style.display = 'none';
+        document.getElementById('upload-progress').value = 0;
+    });
+
+    window.addEventListener('phx:upload:progress', (event) => {
+        const { ref, progress } = event.detail;
+        document.getElementById('upload-progress').value = progress;
+    });
+</script>

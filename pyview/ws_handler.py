@@ -96,12 +96,18 @@ class LiveSocketHandler:
                 await socket.liveview.handle_event(payload["event"], value, socket)
                 rendered = await _render(socket)
 
+                hook_events = (
+                    {} if not socket.pending_events else {"e": socket.pending_events}
+                )
+
+                socket.pending_events = []
+
                 resp = [
                     joinRef,
                     mesageRef,
                     topic,
                     "phx_reply",
-                    {"response": {"diff": rendered}, "status": "ok"},
+                    {"response": {"diff": rendered | hook_events}, "status": "ok"},
                 ]
                 await self.manager.send_personal_message(
                     json.dumps(resp), socket.websocket

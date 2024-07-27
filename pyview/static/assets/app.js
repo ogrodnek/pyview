@@ -5459,7 +5459,8 @@ within:
 
   // assets/js/app.js
   var import_nprogress = __toESM(require_nprogress());
-  var Hooks2 = {};
+  var _a;
+  var Hooks2 = (_a = window.Hooks) != null ? _a : {};
   var scrollAt = () => {
     let scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
     let scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight;

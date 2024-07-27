@@ -10,6 +10,7 @@ from .js_commands import JsCommandsLiveView
 from .webping import PingLiveView
 from .checkboxes import CheckboxLiveView
 from .presence import PresenceLiveView
+from .maps import MapLiveView
 
 __all__ = [
     "CountLiveView",
@@ -25,4 +26,5 @@ __all__ = [
     "PingLiveView",
     "CheckboxLiveView",
     "PresenceLiveView",
+    "MapLiveView",
 ]

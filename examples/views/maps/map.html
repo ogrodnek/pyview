@@ -1,0 +1,73 @@
+<style>
+    body {
+        max-width: max-content;
+        padding-left: 24px;
+    }
+
+    .map_wrapper {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 12px;
+        padding: 12px;
+    }
+
+    .sidebar ul {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .sidebar ul li {
+        margin-bottom: 4px;
+    }
+
+    .sidebar ul li a {
+        display: inline-block;
+        padding: 4px;
+        color: inherit;
+    }
+
+    .sidebar ul li a .icon {
+        transition: transform 0.3s ease;
+        display: inline-block;
+        padding-right: 4px;
+    }
+
+    .sidebar ul li a:hover .name {
+        text-decoration: underline;
+        text-decoration-color: green;
+    }
+
+    .sidebar ul li a:hover .icon {
+        transform: scale(1.5);
+    }
+
+    #map {
+        height: 640px;
+        width: 800px;
+    }
+</style>
+
+<h1>🌲 National Park Planner</h1>
+
+<div class="map_wrapper">
+    <div class="sidebar">
+        <ul>
+            {% for park in parks %}
+            <li>
+                <a href="#" phx-click="select-park" phx-value-name="{{ park.name }}"
+                    style="{% if selected_park_name == park.name %}color: green;{% endif %}"><span
+                        class="icon">{{park.icon}}</span>
+                    <span class="name">{{ park.name }}</span></a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    <div class="content">
+        <div id="map_wrapper" phx-update="ignore">
+            <div id="map" phx-hook="ParksMap" data-parks="{{parks|json_encode}}">
+
+            </div>
+        </div>
+    </div>
+</div>
