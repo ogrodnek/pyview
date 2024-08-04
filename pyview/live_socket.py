@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from pyview.vendor.flet.pubsub import PubSubHub, PubSub
 from pyview.events import InfoEvent
+from pyview.uploads import UploadConstraints, UploadConfig, UploadManager
 import datetime
 
 
@@ -31,6 +32,8 @@ class LiveViewSocket(Generic[T]):
     live_title: Optional[str] = None
     pending_events: list[tuple[str, Any]]
 
+    upload_manager: UploadManager
+
     def __init__(self, websocket: WebSocket, topic: str, liveview: LiveView):
         self.websocket = websocket
         self.topic = topic
@@ -39,6 +42,7 @@ class LiveViewSocket(Generic[T]):
         self.connected = True
         self.pub_sub = PubSub(pub_sub_hub, topic)
         self.pending_events = []
+        self.upload_manager = UploadManager()
 
     async def subscribe(self, topic: str):
         await self.pub_sub.subscribe_topic_async(topic, self._topic_callback_internal)
@@ -114,11 +118,21 @@ class LiveViewSocket(Generic[T]):
     async def push_event(self, event: str, value: dict[str, Any]):
         self.pending_events.append((event, value))
 
+    def allow_upload(
+        self, upload_name: str, constraints: UploadConstraints
+    ) -> UploadConfig:
+        return self.upload_manager.allow_upload(upload_name, constraints)
+
     async def close(self):
         self.connected = False
         for id in self.scheduled_jobs:
             scheduler.remove_job(id)
         await self.pub_sub.unsubscribe_all_async()
+
+        try:
+            self.upload_manager.close()
+        except Exception:
+            pass
 
         try:
             await self.liveview.disconnect(self)

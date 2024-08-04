@@ -18,6 +18,7 @@ from .views import (
     CheckboxLiveView,
     PresenceLiveView,
     MapLiveView,
+    FileUploadDemoLiveView,
 )
 
 app = PyView()
@@ -145,6 +146,15 @@ routes = [
         """
         A simple example of using Leaflet.js with PyView, and sending information back and 
         forth between the liveview and the JS library.
+        """,
+    ),
+    (
+        "/file_upload",
+        FileUploadDemoLiveView,
+        "File Upload",
+        "file_upload",
+        """
+        File upload example, with previews and progress bars.
         """,
     ),
 ]
