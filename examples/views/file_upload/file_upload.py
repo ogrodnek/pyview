@@ -23,23 +23,21 @@ def readable_size(input) -> str:
 
 @dataclass
 class FileUploadDemoContext:
-    upload_config: Optional[UploadConfig] = None
-    files: list[str] = field(default_factory=list)
-    message: Optional[str] = None
+    upload_config: UploadConfig
     file_repository: FileRepository = field(default_factory=FileRepository)
     uploaded_files: list[FileEntry] = field(default_factory=list)
 
 
 class FileUploadDemoLiveView(LiveView[FileUploadDemoContext]):
     async def mount(self, socket: LiveViewSocket[FileUploadDemoContext], _session):
-        socket.context = FileUploadDemoContext()
-        if socket.connected:
-            socket.live_title = "File Upload Demo"
-            constraints = UploadConstraints(
+        config = socket.allow_upload(
+            "photos",
+            constraints=UploadConstraints(
                 max_file_size=1 * 1024 * 1024, max_files=3, accept=[".jpg", ".jpeg"]
-            )
-            config = socket.allow_upload("photos", constraints)
-            socket.context = FileUploadDemoContext(upload_config=config)
+            ),
+        )
+        socket.context = FileUploadDemoContext(upload_config=config)
+        socket.live_title = "File Upload Demo"
 
     async def handle_event(
         self, event, payload, socket: LiveViewSocket[FileUploadDemoContext]

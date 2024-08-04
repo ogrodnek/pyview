@@ -17,8 +17,7 @@ class ConstraintViolation:
     def message(self) -> str:
         if self.code == "too_large":
             return "File too large"
-        if self.code == "too_many_files":
-            return "Too many files"
+        return "Too many files"
 
 
 class UploadEntry(BaseModel):
@@ -194,7 +193,7 @@ class UploadManager:
 
         if not config:
             print("Can't find config for ref", ref)
-            return
+            return {"error": [(ref, "not_found")]}
 
         proposed_entries = payload["entries"]
 
@@ -220,9 +219,10 @@ class UploadManager:
         token = payload["token"]
 
         config = self.config_for_name(token["path"])
-        self.upload_config_join_refs[joinRef] = config
-        entry = UploadEntry(**token)
-        config.uploads.add_upload(joinRef, entry)
+        if config:
+            self.upload_config_join_refs[joinRef] = config
+            entry = UploadEntry(**token)
+            config.uploads.add_upload(joinRef, entry)
 
     def add_chunk(self, joinRef: str, chunk: bytes):
         config = self.upload_config_join_refs[joinRef]
@@ -235,11 +235,12 @@ class UploadManager:
         progress = int(payload["progress"])
 
         config = self.config_for_ref(upload_config_ref)
-        config.update_progress(entry_ref, progress)
+        if config:
+            config.update_progress(entry_ref, progress)
 
-        if progress == 100:
-            joinRef = config.uploads.join_ref_for_entry(entry_ref)
-            del self.upload_config_join_refs[joinRef]
+            if progress == 100:
+                joinRef = config.uploads.join_ref_for_entry(entry_ref)
+                del self.upload_config_join_refs[joinRef]
 
     def no_progress(self, joinRef) -> bool:
         config = self.upload_config_join_refs[joinRef]
@@ -285,8 +286,9 @@ def live_file_input(config: Optional[UploadConfig]) -> Markup:
 
 @filters.register
 def upload_preview_tag(entry: UploadEntry) -> Markup:
+    config_ref = entry.upload_config.ref if entry.upload_config else ""
     return Markup(
-        f"""<img id="phx-preview-{entry.ref}" data-phx-upload-ref="{entry.upload_config.ref}"
+        f"""<img id="phx-preview-{entry.ref}" data-phx-upload-ref="{config_ref}"
             data-phx-entry-ref="{entry.ref}" data-phx-hook="Phoenix.LiveImgPreview" data-phx-update="ignore" />
         """
     )

@@ -26,6 +26,11 @@ class UnconnectedSocket(Generic[T]):
     connected: bool = False
     live_title: Optional[str] = None
 
+    def allow_upload(
+        self, upload_name: str, constraints: UploadConstraints
+    ) -> UploadConfig:
+        return UploadConfig(name=upload_name, constraints=constraints)
+
 
 class LiveViewSocket(Generic[T]):
     context: T
