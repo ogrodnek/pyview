@@ -206,7 +206,7 @@
             {% for file in uploaded_files %}
             <div class="photo-item">
                 <img src="{{file.inline_image}}" />
-                <div class="photo-caption">{{file.file_name}}</div>
+                <div class="photo-caption">{{file.file_name | truncatechars(20)}}</div>
             </div>
             {% endfor %}
         </div>
