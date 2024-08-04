@@ -10,6 +10,7 @@ package-mode = false
 python = "^3.9.16"
 pyview-web = {path = "..", develop = true}
 aiohttp = "^3.9.4"
+pillow = "^10.4.0"
 
 
 [build-system]

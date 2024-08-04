@@ -11,6 +11,7 @@ from .webping import PingLiveView
 from .checkboxes import CheckboxLiveView
 from .presence import PresenceLiveView
 from .maps import MapLiveView
+from .file_upload import FileUploadDemoLiveView
 
 __all__ = [
     "CountLiveView",
@@ -27,4 +28,5 @@ __all__ = [
     "CheckboxLiveView",
     "PresenceLiveView",
     "MapLiveView",
+    "FileUploadDemoLiveView",
 ]

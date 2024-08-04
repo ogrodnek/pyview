@@ -1,33 +1,214 @@
-<div>
-    <h1>File Upload with Phoenix LiveView</h1>
-    <form id="upload-form" phx-change="validate" phx-submit="save" enctype="multipart/form-data">
-        <input type="file" id="file-input" name="file" multiple>
-        <button type="submit">Upload</button>
-    </form>
+<style>
+    .upload-wrapper {
+        width: 500px;
+        margin: 0 auto;
+    }
 
-    <div id="progress-bar" style="display: none;">
-        <h2>Uploading...</h2>
-        <progress id="upload-progress" max="100" value="0"></progress>
+    .file-item {
+        display: flex;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .file-thumbnail {
+        width: 64px;
+        height: 64px;
+        border-radius: 4px;
+        margin-right: 10px;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .file-thumbnail img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .file-info {
+        flex-grow: 1;
+    }
+
+    .file-info p {
+        margin: 0;
+        font-size: 14px;
+        color: #333;
+    }
+
+    .file-item.error {
+        background-color: #f8d7da;
+    }
+
+    .file-progress {
+        height: 6px;
+        background-color: #e0e0e0;
+        border-radius: 3px;
+        overflow: hidden;
+        margin: 4px 0;
+    }
+
+    .file-progress-bar {
+        height: 100%;
+        background-color: #4caf50;
+        border-radius: 3px;
+    }
+
+    .file-cancel {
+        background-color: transparent;
+        border: none;
+        cursor: pointer;
+        font-size: 18px;
+        color: #999;
+        margin-left: 10px;
+    }
+
+    .uploaded-files {
+        margin-top: 20px;
+    }
+
+    .upload-button-container {
+        text-align: right;
+    }
+
+    .photo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 10px;
+    }
+
+    .photo-grid .photo-item {
+        background: white;
+        padding: 10px;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .photo-grid .photo-item::before {
+        content: "";
+        display: block;
+        padding-bottom: 100%;
+    }
+
+    .photo-grid .photo-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+
+    .photo-caption {
+        margin-top: auto;
+        padding: 5px 0;
+        font-size: 12px;
+        color: #333;
+        background-color: white;
+        width: 100%;
+        text-align: center;
+        border-top: 1px solid #ddd;
+        position: absolute;
+        bottom: 0;
+    }
+
+    .error-text {
+        color: #721c24;
+        font-size: 12px;
+    }
+
+    .error-message {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+
+    button {
+        margin-right: 0;
+    }
+
+    .upload-instructions {
+        font-size: 0.9em;
+        font-style: oblique;
+        color: #999;
+    }
+</style>
+
+<div class="upload-wrapper">
+    <div class="upload-header">
+        <h1>📁 File Upload with PyView</h1>
+        <form id="upload-form" phx-change="validate" phx-submit="save">
+            <div phx-drop-target="{{upload_config.ref}}"
+                style="border: 2px dashed #ccc; padding: 10px; margin: 10px 0; width: 500px">
+                <p class="upload-instructions">Add up to
+                    {{upload_config.constraints.max_files}} photos (max
+                    {{upload_config.constraints.max_file_size | readable_size}})</p>
+                {{upload_config | live_file_input}}
+                <span class=" upload-instructions">
+                    ... or drag and drop files here
+                </span>
+            </div>
+            <div class="upload-button-container">
+                <button type="submit" phx-disable-with="Saving..."
+                    {%if not upload_config.entries %}disabled{%endif%}>Upload</button>
+            </div>
+        </form>
     </div>
 
-    <div id="uploaded-files">
-        <h2>Uploaded Files:</h2>
-        <!-- Uploaded files will be dynamically inserted here by LiveView -->
+    {% for error in upload_config.errors %}
+    <p class="error-message">🚫 {{ error.message }}</p>
+    {% endfor %}
+
+    <div class="file-upload-list">
+        {%if upload_config.entries %}
+        <h3>📤 Pending Uploads</h3>
+        {%endif%}
+
+
+        {% for entry in upload_config.entries %}
+        <div class="file-item {%if entry.errors%}error{%endif%}">
+            <div class="file-thumbnail">
+                {{ entry | upload_preview_tag}}
+            </div>
+            <div class="file-info">
+                <p>{{entry.name}}</p>
+                <p>{{entry.type}} • {{entry.size | readable_size}}</p>
+                {% for error in entry.errors %}
+                <p style="color: #721c24">{{error.message}}</p>
+                {% endfor %}
+                <div class="file-progress" style="width: {{entry.progress}}%;">
+                    <div class="file-progress-bar"></div>
+                </div>
+            </div>
+            <a class="file-cancel" phx-click="cancel" phx-value-ref="{{ entry.ref }}">&times;</a>
+        </div>
+        {% endfor %}
+    </div>
+
+
+    <div class="uploaded-files">
+        {%if uploaded_files %}
+        <h3>🌐 Uploaded Images</h3>
+        {%endif%}
+        <div class="photo-grid" id="photo-grid">
+            {% for file in uploaded_files %}
+            <div class="photo-item">
+                <img src="{{file.inline_image}}" />
+                <div class="photo-caption">{{file.file_name | truncatechars(20)}}</div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 </div>
-
-<script>
-    document.addEventListener('phx:page-loading-start', info => {
-        document.getElementById('progress-bar').style.display = 'block';
-    });
-
-    document.addEventListener('phx:page-loading-stop', info => {
-        document.getElementById('progress-bar').style.display = 'none';
-        document.getElementById('upload-progress').value = 0;
-    });
-
-    window.addEventListener('phx:upload:progress', (event) => {
-        const { ref, progress } = event.detail;
-        document.getElementById('upload-progress').value = progress;
-    });
-</script>
