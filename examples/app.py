@@ -19,12 +19,19 @@ from .views import (
     PresenceLiveView,
     MapLiveView,
     FileUploadDemoLiveView,
+    KanbanLiveView,
 )
 
 app = PyView()
 app.mount(
     "/static",
-    StaticFiles(packages=[("pyview", "static"), ("examples.views.maps", "static")]),
+    StaticFiles(
+        packages=[
+            ("pyview", "static"),
+            ("examples.views.maps", "static"),
+            ("examples.views.kanban", "static"),
+        ]
+    ),
     name="static",
 )
 
@@ -32,6 +39,7 @@ css = """
 <link rel="stylesheet" href="https://classless.de/classless.css">
 <link rel="stylesheet" href="https://unpkg.com/nprogress@0.2.0/nprogress.css" />
 
+<!-- Leaflet CSS + JS for maps example -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     
@@ -40,6 +48,10 @@ css = """
      crossorigin=""></script>
 
 <script defer type="text/javascript" src="/static/map.js"></script>
+
+<!-- Sortable JS for kanban example -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="/static/kanban.js"></script>
 """
 
 
@@ -155,6 +167,15 @@ routes = [
         "file_upload",
         """
         File upload example, with previews and progress bars.
+        """,
+    ),
+    (
+        "/kanban",
+        KanbanLiveView,
+        "Kanban Board",
+        "kanban",
+        """
+        A simple Kanban board example with drag and drop (another hooks example showing integration w/ SortableJS).
         """,
     ),
 ]

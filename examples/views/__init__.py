@@ -12,6 +12,7 @@ from .checkboxes import CheckboxLiveView
 from .presence import PresenceLiveView
 from .maps import MapLiveView
 from .file_upload import FileUploadDemoLiveView
+from .kanban import KanbanLiveView
 
 __all__ = [
     "CountLiveView",
@@ -29,4 +30,5 @@ __all__ = [
     "PresenceLiveView",
     "MapLiveView",
     "FileUploadDemoLiveView",
+    "KanbanLiveView",
 ]

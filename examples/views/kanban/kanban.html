@@ -1,0 +1,209 @@
+<style>
+    main {
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: start;
+        height: 100vh;
+    }
+
+    h1 {
+        margin-top: 12px;
+        text-align: center;
+    }
+
+    .kanban-board {
+        display: flex;
+        gap: 20px;
+    }
+
+    .kanban-list {
+        background-color: #f0f2f5;
+        border-radius: 8px;
+        width: 300px;
+        padding: 15px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .kanban-list h3 {
+        margin: 0;
+        padding: 0;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        color: #333;
+        font-size: 16px;
+        justify-content: space-between;
+    }
+
+    .kanban-list h3 .status-container {
+        display: flex;
+        align-items: center;
+    }
+
+    .kanban-list h3 .status-circle {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+
+    .kanban-list h3 .item-count {
+        background-color: #E0E0E0;
+        border-radius: 12px;
+        padding: 2px 6px;
+        font-size: 12px;
+        color: #555;
+        margin-left: 8px;
+    }
+
+    .kanban-list h3 .item-count.error {
+        background-color: #FFE5E5;
+        color: #D32F2F;
+    }
+
+    .kanban-list h3 .add-button {
+        background-color: #EDEDED;
+        border: none;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 18px;
+        color: #555;
+        transition: background-color 0.2s ease;
+        padding: 0;
+        box-sizing: content-box;
+    }
+
+
+    .kanban-list h3 .add-button:hover {
+        background-color: #D0D0D0;
+    }
+
+
+    .kanban-cards {
+        flex-grow: 1;
+        margin-top: 10px;
+    }
+
+    .kanban-card {
+        background-color: #fff;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+        cursor: pointer;
+        transition: box-shadow 0.2s;
+    }
+
+    .kanban-card:hover {
+        box-shadow: 0 3px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .kanban-card .card-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+
+    .kanban-card .card-header span {
+        font-size: 14px;
+        font-weight: 700;
+        color: #757575;
+    }
+
+    .kanban-card .card-title {
+        font-size: 18px;
+        font-weight: 700;
+        margin: 0 0 10px;
+        color: #333;
+    }
+
+    .kanban-card .card-description {
+        font-size: 14px;
+        color: #757575;
+        margin: 0 0 15px;
+    }
+
+    .kanban-card .card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .kanban-card img {
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+    }
+
+    .kanban-card .priority {
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        color: #fff;
+    }
+
+    .kanban-card .priority.high {
+        background-color: rgba(161, 39, 39, 0.2);
+    }
+
+    .kanban-card .priority.mid {
+        background-color: rgba(243, 168, 59, 0.2);
+    }
+
+    .kanban-card .priority.low {
+        background-color: rgba(54, 114, 184, 0.2);
+    }
+</style>
+
+<h1>📋 Kanban Board</h1>
+<main>
+    <div id="kb_board" class="kanban-board" phx-hook="KanbanBoard">
+        {% for task_list in task_lists %}
+        <div id="{{ task_list.title }}" class="kanban-list {{ task_list.title }}">
+            <h3>
+                <span class="status-container">
+                    <span class="status-circle" style="background-color: {{task_list.color}};"></span>
+                    {{ task_list.title }}
+                    <span
+                        class="item-count{%if task_list.wip_exceeded %} error{%endif%}">{{ task_list.tasks|len }}{%if task_list.wip_limit %}
+                        /
+                        {{ task_list.wip_limit }}{%endif%}</span>
+                </span>
+                <button phx-click="add_task" phx-value-task_list="{{task_list.title}}" class="add-button">+</button>
+            </h3>
+            <div class=" kanban-cards">
+                {% for task in task_list.tasks %}
+                <div class=" kanban-card" data-id="{{ task.id }}">
+                    <div class="card-header">
+                        <span>{{ task.category }}</span>
+                        <span class="priority {{ task.priority }}">
+                            {{ task.priority | priority_icon}}
+                        </span>
+                    </div>
+                    <div class="card-title">{{ task.title }}</div>
+                    <div class="card-description">{{ task.description | truncatewords(15) }}</div>
+                    <div class="card-footer">
+                        <img src="{{ task.avatar }}" alt="Avatar">
+                    </div>
+                </div>
+
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+</main>
