@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 import random
 import uuid
-from typing import Literal, TypeAlias, Optional
+from typing import Literal, Optional
 
-TaskStatus: TypeAlias = Literal["Backlog", "In Progress", "Done"]
+TaskStatus = Literal["Backlog", "In Progress", "Done"]
 
 
 @dataclass
