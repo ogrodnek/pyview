@@ -36,9 +36,9 @@ class ParksMap {
   }
 }
 
-window.Hooks = {};
+window.Hooks = window.Hooks ?? {};
 
-Hooks.ParksMap = {
+window.Hooks.ParksMap = {
   mounted() {
     this.map = new ParksMap(this.el, [44.428, -110.5885], (event) => {
       this.pushEvent("highlight-park", event);
