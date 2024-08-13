@@ -8,6 +8,12 @@ class Volume:
 
 
 class VolumeLiveView(LiveView[Volume]):
+    """
+    Volume Control
+
+    Keyboard events!
+    """
+
     async def mount(self, socket: LiveViewSocket[Volume], _session):
         socket.context = Volume()
 

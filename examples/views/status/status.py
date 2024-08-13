@@ -38,6 +38,12 @@ class StatusContext:
 
 
 class StatusLiveView(LiveView[StatusContext]):
+    """
+    Realtime Status Dashboard
+
+    Pushing updates from the backend to the client.
+    """
+
     async def mount(self, socket: LiveViewSocket[StatusContext], _session):
         socket.context = StatusContext()
         if socket.connected:

@@ -14,6 +14,13 @@ class Count:
 
 
 class CountLiveViewPubSub(LiveView[Count]):
+    """
+    Basic Counter with PubSub
+
+    The counter example, but with PubSub.  Open this example in multiple windows
+    to see the state update in real time across all windows.
+    """
+
     async def mount(self, socket: LiveViewSocket[Count], _session):
         socket.context = Count()
         if socket.connected:

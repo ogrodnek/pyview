@@ -39,6 +39,12 @@ timeout = aiohttp.ClientTimeout(total=10)
 
 
 class PingLiveView(LiveView[PingContext]):
+    """
+    Web Ping
+
+    Another example of pushing updates from the backend to the client.
+    """
+
     async def mount(self, socket: LiveViewSocket[PingContext], _session):
         socket.context = PingContext(
             [
@@ -59,7 +65,9 @@ class PingLiveView(LiveView[PingContext]):
             async with session.head(site.url) as response:
                 status = response.status
                 diff = (time.time_ns() - start) / 1_000_000
-                site.responses.append(PingResponse(status, diff, datetime.datetime.now()))
+                site.responses.append(
+                    PingResponse(status, diff, datetime.datetime.now())
+                )
                 site.status = "OK" if status == 200 else "Error"
 
     async def handle_info(self, event, socket: LiveViewSocket[PingContext]):

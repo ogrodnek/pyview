@@ -18,6 +18,13 @@ class MapContext:
 
 
 class MapLiveView(LiveView[MapContext]):
+    """
+    Maps
+
+    A simple example of using Leaflet.js with PyView, and sending information back and
+    forth between the liveview and the JS library.
+    """
+
     async def mount(self, socket: LiveViewSocket[MapContext], _session):
         socket.context = MapContext(
             parks=national_parks, selected_park_name=national_parks[0]["name"]

@@ -7,6 +7,13 @@ class CountContext(TypedDict):
 
 
 class CountLiveView(LiveView[CountContext]):
+    """
+    Basic Counter
+
+    Gotta start somewhere, right? This example shows how to send click events
+    to the backend to update state.  We also snuck in handling URL params.
+    """
+
     async def mount(self, socket: LiveViewSocket[CountContext], _session):
         socket.context = {"count": 0}
 

@@ -23,8 +23,13 @@ class PresenceContext:
 
 
 class PresenceLiveView(LiveView[PresenceContext]):
-    async def mount(self, socket: LiveViewSocket[PresenceContext], _session):
+    """
+    Presence
 
+    A simple example of presence tracking.  Open this example in multiple windows.
+    """
+
+    async def mount(self, socket: LiveViewSocket[PresenceContext], _session):
         socket.context = PresenceContext(connected=USER_REPO.all())
 
         if socket.connected:
