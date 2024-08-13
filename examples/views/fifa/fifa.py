@@ -9,6 +9,12 @@ class FifaContext(TypedDict):
 
 
 class FifaAudienceLiveView(LiveView[FifaContext]):
+    """
+    Table Pagination
+
+    Table Pagination, and updating the URL from the backend.
+    """
+
     async def mount(self, socket: LiveViewSocket[FifaContext], _session):
         paging = Paging(1, 10)
         audiences = list_items(paging)
@@ -22,7 +28,9 @@ class FifaAudienceLiveView(LiveView[FifaContext]):
 
         socket.context["audiences"] = audiences
 
-        await socket.push_patch("/fifa", {"page": paging.page, "perPage": paging.perPage})
+        await socket.push_patch(
+            "/fifa", {"page": paging.page, "perPage": paging.perPage}
+        )
 
     async def handle_params(self, url, params, socket: LiveViewSocket[FifaContext]):
         paging = socket.context["paging"]

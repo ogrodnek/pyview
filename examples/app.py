@@ -3,6 +3,7 @@ from starlette.staticfiles import StaticFiles
 from starlette.routing import Route
 from pyview import PyView, defaultRootTemplate
 from markupsafe import Markup
+from .format_examples import ExampleEntry, format_examples
 
 from .views import (
     CountLiveView,
@@ -62,76 +63,16 @@ def content_wrapper(_context, content: Markup) -> Markup:
 app.rootTemplate = defaultRootTemplate(css=Markup(css), content_wrapper=content_wrapper)
 
 routes = [
-    (
-        "/count",
-        CountLiveView,
-        "Basic Counter",
-        "count.py",
-        """
-        Gotta start somewhere, right? This example shows how to send click events
-        to the backend to update state.  We also snuck in handling URL params.
-        """,
-    ),
-    (
-        "/count_pubsub",
-        CountLiveViewPubSub,
-        "Basic Counter with PubSub",
-        "count_pubsub.py",
-        """
-        The counter example, but with PubSub.  Open this example in multiple windows
-        to see the state update in real time across all windows.
-        """,
-    ),
-    ("/volume", VolumeLiveView, "Volume Control", "volume.py", "Keyboard events!"),
-    (
-        "/registration",
-        RegistrationLiveView,
-        "Registration Form Validation",
-        "registration",
-        "Form validation using Pydantic",
-    ),
-    ("/plants", PlantsLiveView, "Form Validation 2", "form_validation", ""),
-    (
-        "/fifa",
-        FifaAudienceLiveView,
-        "Table Pagination",
-        "fifa",
-        "Table Pagination, and updating the URL from the backend.",
-    ),
-    (
-        "/podcasts",
-        PodcastLiveView,
-        "Podcasts",
-        "podcasts",
-        """
-     URL Parameters, client navigation updates, and dynamic page titles.
-     """,
-    ),
-    (
-        "/status",
-        StatusLiveView,
-        "Realtime Status Dashboard",
-        "status",
-        "Pushing updates from the backend to the client.",
-    ),
-    (
-        "/js_commands",
-        JsCommandsLiveView,
-        "JS Commands",
-        "js_commands",
-        """
-        JS Commands let you update the DOM without making a trip to the server.
-     """,
-    ),
-    (
-        "/webping",
-        PingLiveView,
-        "Web Ping",
-        "webping",
-        """
-     Another example of pushing updates from the backend to the client.
-     """,
-    ),
+    ("/count", CountLiveView),
+    ("/count_pubsub", CountLiveViewPubSub),
+    ("/volume", VolumeLiveView),
+    ("/registration", RegistrationLiveView),
+    ("/plants", PlantsLiveView),
+    ("/fifa", FifaAudienceLiveView),
+    ("/podcasts", PodcastLiveView),
+    ("/status", StatusLiveView),
+    ("/js_commands", JsCommandsLiveView),
+    ("/webping", PingLiveView),
     # (
     #     "/checkboxes",
     #     CheckboxLiveView,
@@ -141,58 +82,20 @@ routes = [
     #     A silly multi-user game where you can click checkboxes.
     #     """,
     # ),
-    (
-        "/presence",
-        PresenceLiveView,
-        "Presence",
-        "presence",
-        """
-        A simple example of presence tracking.  Open this example in multiple windows
-        """,
-    ),
-    (
-        "/maps",
-        MapLiveView,
-        "Maps",
-        "maps",
-        """
-        A simple example of using Leaflet.js with PyView, and sending information back and 
-        forth between the liveview and the JS library.
-        """,
-    ),
-    (
-        "/file_upload",
-        FileUploadDemoLiveView,
-        "File Upload",
-        "file_upload",
-        """
-        File upload example, with previews and progress bars.
-        """,
-    ),
-    (
-        "/kanban",
-        KanbanLiveView,
-        "Kanban Board",
-        "kanban",
-        """
-        A simple Kanban board example with drag and drop (another hooks example showing integration w/ SortableJS).
-        """,
-    ),
+    ("/presence", PresenceLiveView),
+    ("/maps", MapLiveView),
+    ("/file_upload", FileUploadDemoLiveView),
+    ("/kanban", KanbanLiveView),
 ]
-
-for path, view, _, _, _ in routes:
-    app.add_live_view(path, view)
 
 
 async def get(request):
-    def render_example(path, title, src_file, text):
-        src_link = (
-            f"https://github.com/ogrodnek/pyview/tree/main/examples/views/{src_file}"
-        )
+    def render_example(e: ExampleEntry):
+        src_link = f"https://github.com/ogrodnek/pyview/tree/main/{e.src_path}"
         return f"""
         <div class="card">
-        <p><a href='{path}'>{title}</a></p>
-        <p>{text}</p>
+        <p><a href='{e.url_path}'>{e.title}</a></p>
+        <p>{e.text}</p>
         <p><a target="_main" style="font-size: 12px" href="{src_link}"><i>Source Code</i></a></p>
         </div>
         """
@@ -211,7 +114,7 @@ async def get(request):
         </div>
         <div>
         <h1 style='padding-bottom: 8px'>PyView Examples</h1>
-        {"".join([render_example(k,t,src, text) for k, _, t, src, text in routes])}
+        {"".join([render_example(e) for e in format_examples(routes)])}
         </div>
         </body>
         </html>
@@ -220,3 +123,6 @@ async def get(request):
 
 
 app.routes.append(Route("/", get, methods=["GET"]))
+
+for path, view in routes:
+    app.add_live_view(path, view)

@@ -9,11 +9,15 @@ from markupsafe import Markup
 
 
 @filters.register
-def input_tag(changeset: ChangeSet, field_name: str, options: Optional[dict[str, str]] = None) -> Markup:
+def input_tag(
+    changeset: ChangeSet, field_name: str, options: Optional[dict[str, str]] = None
+) -> Markup:
     type = (options or {}).get("type", "text")
     return Markup(
         """<input type="{type}" id="{field_name}" name="{field_name}" phx-debounce="2000" value="{value}" />"""
-    ).format(type=type, field_name=field_name, value=changeset.changes.get(field_name, ""))
+    ).format(
+        type=type, field_name=field_name, value=changeset.changes.get(field_name, "")
+    )
 
 
 @filters.register
@@ -44,10 +48,18 @@ class RegistrationContext(TypedDict):
 
 
 class RegistrationLiveView(LiveView):
+    """
+    Registration Form Validation
+
+    Form validation using Pydantic
+    """
+
     async def mount(self, socket: LiveViewSocket, _session):
         socket.context = RegistrationContext(changeset=change_set(Registration))
 
-    async def handle_event(self, event, payload, socket: LiveViewSocket[RegistrationContext]):
+    async def handle_event(
+        self, event, payload, socket: LiveViewSocket[RegistrationContext]
+    ):
         print(event, payload)
         if event == "validate":
             socket.context["changeset"].apply(payload)

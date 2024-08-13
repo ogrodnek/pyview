@@ -25,6 +25,13 @@ class KanbanContext:
 
 
 class KanbanLiveView(LiveView[KanbanContext]):
+    """
+    Kanban Board
+
+    A simple Kanban board example with drag and drop
+    (another hooks example showing integration w/ SortableJS).
+    """
+
     async def mount(self, socket: LiveViewSocket[KanbanContext], _session):
         socket.context = KanbanContext()
 

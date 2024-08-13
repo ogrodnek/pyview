@@ -12,6 +12,12 @@ class PodcastContext:
 
 
 class PodcastLiveView(LiveView):
+    """
+    Podcasts
+
+    URL Parameters, client navigation updates, and dynamic page titles.
+    """
+
     async def mount(self, socket: LiveViewSocket[PodcastContext], _session):
         casts = podcasts()
         socket.context = PodcastContext(casts[0], casts)

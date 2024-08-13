@@ -1,6 +1,5 @@
 from pyview import LiveView, LiveViewSocket
 from pyview.uploads import UploadConfig, UploadConstraints
-from typing import Optional
 from dataclasses import dataclass, field
 from pyview.vendor.ibis import filters
 from .file_repository import FileRepository, FileEntry
@@ -29,6 +28,12 @@ class FileUploadDemoContext:
 
 
 class FileUploadDemoLiveView(LiveView[FileUploadDemoContext]):
+    """
+    File Upload
+
+    File upload example, with previews and progress bars.
+    """
+
     async def mount(self, socket: LiveViewSocket[FileUploadDemoContext], _session):
         config = socket.allow_upload(
             "photos",
