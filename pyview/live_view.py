@@ -1,7 +1,12 @@
 from typing import TypeVar, Generic, Optional, Union, Any
 from .live_socket import LiveViewSocket, UnconnectedSocket
-from pyview.template import LiveTemplate, template_file, RenderedContent, LiveRender
-import inspect
+from pyview.template import (
+    LiveTemplate,
+    template_file,
+    RenderedContent,
+    LiveRender,
+    find_associated_file,
+)
 from pyview.events import InfoEvent
 from urllib.parse import ParseResult
 
@@ -43,11 +48,6 @@ class LiveView(Generic[T]):
 
 
 def _find_render(m: LiveView) -> Optional[LiveTemplate]:
-    cf = inspect.getfile(m.__class__)
-    return _find_template(cf)
-
-
-def _find_template(cf: str) -> Optional[LiveTemplate]:
-    if cf.endswith(".py"):
-        cf = cf[:-3]
-        return template_file(cf + ".html")
+    html = find_associated_file(m, ".html")
+    if html is not None:
+        return template_file(html)

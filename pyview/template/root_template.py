@@ -8,6 +8,7 @@ class RootTemplateContext(TypedDict):
     title: Optional[str]
     csrf_token: str
     session: Optional[str]
+    additional_head_elements: list[Markup]
 
 
 RootTemplate = Callable[[RootTemplateContext], str]
@@ -56,8 +57,9 @@ def _defaultRootTemplate(
       <meta charset="utf-8">
       <meta http-equiv="X-UA-Compatible" content="IE=edge">
       <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-      {css}      
+      {css}
       <script defer type="text/javascript" src="/static/assets/app.js"></script>
+      {"\n".join(context['additional_head_elements'])}
     </head>
     <body>"""
         )
