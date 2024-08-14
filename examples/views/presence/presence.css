@@ -1,0 +1,57 @@
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.5);
+        opacity: 0.7;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.user-list {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.user-item {
+    display: flex;
+    align-items: center;
+    margin: 5px;
+    width: 45%;
+}
+
+.color-circle {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.flash-message {
+    padding: 15px;
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    display: block;
+    animation: fadeInOut 5s ease-in-out forwards;
+}
+
+.flash-message.joined {
+    background-color: #A5D6A7;
+    color: #1B5E20;
+}
+
+.flash-message.left {
+    background-color: #FFCDD2;
+    color: #B71C1C;
+}

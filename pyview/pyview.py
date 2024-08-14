@@ -14,7 +14,12 @@ from pyview.auth import AuthProviderFactory
 from .ws_handler import LiveSocketHandler
 from .live_view import LiveView
 from .live_routes import LiveViewLookup
-from .template import RootTemplate, RootTemplateContext, defaultRootTemplate
+from .template import (
+    RootTemplate,
+    RootTemplateContext,
+    defaultRootTemplate,
+    find_associated_css,
+)
 
 
 class PyView(Starlette):
@@ -57,6 +62,8 @@ async def liveview_container(
     await lv.handle_params(urlparse(url._url), parse_qs(url.query), s)
     r = await lv.render(s.context)
 
+    liveview_css = find_associated_css(lv)
+
     id = str(uuid.uuid4())
 
     context: RootTemplateContext = {
@@ -65,6 +72,7 @@ async def liveview_container(
         "title": s.live_title,
         "csrf_token": generate_csrf_token("lv:phx-" + id),
         "session": serialize_session(session),
+        "additional_head_elements": liveview_css,
     }
 
     return HTMLResponse(template(context))
