@@ -46,6 +46,8 @@ def _defaultRootTemplate(
         ),
     )
 
+    additional_head_elements = "\n".join(context["additional_head_elements"])
+
     return (
         Markup(
             f"""
@@ -59,7 +61,7 @@ def _defaultRootTemplate(
       <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
       {css}
       <script defer type="text/javascript" src="/static/assets/app.js"></script>
-      {"\n".join(context['additional_head_elements'])}
+      {additional_head_elements}
     </head>
     <body>"""
         )
