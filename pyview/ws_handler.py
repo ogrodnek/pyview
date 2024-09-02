@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Any
 import json
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from urllib.parse import urlparse, parse_qs
@@ -8,6 +8,7 @@ from pyview.csrf import validate_csrf_token
 from pyview.session import deserialize_session
 from pyview.auth import AuthProviderFactory
 from pyview.phx_message import parse_message
+from pyview.template.render_diff import calc_diff
 
 
 class AuthException(Exception):
@@ -63,7 +64,7 @@ class LiveSocketHandler:
                 ]
 
                 await self.manager.send_personal_message(json.dumps(resp), websocket)
-                await self.handle_connected(topic, socket)
+                await self.handle_connected(topic, socket, rendered)
 
         except WebSocketDisconnect:
             if socket:
@@ -73,7 +74,9 @@ class LiveSocketHandler:
             await websocket.close()
             self.sessions -= 1
 
-    async def handle_connected(self, myJoinId, socket: LiveViewSocket):
+    async def handle_connected(
+        self, myJoinId, socket: LiveViewSocket, prev_rendered: dict[str, Any]
+    ):
         while True:
             message = await socket.websocket.receive()
             [joinRef, mesageRef, topic, event, payload] = parse_message(message)
@@ -105,6 +108,9 @@ class LiveSocketHandler:
                     {} if not socket.pending_events else {"e": socket.pending_events}
                 )
 
+                diff = calc_diff(prev_rendered, rendered)
+                prev_rendered = rendered
+
                 socket.pending_events = []
 
                 resp = [
@@ -112,7 +118,7 @@ class LiveSocketHandler:
                     mesageRef,
                     topic,
                     "phx_reply",
-                    {"response": {"diff": rendered | hook_events}, "status": "ok"},
+                    {"response": {"diff": diff | hook_events}, "status": "ok"},
                 ]
                 await self.manager.send_personal_message(
                     json.dumps(resp), socket.websocket
@@ -125,13 +131,15 @@ class LiveSocketHandler:
 
                 await lv.handle_params(url, parse_qs(url.query), socket)
                 rendered = await _render(socket)
+                diff = calc_diff(prev_rendered, rendered)
+                prev_rendered = rendered
 
                 resp = [
                     joinRef,
                     mesageRef,
                     topic,
                     "phx_reply",
-                    {"response": {"diff": rendered}, "status": "ok"},
+                    {"response": {"diff": diff}, "status": "ok"},
                 ]
                 await self.manager.send_personal_message(
                     json.dumps(resp), socket.websocket
@@ -142,7 +150,10 @@ class LiveSocketHandler:
                 allow_upload_response = socket.upload_manager.process_allow_upload(
                     payload
                 )
+
                 rendered = await _render(socket)
+                diff = calc_diff(prev_rendered, rendered)
+                prev_rendered = rendered
 
                 resp = [
                     joinRef,
@@ -208,13 +219,15 @@ class LiveSocketHandler:
             if event == "progress":
                 socket.upload_manager.update_progress(joinRef, payload)
                 rendered = await _render(socket)
+                diff = calc_diff(prev_rendered, rendered)
+                prev_rendered = rendered
 
                 resp = [
                     joinRef,
                     mesageRef,
                     topic,
                     "phx_reply",
-                    {"response": {"diff": rendered}, "status": "ok"},
+                    {"response": {"diff": diff}, "status": "ok"},
                 ]
 
                 await self.manager.send_personal_message(
