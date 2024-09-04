@@ -203,6 +203,8 @@ class Node:
                 resp.add_static(child.token.text if child.token else "")
             elif isinstance(child, PrintNode):
                 resp.add_dynamic(child.wrender(context))
+            elif isinstance(child, IncludeNode):
+                resp.add_dynamic(child.tree_parts(context))
             else:
                 resp.add_dynamic(child.tree_parts(context))
 
@@ -624,7 +626,7 @@ class IncludeNode(Node):
         else:
             raise errors.TemplateSyntaxError("Malformed 'include' tag.", token)
 
-    def wrender(self, context):
+    def visit_node(self, context, visitor: NodeVisitor):
         template_name = self.template_expr.eval(context)
         if isinstance(template_name, str):
             if ibis.loader:
@@ -632,9 +634,8 @@ class IncludeNode(Node):
                 context.push()
                 for name, expr in self.variables.items():
                     context[name] = expr.eval(context)
-                rendered = template.root_node.render(context)
+                visitor(context, template.root_node)
                 context.pop()
-                return rendered
             else:
                 msg = f"No template loader has been specified. "
                 msg += f"A template loader is required by the 'include' tag in "
@@ -645,6 +646,18 @@ class IncludeNode(Node):
             msg += f"The variable '{self.template_arg}' should evaluate to a string. "
             msg += f"This variable has the value: {repr(template_name)}."
             raise errors.TemplateRenderingError(msg, self.token)
+        
+    def wrender(self, context):
+        output = []
+        self.visit_node(context, lambda ctx, node: output.append(node.render(ctx)))
+        return "".join(output)
+    
+    def tree_parts(self, context) -> PartsTree:
+        output = []
+        def visitor(ctx, node):
+            output.append(node.tree_parts(ctx))
+        self.visit_node(context, visitor)
+        return output[0]
 
 
 # ExtendsNodes implement template inheritance. They indicate that the current template inherits

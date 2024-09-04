@@ -1,0 +1,19 @@
+<nav class="navbar">
+    <div class="navbar-left">
+        <div class="logo">
+            {% include "includes/_logo.svg" %}
+        </div>
+        <div class="company-name">MyCompany</div>
+    </div>
+    <div class="navbar-center">
+        {% for page in pages %}
+        <a data-phx-link="patch" data-phx-link-state="push" href="/includes?page={{page}}"
+            {% if current_page == page %}aria-current="page" {%endif%}>{{page}}</a>
+        {% endfor %}
+    </div>
+    <div class="navbar-right">
+        <div class="user-profile">
+            <img src="{{avatar_url}}" alt="User Avatar" class="avatar">
+        </div>
+    </div>
+</nav>
