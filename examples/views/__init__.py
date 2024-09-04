@@ -13,6 +13,7 @@ from .file_upload import FileUploadDemoLiveView
 from .kanban import KanbanLiveView
 from .count_pubsub import CountLiveViewPubSub
 from .count import CountLiveView
+from .includes import IncludesLiveView
 
 __all__ = [
     "CountLiveView",
@@ -30,4 +31,5 @@ __all__ = [
     "MapLiveView",
     "FileUploadDemoLiveView",
     "KanbanLiveView",
+    "IncludesLiveView",
 ]

@@ -1,0 +1,22 @@
+{% include "includes/_navbar.html" with avatar_url=user.avatar_url %}
+
+<div class="content">
+    <h1>{{current_page}}</h1>
+    <p>
+        This is a simple example of how to re-use template code in PyView.
+    </p>
+    <p>
+        This page includes a navbar that is defined in a separate file, and passes the user's avatar as a parameter:
+    </p>
+    <code>
+        {{ '{% include "includes/_navbar.html" with avatar_url=user.avatar_url %}' }}
+    </code>
+    <p>
+        Templates do have access to the parent template context, but it can be useful to have template parameters
+        (e.g. using a template in a for loop and passing each element as a parameter).
+    </p>
+    <p>
+        You read more about the <a href="http://www.dmulholl.com/docs/ibis/master/tags.html#include">include tag</a>
+        feature in the template engine documentation.
+    </p>
+</div>

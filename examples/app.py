@@ -2,8 +2,11 @@ from starlette.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
 from starlette.routing import Route
 from pyview import PyView, defaultRootTemplate
+from pyview.vendor import ibis
+from pyview.vendor.ibis.loaders import FileReloader
 from markupsafe import Markup
 from .format_examples import ExampleEntry, format_examples
+import os
 
 from .views import (
     CountLiveView,
@@ -21,6 +24,7 @@ from .views import (
     MapLiveView,
     FileUploadDemoLiveView,
     KanbanLiveView,
+    IncludesLiveView,
 )
 
 app = PyView()
@@ -62,6 +66,9 @@ def content_wrapper(_context, content: Markup) -> Markup:
 
 app.rootTemplate = defaultRootTemplate(css=Markup(css), content_wrapper=content_wrapper)
 
+current_file_dir = os.path.dirname(os.path.abspath(__file__))
+ibis.loader = FileReloader(os.path.join(current_file_dir, "views"))
+
 routes = [
     ("/count", CountLiveView),
     ("/count_pubsub", CountLiveViewPubSub),
@@ -86,6 +93,7 @@ routes = [
     ("/maps", MapLiveView),
     ("/file_upload", FileUploadDemoLiveView),
     ("/kanban", KanbanLiveView),
+    ("/includes", IncludesLiveView),
 ]
 
 
