@@ -57,6 +57,7 @@ pytest = "^7.2.0"
 black = "24.3.0"
 pyright = "1.1.292"
 aiohttp = "^3.8.4"
+python-semantic-release = "^9.8.7"
 
 [tool.poetry.group.profiling.dependencies]
 scalene = "^1.5.19"
@@ -78,3 +79,17 @@ exclude = [
     "**/node_modules",
     "**/__pycache__",
 ]
+
+[tool.semantic_release]
+version_variable = [
+    "pyview/__init__.py:__version__",
+    "pyproject.toml:version"
+]
+
+upload_to_pypi = false
+upload_to_vcs_release = false
+build_command = "poetry build"
+
+[tool.semantic_release.branches.main]
+match="main"
+
