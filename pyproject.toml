@@ -86,7 +86,7 @@ version_variable = [
     "pyproject.toml:version"
 ]
 
-branch = "release_automate"
+branches = ["main", "release_automate"]
 upload_to_pypi = false
 upload_to_vcs_release = false
 build_command = "poetry build"
