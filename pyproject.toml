@@ -86,7 +86,14 @@ version_variable = [
     "pyproject.toml:version"
 ]
 
-branches = ["main", "release_automate"]
 upload_to_pypi = false
 upload_to_vcs_release = false
 build_command = "poetry build"
+
+[tool.semantic_release.branches.main]
+match="main"
+
+[tool.semantic_release.branches.develop]
+match="release_automate"
+prerelease=true
+prerelease_token="rc"
