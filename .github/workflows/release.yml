@@ -1,0 +1,29 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - release_automate
+
+jobs:
+  release:
+    name: Release to PyPI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9" # Adjust the Python version as needed
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v2
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Set up semantic release
+        run: poetry run python-semantic-release publish --noop
