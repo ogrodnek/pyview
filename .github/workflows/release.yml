@@ -48,7 +48,7 @@ jobs:
 
       - name: Semantic release
         run: |
-          poetry run semantic-release version
+          poetry run semantic-release version –no-changelog
           poetry run semantic-release publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

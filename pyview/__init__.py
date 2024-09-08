@@ -4,8 +4,6 @@ from pyview.pyview import PyView, defaultRootTemplate
 from pyview.js import js
 from pyview.pyview import RootTemplateContext, RootTemplate
 
-__version__ = "0.0.22"
-
 __all__ = [
     "LiveView",
     "LiveViewSocket",
