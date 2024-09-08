@@ -8,11 +8,18 @@ on:
 jobs:
   release:
     name: Release to PyPI
+    concurrency: release
+    permissions:
+      contents: write
+      id-token: write
+
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         id: setup-python
@@ -40,5 +47,7 @@ jobs:
       - name: Install project
         run: poetry install --no-interaction
 
-      - name: Set up semantic release
-        run: poetry run semantic-release --noop publish
+      - name: Python Semantic Release
+        uses: python-semantic-release/python-semantic-release@v9.8.8
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
