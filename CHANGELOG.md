@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v0.1.1 (2024-09-08)
+
+### Fix
+
+* fix: trying again (#41) ([`7c32a60`](https://github.com/ogrodnek/pyview/commit/7c32a60fdc7879d0232a25e54550a3faa4429727))
+
 ## v0.1.0 (2024-09-08)
 
 ### Feature
