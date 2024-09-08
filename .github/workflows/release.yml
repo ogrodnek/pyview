@@ -47,7 +47,5 @@ jobs:
       - name: Install project
         run: poetry install --no-interaction
 
-      - name: Python Semantic Release
-        uses: python-semantic-release/python-semantic-release@v9.8.8
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up semantic release
+        run: poetry run semantic-release --noop publish
