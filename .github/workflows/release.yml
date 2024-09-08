@@ -49,3 +49,5 @@ jobs:
 
       - name: Set up semantic release
         run: poetry run semantic-release --noop publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
