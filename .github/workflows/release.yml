@@ -45,8 +45,6 @@ jobs:
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: poetry install --no-interaction --no-root
-      - name: Install project
-        run: poetry install --no-interaction
 
       - name: Semantic release
         run: |
@@ -54,9 +52,6 @@ jobs:
           poetry run semantic-release publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: build
-        run: poetry install && poetry build
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
