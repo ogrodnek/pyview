@@ -1,9 +1,8 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
+  release:
+    types: [published]
 
 jobs:
   release:
@@ -11,7 +10,6 @@ jobs:
     name: Release to PyPI
     concurrency: release
     permissions:
-      contents: write
       id-token: write
 
     runs-on: ubuntu-latest
@@ -46,12 +44,9 @@ jobs:
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: poetry install --no-interaction --no-root
 
-      - name: Semantic release
+      - name: Build
         run: |
-          poetry run semantic-release version --no-changelog
-          poetry run semantic-release publish
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          poetry build
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
