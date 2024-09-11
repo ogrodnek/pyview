@@ -11,9 +11,13 @@ class PartsComprehension:
     def __init__(self, parts: list[Part]):
         self.parts = parts
 
-    def render_parts(self) -> dict[str, Any]:
+    def render_parts(self) -> Union[dict[str, Any], str]:
         if len(self.parts) == 0:
             return ""
+
+        if len(self.parts) == 1:
+            if isinstance(self.parts[0], PartsTree) and self.parts[0].is_empty():
+                return ""
 
         def render(p: Part) -> Any:
             if isinstance(p, str):
@@ -38,17 +42,13 @@ class PartsTree:
         self.statics.append(s)
 
     def add_dynamic(self, d: Union[Part, list[Part]]):
-
         if len(self.statics) < len(self.dynamics) + 1:
             self.statics.append("")
 
         if isinstance(d, str):
             self.dynamics.append(d)
         elif isinstance(d, list):
-            if len(d) > 1:
-                self.dynamics.append(PartsComprehension(d))
-            elif len(d) == 1:
-                self.dynamics.append(d[0].flatten())
+            self.dynamics.append(PartsComprehension(d))
         else:
             self.dynamics.append(d.flatten())
 
@@ -85,3 +85,8 @@ class PartsTree:
                     resp[f"{i}"] = dynamic.render_parts()
 
         return resp
+
+    def is_empty(self) -> bool:
+        return len(self.dynamics) == 0 and (
+            len(self.statics) == 0 or (len(self.statics) == 1 and self.statics[0] == "")
+        )
