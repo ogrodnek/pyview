@@ -104,6 +104,21 @@ def test_loop():
     }
     assert a.render(d) == "<div><span>Larry</span><span>Sally</span></div>"
 
+
+def test_loop_single_element():
+    a = Template("<div>{% for v in users %}<span>{{v.name}}</span>{% endfor %}</div>")
+    d = {"users": [{"name": "Larry"}]}
+
+    assert a.tree(d) == {
+        "s": ["<div>", "</div>"],
+        "0": {"s": ["<span>", "</span>"], "d": [["Larry"]]},
+    }
+    assert a.render(d) == "<div><span>Larry</span></div>"
+
+
+def test_loop_empty():
+    a = Template("<div>{% for v in users %}<span>{{v.name}}</span>{% endfor %}</div>")
+
     d = {"users": []}
     assert a.tree(d) == {"s": ["<div>", "</div>"], "0": ""}
     assert a.render(d) == "<div></div>"
