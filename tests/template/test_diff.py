@@ -49,6 +49,35 @@ def test_loop_diff_no_change():
     assert calc_diff(old, new) == {}
 
 
+def test_loop_diff_empty_to_nonempty():
+    t = Template("<div>{% for item in items %}<span>{{item}}</span>{% endfor %}</div>")
+
+    old = t.tree({"items": []})
+    new = t.tree({"items": ["One", "Two", "Three"]})
+
+    assert calc_diff(old, new) == {
+        "0": {"d": [["One"], ["Two"], ["Three"]], "s": ["<span>", "</span>"]}
+    }
+
+
+def test_loop_diff_nonempty_to_empty():
+    t = Template("<div>{% for item in items %}<span>{{item}}</span>{% endfor %}</div>")
+
+    old = t.tree({"items": ["One", "Two", "Three"]})
+    new = t.tree({"items": []})
+
+    assert calc_diff(old, new) == {"0": ""}
+
+
+def test_loop_diff_size_change():
+    t = Template("<div>{% for item in items %}<span>{{item}}</span>{% endfor %}</div>")
+
+    old = t.tree({"items": ["One", "Two", "Three"]})
+    new = t.tree({"items": ["One"]})
+
+    assert calc_diff(old, new) == {"0": {"d": [["One"]]}}
+
+
 def test_loop_diff_static_change():
     t = Template("<div>{% for item in items %}<span>{{item}}</span>{% endfor %}</div>")
     t2 = Template("<div>{% for item in items %}<div>{{item}}</div>{% endfor %}</div>")
