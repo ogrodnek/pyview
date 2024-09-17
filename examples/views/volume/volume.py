@@ -14,7 +14,7 @@ class VolumeLiveView(LiveView[Volume]):
     Keyboard events!
     """
 
-    async def mount(self, socket: LiveViewSocket[Volume], _session):
+    async def mount(self, socket: LiveViewSocket[Volume], session):
         socket.context = Volume()
 
     async def handle_event(self, event, payload, socket: LiveViewSocket[Volume]):

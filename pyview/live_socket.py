@@ -1,7 +1,16 @@
 from __future__ import annotations
 from starlette.websockets import WebSocket
 import json
-from typing import Any, TypeVar, Generic, TYPE_CHECKING, Optional
+from typing import (
+    Any,
+    TypeVar,
+    Generic,
+    TYPE_CHECKING,
+    Optional,
+    Union,
+    TypeAlias,
+    TypeGuard,
+)
 from urllib.parse import urlencode
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from pyview.vendor.flet.pubsub import PubSubHub, PubSub
@@ -21,10 +30,14 @@ pub_sub_hub = PubSubHub()
 T = TypeVar("T")
 
 
+def is_connected(socket: LiveViewSocket[T]) -> TypeGuard["ConnectedLiveViewSocket[T]"]:
+    return socket.connected
+
+
 class UnconnectedSocket(Generic[T]):
     context: T
-    connected: bool = False
     live_title: Optional[str] = None
+    connected: bool = False
 
     def allow_upload(
         self, upload_name: str, constraints: UploadConstraints
@@ -32,7 +45,7 @@ class UnconnectedSocket(Generic[T]):
         return UploadConfig(name=upload_name, constraints=constraints)
 
 
-class LiveViewSocket(Generic[T]):
+class ConnectedLiveViewSocket(Generic[T]):
     context: T
     live_title: Optional[str] = None
     pending_events: list[tuple[str, Any]]
@@ -86,7 +99,7 @@ class LiveViewSocket(Generic[T]):
 
         try:
             await self.websocket.send_text(json.dumps(resp))
-        except Exception as e:
+        except Exception:
             for id in self.scheduled_jobs:
                 print("Removing job", id)
                 scheduler.remove_job(id)
@@ -143,3 +156,6 @@ class LiveViewSocket(Generic[T]):
             await self.liveview.disconnect(self)
         except Exception:
             pass
+
+
+LiveViewSocket: TypeAlias = Union[ConnectedLiveViewSocket[T], UnconnectedSocket[T]]

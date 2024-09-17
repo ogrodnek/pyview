@@ -1,4 +1,4 @@
-from pyview import LiveView, LiveViewSocket
+from pyview import LiveView, LiveViewSocket, is_connected
 from dataclasses import dataclass, field
 import datetime
 from collections import deque
@@ -45,14 +45,14 @@ class PingLiveView(LiveView[PingContext]):
     Another example of pushing updates from the backend to the client.
     """
 
-    async def mount(self, socket: LiveViewSocket[PingContext], _session):
+    async def mount(self, socket: LiveViewSocket[PingContext], session):
         socket.context = PingContext(
             [
                 PingSite("https://pyview.rocks"),
                 PingSite("https://examples.pyview.rocks"),
             ]
         )
-        if socket.connected:
+        if is_connected(socket):
             socket.schedule_info("ping", 10)
             await self.handle_info(InfoEvent("ping"), socket)
 

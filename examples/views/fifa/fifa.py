@@ -1,4 +1,4 @@
-from pyview import LiveView, LiveViewSocket
+from pyview import LiveView, LiveViewSocket, ConnectedLiveViewSocket
 from typing import TypedDict
 from .data import FifaAudience, list_items, Paging
 
@@ -15,12 +15,15 @@ class FifaAudienceLiveView(LiveView[FifaContext]):
     Table Pagination, and updating the URL from the backend.
     """
 
-    async def mount(self, socket: LiveViewSocket[FifaContext], _session):
+    async def mount(self, socket: LiveViewSocket[FifaContext], session):
         paging = Paging(1, 10)
-        audiences = list_items(paging)
-        socket.context = {"audiences": audiences, "paging": paging}
+        socket.context = FifaContext(
+            {"audiences": list_items(paging), "paging": paging}
+        )
 
-    async def handle_event(self, event, payload, socket: LiveViewSocket[FifaContext]):
+    async def handle_event(
+        self, event, payload, socket: ConnectedLiveViewSocket[FifaContext]
+    ):
         paging = socket.context["paging"]
         paging.perPage = int(payload["perPage"][0])
         paging.page = 1

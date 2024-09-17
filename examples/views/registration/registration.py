@@ -1,8 +1,9 @@
 from __future__ import annotations
 from pyview import LiveView, LiveViewSocket
 from typing import TypedDict, Optional
-from pydantic import BaseModel, validator
-from pydantic.types import constr
+from typing_extensions import Self
+
+from pydantic import BaseModel, Field, model_validator
 from pyview.changesets import change_set, ChangeSet
 from pyview.vendor.ibis import filters
 from markupsafe import Markup
@@ -27,20 +28,19 @@ def error_tag(changeset: ChangeSet, field_name: str) -> Markup:
     ).format(field_name=field_name, error=changeset.errors.get(field_name, ""))
 
 
-checked_str = constr(min_length=3, max_length=20)
-
-
 class Registration(BaseModel):
-    name: checked_str
-    email: checked_str
-    password: checked_str
-    password_confirmation: checked_str
+    name: str = Field(min_length=3, max_length=20)
+    email: str = Field(min_length=3, max_length=20)
+    password: str = Field(min_length=3, max_length=20)
+    password_confirmation: str = Field(min_length=3, max_length=20)
 
-    @validator("password_confirmation")
-    def passwords_match(cls, v, values, **kwargs):
-        if "password" in values and v != values["password"]:
+    @model_validator(mode="after")
+    def passwords_match(self) -> Self:
+        pw1 = self.password
+        pw2 = self.password_confirmation
+        if pw1 is not None and pw2 is not None and pw1 != pw2:
             raise ValueError("passwords do not match")
-        return v
+        return self
 
 
 class RegistrationContext(TypedDict):
@@ -54,7 +54,7 @@ class RegistrationLiveView(LiveView):
     Form validation using Pydantic
     """
 
-    async def mount(self, socket: LiveViewSocket, _session):
+    async def mount(self, socket: LiveViewSocket, session):
         socket.context = RegistrationContext(changeset=change_set(Registration))
 
     async def handle_event(

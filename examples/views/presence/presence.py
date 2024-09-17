@@ -1,4 +1,4 @@
-from pyview import LiveView, LiveViewSocket
+from pyview import LiveView, LiveViewSocket, ConnectedLiveViewSocket, is_connected
 from pyview.events import InfoEvent
 from typing import Optional
 from .avatars import Avatar, UserRepository
@@ -29,10 +29,10 @@ class PresenceLiveView(LiveView[PresenceContext]):
     A simple example of presence tracking.  Open this example in multiple windows.
     """
 
-    async def mount(self, socket: LiveViewSocket[PresenceContext], _session):
+    async def mount(self, socket: LiveViewSocket[PresenceContext], session):
         socket.context = PresenceContext(connected=USER_REPO.all())
 
-        if socket.connected:
+        if is_connected(socket):
             user = USER_REPO.register_avatar()
             socket.context.current_user = user
             socket.live_title = user.name
@@ -40,7 +40,9 @@ class PresenceLiveView(LiveView[PresenceContext]):
             await socket.broadcast("presence", {"user": user, "action": "joined"})
             await socket.subscribe("presence")
 
-    async def handle_info(self, event, socket: LiveViewSocket[PresenceContext]):
+    async def handle_info(
+        self, event, socket: ConnectedLiveViewSocket[PresenceContext]
+    ):
         if event.name == "presence":
             socket.context.message = Message(
                 user=event.payload["user"], action=event.payload["action"]
@@ -51,7 +53,7 @@ class PresenceLiveView(LiveView[PresenceContext]):
         if event.name == "clear_message":
             socket.context.message = None
 
-    async def disconnect(self, socket: LiveViewSocket[PresenceContext]):
+    async def disconnect(self, socket: ConnectedLiveViewSocket[PresenceContext]):
         USER_REPO.unregister_avatar(socket.context.current_user)
 
         await socket.broadcast(

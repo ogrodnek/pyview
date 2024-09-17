@@ -1,4 +1,4 @@
-from pyview import LiveView, LiveViewSocket
+from pyview import LiveView, LiveViewSocket, ConnectedLiveViewSocket, is_connected
 from typing import TypedDict
 import random
 
@@ -26,15 +26,15 @@ class CheckboxContext(TypedDict):
 
 
 class CheckboxLiveView(LiveView[CheckboxContext]):
-    async def mount(self, socket: LiveViewSocket[CheckboxContext], _session):
-        socket.context = {"checkboxes": CHECKBOXES.checkboxes}
+    async def mount(self, socket: LiveViewSocket[CheckboxContext], session):
+        socket.context = CheckboxContext({"checkboxes": CHECKBOXES.checkboxes})
 
-        if socket.connected:
+        if is_connected(socket):
             await socket.subscribe("checkboxes")
             socket.schedule_info("random_toggle", 3)
 
     async def handle_event(
-        self, event, payload, socket: LiveViewSocket[CheckboxContext]
+        self, event, payload, socket: ConnectedLiveViewSocket[CheckboxContext]
     ):
         if event == "toggle":
             index = int(payload["index"])
@@ -42,7 +42,9 @@ class CheckboxLiveView(LiveView[CheckboxContext]):
 
             await socket.broadcast("checkboxes", {"index": index, "value": value})
 
-    async def handle_info(self, event, socket: LiveViewSocket[CheckboxContext]):
+    async def handle_info(
+        self, event, socket: ConnectedLiveViewSocket[CheckboxContext]
+    ):
         if event == "random_toggle":
             index, value = CHECKBOXES.random_toggle()
             await socket.broadcast("checkboxes", {"index": index, "value": value})

@@ -8,5 +8,5 @@ class JsCommandsLiveView(LiveView[dict]):
     JS Commands let you update the DOM without making a trip to the server.
     """
 
-    async def mount(self, socket: LiveViewSocket[dict], _session):
+    async def mount(self, socket: LiveViewSocket[dict], session):
         socket.context = {}
