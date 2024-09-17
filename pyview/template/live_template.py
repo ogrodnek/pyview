@@ -1,16 +1,20 @@
 from pyview.vendor.ibis import Template
-from typing import Any, Union, Protocol, Optional
-from dataclasses import asdict
+from typing import Any, Union, Protocol, Optional, ClassVar
+from dataclasses import asdict, Field
 from .serializer import serialize
 import os.path
 
 
+class DataclassInstance(Protocol):
+    __dataclass_fields__: ClassVar[dict[str, Field[Any]]]
+
+
+Assigns = Union[dict[str, Any], DataclassInstance]
+
+
+# TODO: should we still support this?
 class DictConvertable(Protocol):
-    def asdict(self) -> dict[str, Any]:
-        ...
-
-
-Assigns = Union[dict[str, Any], DictConvertable]
+    def asdict(self) -> dict[str, Any]: ...
 
 
 class LiveTemplate:
@@ -37,11 +41,9 @@ class LiveTemplate:
 
 
 class RenderedContent(Protocol):
-    def tree(self) -> dict[str, Any]:
-        ...
+    def tree(self) -> dict[str, Any]: ...
 
-    def text(self) -> str:
-        ...
+    def text(self) -> str: ...
 
 
 class LiveRender:
@@ -57,6 +59,7 @@ class LiveRender:
 
 
 _cache = {}
+
 
 def template_file(filename: str) -> Optional[LiveTemplate]:
     """Renders a template file with the given assigns."""

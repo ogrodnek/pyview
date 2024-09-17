@@ -1,4 +1,4 @@
-from typing import TypeVar, Any, Generic, Optional, Callable
+from typing import TypeVar, Any, Generic, Optional
 from pydantic import BaseModel, ValidationError
 from dataclasses import dataclass
 from types import SimpleNamespace
@@ -8,7 +8,7 @@ Base = TypeVar("Base", bound=BaseModel)
 
 @dataclass
 class ChangeSet(Generic[Base]):
-    cls: Callable[..., Base]
+    cls: type[Base]
     changes: dict[str, Any]
     errors: dict[str, Any]
     valid: bool
@@ -29,7 +29,7 @@ class ChangeSet(Generic[Base]):
 
     @property
     def fields(self) -> list[str]:
-        return self.cls.__fields__.keys()
+        return list(self.cls.model_fields)
 
     def save(self, payload: dict[str, Any]) -> Optional[Base]:
         self.errors = {}
@@ -58,5 +58,5 @@ class ChangeSet(Generic[Base]):
             self.valid = False
 
 
-def change_set(cls: Callable[..., Base]) -> ChangeSet[Base]:
+def change_set(cls: type[Base]) -> ChangeSet[Base]:
     return ChangeSet(cls, {}, {}, False)

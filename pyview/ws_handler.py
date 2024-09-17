@@ -2,7 +2,7 @@ from typing import Optional, Any
 import json
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from urllib.parse import urlparse, parse_qs
-from pyview.live_socket import LiveViewSocket
+from pyview.live_socket import ConnectedLiveViewSocket, LiveViewSocket
 from pyview.live_routes import LiveViewLookup
 from pyview.csrf import validate_csrf_token
 from pyview.session import deserialize_session
@@ -44,7 +44,7 @@ class LiveSocketHandler:
                 url = urlparse(payload["url"])
                 lv = self.routes.get(url.path)
                 await self.check_auth(websocket, lv)
-                socket = LiveViewSocket(websocket, topic, lv)
+                socket = ConnectedLiveViewSocket(websocket, topic, lv)
 
                 session = {}
                 if "session" in payload:
@@ -75,7 +75,7 @@ class LiveSocketHandler:
             self.sessions -= 1
 
     async def handle_connected(
-        self, myJoinId, socket: LiveViewSocket, prev_rendered: dict[str, Any]
+        self, myJoinId, socket: ConnectedLiveViewSocket, prev_rendered: dict[str, Any]
     ):
         while True:
             message = await socket.websocket.receive()
@@ -235,7 +235,7 @@ class LiveSocketHandler:
                 )
 
 
-async def _render(socket: LiveViewSocket):
+async def _render(socket: ConnectedLiveViewSocket):
     rendered = (await socket.liveview.render(socket.context)).tree()
 
     if socket.live_title:

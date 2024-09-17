@@ -1,17 +1,12 @@
-from __future__ import annotations
 from pydantic import BaseModel, Field
-from pydantic.types import constr
 
 import datetime
 import uuid
 import random
 
 
-plant_name = constr(min_length=3, max_length=20)
-
-
 class Plant(BaseModel):
-    name: plant_name
+    name: str = Field(min_length=3, max_length=20)
     watering_schedule_days: int = Field(ge=1, le=30)
     last_watered: datetime.datetime = Field(default_factory=datetime.datetime.now)
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)

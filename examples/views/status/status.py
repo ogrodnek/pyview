@@ -1,7 +1,7 @@
 import os
 import psutil
 
-from pyview import LiveView, LiveViewSocket
+from pyview import LiveView, LiveViewSocket, is_connected
 from pyview.events import InfoEvent
 from dataclasses import dataclass
 
@@ -44,9 +44,9 @@ class StatusLiveView(LiveView[StatusContext]):
     Pushing updates from the backend to the client.
     """
 
-    async def mount(self, socket: LiveViewSocket[StatusContext], _session):
+    async def mount(self, socket: LiveViewSocket[StatusContext], session):
         socket.context = StatusContext()
-        if socket.connected:
+        if is_connected(socket):
             socket.schedule_info("refresh", 5)
 
     async def handle_event(self, event, payload, socket: LiveViewSocket[StatusContext]):

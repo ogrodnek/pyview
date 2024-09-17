@@ -1,4 +1,4 @@
-from pyview import LiveView, LiveViewSocket
+from pyview import LiveView, LiveViewSocket, is_connected, ConnectedLiveViewSocket
 from dataclasses import dataclass
 
 
@@ -21,12 +21,14 @@ class CountLiveViewPubSub(LiveView[Count]):
     to see the state update in real time across all windows.
     """
 
-    async def mount(self, socket: LiveViewSocket[Count], _session):
+    async def mount(self, socket: LiveViewSocket[Count], session):
         socket.context = Count()
-        if socket.connected:
+        if is_connected(socket):
             await socket.subscribe("count")
 
-    async def handle_event(self, event, payload, socket: LiveViewSocket[Count]):
+    async def handle_event(
+        self, event, payload, socket: ConnectedLiveViewSocket[Count]
+    ):
         if event == "decrement":
             socket.context.decrement()
         if event == "increment":

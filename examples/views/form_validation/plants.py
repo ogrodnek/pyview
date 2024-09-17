@@ -22,7 +22,7 @@ class PlantsLiveView(LiveView[PlantsContext]):
     More Form Validation
     """
 
-    async def mount(self, socket: LiveViewSocket[PlantsContext], _session):
+    async def mount(self, socket: LiveViewSocket[PlantsContext], session):
         socket.context = PlantsContext(plants())
 
     async def handle_event(self, event, payload, socket: LiveViewSocket[PlantsContext]):

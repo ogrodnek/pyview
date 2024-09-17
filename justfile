@@ -18,3 +18,6 @@ docs:
 docker:
   docker build -t pyview .
   docker run -p 8000:8000 pyview
+
+type-check:
+  poetry run pyright

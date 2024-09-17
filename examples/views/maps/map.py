@@ -1,4 +1,4 @@
-from pyview import LiveView, LiveViewSocket
+from pyview import LiveView, LiveViewSocket, ConnectedLiveViewSocket
 from dataclasses import dataclass
 from .parks import national_parks
 from pyview.vendor.ibis import filters
@@ -25,12 +25,14 @@ class MapLiveView(LiveView[MapContext]):
     forth between the liveview and the JS library.
     """
 
-    async def mount(self, socket: LiveViewSocket[MapContext], _session):
+    async def mount(self, socket: LiveViewSocket[MapContext], session):
         socket.context = MapContext(
             parks=national_parks, selected_park_name=national_parks[0]["name"]
         )
 
-    async def handle_event(self, event, payload, socket: LiveViewSocket[MapContext]):
+    async def handle_event(
+        self, event, payload, socket: ConnectedLiveViewSocket[MapContext]
+    ):
         print(event, payload)
 
         park = [p for p in national_parks if p["name"] == payload["name"]][0]

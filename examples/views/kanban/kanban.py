@@ -32,7 +32,7 @@ class KanbanLiveView(LiveView[KanbanContext]):
     (another hooks example showing integration w/ SortableJS).
     """
 
-    async def mount(self, socket: LiveViewSocket[KanbanContext], _session):
+    async def mount(self, socket: LiveViewSocket[KanbanContext], session):
         socket.context = KanbanContext()
 
     async def handle_event(self, event, payload, socket: LiveViewSocket[KanbanContext]):

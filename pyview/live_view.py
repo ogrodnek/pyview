@@ -1,5 +1,5 @@
 from typing import TypeVar, Generic, Optional, Union, Any
-from .live_socket import LiveViewSocket, UnconnectedSocket
+from .live_socket import LiveViewSocket, ConnectedLiveViewSocket
 from pyview.template import (
     LiveTemplate,
     template_file,
@@ -12,7 +12,6 @@ from urllib.parse import ParseResult
 
 T = TypeVar("T")
 
-AnySocket = Union[LiveViewSocket[T], UnconnectedSocket[T]]
 Session = dict[str, Any]
 
 # TODO: ideally this would always be a ParseResult, but we need to update push_patch
@@ -23,19 +22,19 @@ class LiveView(Generic[T]):
     def __init__(self):
         pass
 
-    async def mount(self, socket: AnySocket, session: Session):
+    async def mount(self, socket: LiveViewSocket[T], session: Session):
         pass
 
-    async def handle_event(self, event, payload, socket: LiveViewSocket[T]):
+    async def handle_event(self, event, payload, socket: ConnectedLiveViewSocket[T]):
         pass
 
-    async def handle_info(self, event: InfoEvent, socket: LiveViewSocket[T]):
+    async def handle_info(self, event: InfoEvent, socket: ConnectedLiveViewSocket[T]):
         pass
 
-    async def handle_params(self, url: URL, params, socket: AnySocket):
+    async def handle_params(self, url: URL, params, socket: LiveViewSocket[T]):
         pass
 
-    async def disconnect(self, socket: LiveViewSocket[T]):
+    async def disconnect(self, socket: ConnectedLiveViewSocket[T]):
         pass
 
     async def render(self, assigns: T) -> RenderedContent:

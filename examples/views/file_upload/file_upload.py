@@ -34,7 +34,7 @@ class FileUploadDemoLiveView(LiveView[FileUploadDemoContext]):
     File upload example, with previews and progress bars.
     """
 
-    async def mount(self, socket: LiveViewSocket[FileUploadDemoContext], _session):
+    async def mount(self, socket: LiveViewSocket[FileUploadDemoContext], session):
         config = socket.allow_upload(
             "photos",
             constraints=UploadConstraints(

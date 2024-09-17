@@ -14,8 +14,8 @@ class CountLiveView(LiveView[CountContext]):
     to the backend to update state.  We also snuck in handling URL params.
     """
 
-    async def mount(self, socket: LiveViewSocket[CountContext], _session):
-        socket.context = {"count": 0}
+    async def mount(self, socket: LiveViewSocket[CountContext], session):
+        socket.context = CountContext({"count": 0})
 
     async def handle_event(self, event, payload, socket: LiveViewSocket[CountContext]):
         if event == "decrement":
