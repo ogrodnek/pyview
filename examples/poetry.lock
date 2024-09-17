@@ -995,10 +995,10 @@ files = [
 
 [[package]]
 name = "pyview-web"
-version = "0.0.25"
+version = "0.1.0"
 description = "LiveView in Python"
 optional = false
-python-versions = ">=3.10,<3.12"
+python-versions = ">=3.10,<3.13"
 files = []
 develop = true
 
@@ -1007,9 +1007,9 @@ APScheduler = "3.9.1.post1"
 itsdangerous = "^2.1.2"
 markupsafe = "^2.1.2"
 psutil = "^5.9.4"
-pydantic = "^2.7.1"
-starlette = "0.37.2"
-uvicorn = "0.20.0"
+pydantic = "^2.9.2"
+starlette = "0.38.5"
+uvicorn = "0.30.6"
 wsproto = "1.2.0"
 
 [package.source]
@@ -1060,13 +1060,13 @@ files = [
 
 [[package]]
 name = "starlette"
-version = "0.37.2"
+version = "0.38.5"
 description = "The little ASGI library that shines."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "starlette-0.37.2-py3-none-any.whl", hash = "sha256:6fe59f29268538e5d0d182f2791a479a0c64638e6935d1c6989e63fb2699c6ee"},
-    {file = "starlette-0.37.2.tar.gz", hash = "sha256:9af890290133b79fc3db55474ade20f6220a364a0402e0b556e7cd5e1e093823"},
+    {file = "starlette-0.38.5-py3-none-any.whl", hash = "sha256:632f420a9d13e3ee2a6f18f437b0a9f1faecb0bc42e1942aa2ea0e379a4c4206"},
+    {file = "starlette-0.38.5.tar.gz", hash = "sha256:04a92830a9b6eb1442c766199d62260c3d4dc9c4f9188360626b1e0273cb7077"},
 ]
 
 [package.dependencies]
@@ -1127,18 +1127,19 @@ devenv = ["check-manifest", "pytest (>=4.3)", "pytest-cov", "pytest-mock (>=3.3)
 
 [[package]]
 name = "uvicorn"
-version = "0.20.0"
+version = "0.30.6"
 description = "The lightning-fast ASGI server."
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "uvicorn-0.20.0-py3-none-any.whl", hash = "sha256:c3ed1598a5668208723f2bb49336f4509424ad198d6ab2615b7783db58d919fd"},
-    {file = "uvicorn-0.20.0.tar.gz", hash = "sha256:a4e12017b940247f836bc90b72e725d7dfd0c8ed1c51eb365f5ba30d9f5127d8"},
+    {file = "uvicorn-0.30.6-py3-none-any.whl", hash = "sha256:65fd46fe3fda5bdc1b03b94eb634923ff18cd35b2f084813ea79d1f103f711b5"},
+    {file = "uvicorn-0.30.6.tar.gz", hash = "sha256:4b15decdda1e72be08209e860a1e10e92439ad5b97cf44cc945fcbee66fc5788"},
 ]
 
 [package.dependencies]
 click = ">=7.0"
 h11 = ">=0.8"
+typing-extensions = {version = ">=4.0", markers = "python_version < \"3.11\""}
 
 [package.extras]
 standard = ["colorama (>=0.4)", "httptools (>=0.5.0)", "python-dotenv (>=0.13)", "pyyaml (>=5.1)", "uvloop (>=0.14.0,!=0.15.0,!=0.15.1)", "watchfiles (>=0.13)", "websockets (>=10.4)"]
@@ -1264,5 +1265,5 @@ multidict = ">=4.0"
 
 [metadata]
 lock-version = "2.0"
-python-versions = ">=3.10,<3.12"
-content-hash = "1c85a8e7336ecb4208a1054e65103a147f39193cdef33e1d4f52dfc1a660ef17"
+python-versions = ">=3.10,<3.13"
+content-hash = "ff8126a9db8fb2b7604c089a87284bf61b6611cc5d0a17fd475ed5bababeb19b"
