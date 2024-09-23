@@ -11,6 +11,7 @@ from pyview.live_socket import UnconnectedSocket
 from pyview.csrf import generate_csrf_token
 from pyview.session import serialize_session
 from pyview.auth import AuthProviderFactory
+from pyview.meta import PyViewMeta
 from .ws_handler import LiveSocketHandler
 from .live_view import LiveView
 from .live_routes import LiveViewLookup
@@ -60,7 +61,7 @@ async def liveview_container(
 
     await lv.mount(s, session)
     await lv.handle_params(urlparse(url._url), parse_qs(url.query), s)
-    r = await lv.render(s.context)
+    r = await lv.render(s.context, PyViewMeta())
 
     liveview_css = find_associated_css(lv)
 
