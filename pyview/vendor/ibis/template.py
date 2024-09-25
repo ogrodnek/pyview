@@ -10,6 +10,7 @@ class Template:
     def __init__(self, template_string, template_id="UNIDENTIFIED"):
         self.root_node = ibis.compiler.compile(template_string, template_id)
         self.blocks = self._register_blocks(self.root_node, {})
+        self.template_id = template_id
 
     def __str__(self):
         return str(self.root_node)

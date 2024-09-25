@@ -6,7 +6,7 @@ from pyview.live_socket import (
     UnconnectedSocket,
 )
 from pyview.pyview import PyView, defaultRootTemplate
-from pyview.js import js
+from pyview.js import JsCommand
 from pyview.pyview import RootTemplateContext, RootTemplate
 
 __all__ = [
@@ -14,7 +14,7 @@ __all__ = [
     "LiveViewSocket",
     "PyView",
     "defaultRootTemplate",
-    "js",
+    "JsCommand",
     "RootTemplateContext",
     "RootTemplate",
     "is_connected",

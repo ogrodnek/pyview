@@ -2,6 +2,7 @@ from pyview.vendor.ibis import Template
 from .live_template import LiveTemplate, template_file, RenderedContent, LiveRender
 from .root_template import RootTemplate, RootTemplateContext, defaultRootTemplate
 from .utils import find_associated_css, find_associated_file
+from .context_processor import context_processor
 
 __all__ = [
     "Template",
@@ -14,4 +15,5 @@ __all__ = [
     "defaultRootTemplate",
     "find_associated_css",
     "find_associated_file",
+    "context_processor",
 ]

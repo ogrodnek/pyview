@@ -1,12 +1,23 @@
 from pyview import LiveView, LiveViewSocket
+from pyview.live_socket import ConnectedLiveViewSocket
+from typing import TypedDict
 
 
-class JsCommandsLiveView(LiveView[dict]):
+class JsCommandsLiveViewContext(TypedDict):
+    value: int
+
+
+class JsCommandsLiveView(LiveView[JsCommandsLiveViewContext]):
     """
     JS Commands
 
     JS Commands let you update the DOM without making a trip to the server.
     """
 
-    async def mount(self, socket: LiveViewSocket[dict], session):
-        socket.context = {}
+    async def mount(self, socket: LiveViewSocket[JsCommandsLiveViewContext], session):
+        socket.context = JsCommandsLiveViewContext({"value": 0})
+
+    async def handle_event(self, event, payload, socket):
+        print(event, payload)
+        if event == "increment":
+            socket.context["value"] += 1

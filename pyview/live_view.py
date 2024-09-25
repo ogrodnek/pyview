@@ -8,6 +8,7 @@ from pyview.template import (
     find_associated_file,
 )
 from pyview.events import InfoEvent
+from pyview.meta import PyViewMeta
 from urllib.parse import ParseResult
 
 T = TypeVar("T")
@@ -37,11 +38,11 @@ class LiveView(Generic[T]):
     async def disconnect(self, socket: ConnectedLiveViewSocket[T]):
         pass
 
-    async def render(self, assigns: T) -> RenderedContent:
+    async def render(self, assigns: T, meta: PyViewMeta) -> RenderedContent:
         html_render = _find_render(self)
 
         if html_render:
-            return LiveRender(html_render, assigns)
+            return LiveRender(html_render, assigns, meta)
 
         raise NotImplementedError()
 

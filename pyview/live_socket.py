@@ -16,6 +16,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from pyview.vendor.flet.pubsub import PubSubHub, PubSub
 from pyview.events import InfoEvent
 from pyview.uploads import UploadConstraints, UploadConfig, UploadManager
+from pyview.meta import PyViewMeta
 import datetime
 
 
@@ -62,6 +63,10 @@ class ConnectedLiveViewSocket(Generic[T]):
         self.pending_events = []
         self.upload_manager = UploadManager()
 
+    @property
+    def meta(self) -> PyViewMeta:
+        return PyViewMeta()
+
     async def subscribe(self, topic: str):
         await self.pub_sub.subscribe_topic_async(topic, self._topic_callback_internal)
 
@@ -94,7 +99,7 @@ class ConnectedLiveViewSocket(Generic[T]):
 
     async def send_info(self, event: InfoEvent):
         await self.liveview.handle_info(event, self)
-        r = await self.liveview.render(self.context)
+        r = await self.liveview.render(self.context, self.meta)
         resp = [None, None, self.topic, "diff", self.diff(r.tree())]
 
         try:
