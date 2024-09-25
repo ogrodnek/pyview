@@ -1,0 +1,45 @@
+.copied::after {
+    content: "✓";
+    margin-left: 8px;
+}
+
+#copy-text {
+    font-size: 0.75rem;
+    background-color: #f0f0f0;
+    padding: 1em;
+}
+
+#counter {
+    padding: 1em;
+    margin-block: 1em;
+    background-color: #eee;
+    border-radius: 1em;
+    width: 16ch;
+}
+
+#focus-form {
+    margin-block: 1em;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25em;
+    width: 50ch;
+}
+
+
+@keyframes bounce {
+
+    0%,
+    100% {
+        transform: translateY(-25%);
+        animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+    }
+
+    50% {
+        transform: translateY(0);
+        animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    }
+}
+
+.bounce {
+    animation: bounce 1s infinite;
+}
