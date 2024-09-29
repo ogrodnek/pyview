@@ -12,6 +12,8 @@ from pyview.csrf import generate_csrf_token
 from pyview.session import serialize_session
 from pyview.auth import AuthProviderFactory
 from pyview.meta import PyViewMeta
+from pyview.live_component.live_component_factory import LiveComponentFactory
+from pyview.vendor.ibis.components.component_factory import set_component_factory
 from .ws_handler import LiveSocketHandler
 from .live_view import LiveView
 from .live_routes import LiveViewLookup
@@ -61,15 +63,24 @@ async def liveview_container(
 
     await lv.mount(s, session)
     await lv.handle_params(urlparse(url._url), parse_qs(url.query), s)
+
+    set_component_factory(LiveComponentFactory(s.components))
+
     r = await lv.render(s.context, PyViewMeta())
+    content = r.text()
+
+    await s.components.update_components()
+    await s.components.render_components()
 
     liveview_css = find_associated_css(lv)
+    component_css = find_associated_css([c.component for c in s.components.components])
+    liveview_css.extend(component_css)
 
     id = str(uuid.uuid4())
 
     context: RootTemplateContext = {
         "id": id,
-        "content": r.text(),
+        "content": content,
         "title": s.live_title,
         "csrf_token": generate_csrf_token("lv:phx-" + id),
         "session": serialize_session(session),
