@@ -1,0 +1,8 @@
+<div class="recipe-rating">
+    <div class="stars">
+        {% for i in range(1, 5) %}
+        <button class="star {%if rating and i <= rating %}active{%endif%}" phx-click="rate" phx-value-id="{{id}}"
+            phx-value-rating="{{i}}">★</button>
+        {% endfor %}
+    </div>
+</div>

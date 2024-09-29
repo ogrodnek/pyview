@@ -29,13 +29,13 @@ class LiveTemplate:
         if not isinstance(assigns, dict):
             assigns = serialize(assigns)
         additional_context = apply_context_processors(meta)
-        return self.t.tree(additional_context | assigns)
+        return self.t.tree(additional_context | assigns | {"meta": meta})
 
     def render(self, assigns: Assigns, meta: PyViewMeta) -> str:
         if not isinstance(assigns, dict):
             assigns = asdict(assigns)
         additional_context = apply_context_processors(meta)
-        return self.t.render(additional_context | assigns)
+        return self.t.render(additional_context | assigns | {"meta": meta})
 
     def text(self, assigns: Assigns, meta: PyViewMeta) -> str:
         return self.render(assigns, meta)

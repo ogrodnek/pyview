@@ -12,6 +12,10 @@ from pyview.phx_message import parse_message
 from pyview.instrumentation import InstrumentationProvider
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from pyview.live_component.live_component_factory import LiveComponentFactory
+from pyview.vendor.ibis.components.component_factory import set_component_factory
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -21,39 +25,35 @@ class AuthException(Exception):
 
 class LiveSocketMetrics:
     """Container for LiveSocket instrumentation metrics."""
-    
+
     def __init__(self, instrumentation: InstrumentationProvider):
         self.active_connections = instrumentation.create_updown_counter(
             "pyview.websocket.active_connections",
-            "Number of active WebSocket connections"
+            "Number of active WebSocket connections",
         )
         self.mounts = instrumentation.create_counter(
-            "pyview.liveview.mounts",
-            "Total number of LiveView mounts"
+            "pyview.liveview.mounts", "Total number of LiveView mounts"
         )
         self.events_processed = instrumentation.create_counter(
-            "pyview.events.processed",
-            "Total number of events processed"
+            "pyview.events.processed", "Total number of events processed"
         )
         self.event_duration = instrumentation.create_histogram(
-            "pyview.events.duration",
-            "Event processing duration",
-            unit="s"
+            "pyview.events.duration", "Event processing duration", unit="s"
         )
         self.message_size = instrumentation.create_histogram(
             "pyview.websocket.message_size",
             "WebSocket message size in bytes",
-            unit="bytes"
+            unit="bytes",
         )
         self.render_duration = instrumentation.create_histogram(
-            "pyview.render.duration",
-            "Template render duration",
-            unit="s"
+            "pyview.render.duration", "Template render duration", unit="s"
         )
 
 
 class LiveSocketHandler:
-    def __init__(self, routes: LiveViewLookup, instrumentation: InstrumentationProvider):
+    def __init__(
+        self, routes: LiveViewLookup, instrumentation: InstrumentationProvider
+    ):
         self.routes = routes
         self.instrumentation = instrumentation
         self.metrics = LiveSocketMetrics(instrumentation)
@@ -68,7 +68,7 @@ class LiveSocketHandler:
 
     async def handle(self, websocket: WebSocket):
         await self.manager.connect(websocket)
-        
+
         # Track active connections
         self.metrics.active_connections.add(1)
         self.sessions += 1
@@ -87,7 +87,9 @@ class LiveSocketHandler:
                 url = urlparse(payload["url"])
                 lv, path_params = self.routes.get(url.path)
                 await self.check_auth(websocket, lv)
-                socket = ConnectedLiveViewSocket(websocket, topic, lv, self.scheduler, self.instrumentation)
+                socket = ConnectedLiveViewSocket(
+                    websocket, topic, lv, self.scheduler, self.instrumentation
+                )
 
                 session = {}
                 if "session" in payload:
@@ -96,7 +98,7 @@ class LiveSocketHandler:
                 # Track mount
                 view_name = lv.__class__.__name__
                 self.metrics.mounts.add(1, {"view": view_name})
-                
+
                 await lv.mount(socket, session)
 
                 # Parse query parameters and merge with path parameters
@@ -106,15 +108,23 @@ class LiveSocketHandler:
                 # Pass merged parameters to handle_params
                 await lv.handle_params(url, merged_params, socket)
 
+                set_component_factory(LiveComponentFactory(socket.components))
+
                 rendered = await _render(socket)
                 socket.prev_rendered = rendered
+
+                await socket.components.update_components()
+                component_render = await socket.components.render_components()
 
                 resp = [
                     joinRef,
                     mesageRef,
                     topic,
                     "phx_reply",
-                    {"response": {"rendered": rendered}, "status": "ok"},
+                    {
+                        "response": {"rendered": rendered | {"c": component_render}},
+                        "status": "ok",
+                    },
                 ]
 
                 await self.manager.send_personal_message(json.dumps(resp), websocket)
@@ -163,15 +173,20 @@ class LiveSocketHandler:
                 # Track event metrics
                 event_name = payload["event"]
                 view_name = socket.liveview.__class__.__name__
-                self.metrics.events_processed.add(1, {"event": event_name, "view": view_name})
-                
+                self.metrics.events_processed.add(
+                    1, {"event": event_name, "view": view_name}
+                )
+
                 # Time event processing
-                with self.instrumentation.time_histogram("pyview.events.duration", 
-                                                         {"event": event_name, "view": view_name}):
+                with self.instrumentation.time_histogram(
+                    "pyview.events.duration", {"event": event_name, "view": view_name}
+                ):
                     await socket.liveview.handle_event(event_name, value, socket)
-                
+
                 # Time rendering
-                with self.instrumentation.time_histogram("pyview.render.duration", {"view": view_name}):
+                with self.instrumentation.time_histogram(
+                    "pyview.render.duration", {"view": view_name}
+                ):
                     rendered = await _render(socket)
 
                 hook_events = (
@@ -180,6 +195,9 @@ class LiveSocketHandler:
 
                 diff = socket.diff(rendered)
 
+                await socket.components.update_components()
+                component_render = await socket.components.render_components()
+
                 socket.pending_events = []
 
                 resp = [
@@ -187,7 +205,12 @@ class LiveSocketHandler:
                     mesageRef,
                     topic,
                     "phx_reply",
-                    {"response": {"diff": diff | hook_events}, "status": "ok"},
+                    {
+                        "response": {
+                            "diff": diff | hook_events | {"c": component_render}
+                        },
+                        "status": "ok",
+                    },
                 ]
                 resp_json = json.dumps(resp)
                 self.metrics.message_size.record(len(resp_json))
@@ -273,14 +296,22 @@ class LiveSocketHandler:
                     # This is a navigation join (topic starts with "lv:")
                     # Navigation payload has 'redirect' field instead of 'url'
                     url_str_raw = payload.get("redirect") or payload.get("url")
-                    url_str: str = url_str_raw.decode("utf-8") if isinstance(url_str_raw, bytes) else str(url_str_raw)
+                    url_str: str = (
+                        url_str_raw.decode("utf-8")
+                        if isinstance(url_str_raw, bytes)
+                        else str(url_str_raw)
+                    )
                     url = urlparse(url_str)
                     lv, path_params = self.routes.get(url.path)
                     await self.check_auth(socket.websocket, lv)
 
                     # Create new socket for new LiveView
                     socket = ConnectedLiveViewSocket(
-                        socket.websocket, topic, lv, self.scheduler, self.instrumentation
+                        socket.websocket,
+                        topic,
+                        lv,
+                        self.scheduler,
+                        self.instrumentation,
                     )
 
                     session = {}
