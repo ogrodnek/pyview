@@ -1,0 +1,8 @@
+<main>
+    <h1 style="margin-top: 0.75em">Latest Recipes</h1>
+    <div class="recipes">
+        {% for recipe in recipes %}
+        {% live_component "RecipeCard" with id = recipe.id & recipe = recipe  %}
+        {% endfor %}
+    </div>
+</main>

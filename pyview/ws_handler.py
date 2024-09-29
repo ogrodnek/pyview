@@ -9,6 +9,8 @@ from pyview.session import deserialize_session
 from pyview.auth import AuthProviderFactory
 from pyview.phx_message import parse_message
 from pyview.template.render_diff import calc_diff
+from pyview.live_component.live_component_factory import LiveComponentFactory
+from pyview.vendor.ibis.components.component_factory import set_component_factory
 
 
 class AuthException(Exception):
@@ -53,14 +55,22 @@ class LiveSocketHandler:
                 await lv.mount(socket, session)
                 await lv.handle_params(url, parse_qs(url.query), socket)
 
+                set_component_factory(LiveComponentFactory(socket.components))
+
                 rendered = await _render(socket)
+
+                await socket.components.update_components()
+                component_render = await socket.components.render_components()
 
                 resp = [
                     joinRef,
                     mesageRef,
                     topic,
                     "phx_reply",
-                    {"response": {"rendered": rendered}, "status": "ok"},
+                    {
+                        "response": {"rendered": rendered | {"c": component_render}},
+                        "status": "ok",
+                    },
                 ]
 
                 await self.manager.send_personal_message(json.dumps(resp), websocket)
@@ -111,6 +121,9 @@ class LiveSocketHandler:
                 diff = calc_diff(prev_rendered, rendered)
                 prev_rendered = rendered
 
+                await socket.components.update_components()
+                component_render = await socket.components.render_components()
+
                 socket.pending_events = []
 
                 resp = [
@@ -118,7 +131,12 @@ class LiveSocketHandler:
                     mesageRef,
                     topic,
                     "phx_reply",
-                    {"response": {"diff": diff | hook_events}, "status": "ok"},
+                    {
+                        "response": {
+                            "diff": diff | hook_events | {"c": component_render}
+                        },
+                        "status": "ok",
+                    },
                 ]
                 await self.manager.send_personal_message(
                     json.dumps(resp), socket.websocket
