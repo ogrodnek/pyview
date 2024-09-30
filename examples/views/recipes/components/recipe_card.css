@@ -16,7 +16,9 @@
 }
 
 .recipe_card-content {
-    padding: 0.75em;
+    padding-inline: 0.75em;
+    padding-bottom: 0.75em;
+
 }
 
 .recipe_card-header {
@@ -25,14 +27,19 @@
     align-items: flex-end;
 }
 
+
 .recipe_card-content .recipe_card-title {
-    font-size: 1.1em;
-    font-weight: 500;
+    font-family: var(--recipe-title-font);
+    font-weight: 400;
+    font-style: normal;
+
+    font-size: 1.6em;
+
     color: #333;
 }
 
 .recipe_card-content .recipe_card-time {
-    font-size: 0.9em;
+    font-size: 0.8em;
     color: #666;
     font-weight: 100;
 }
@@ -51,7 +58,7 @@
 }
 
 .recipe_card-actions {
-    padding-top: .75em;
+    padding-top: 0.25em;
     display: flex;
     justify-content: space-between;
 }
