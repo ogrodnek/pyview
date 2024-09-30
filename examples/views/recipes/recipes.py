@@ -1,6 +1,6 @@
 from pyview import LiveView, LiveViewSocket
-from dataclasses import dataclass, field
-from .recipe_db import Recipe, all_recipes
+from dataclasses import dataclass
+from .recipe_list import Recipe, all_recipes
 
 
 @dataclass
@@ -29,6 +29,4 @@ class RecipesLiveView(LiveView[RecipesContext]):
             id = payload["id"]
             recipe = next((r for r in socket.context.recipes if r.id == id), None)
             if recipe is not None:
-                print("Set rating", recipe.rating, "to", payload["rating"])
-
                 recipe.rating = int(payload["rating"])

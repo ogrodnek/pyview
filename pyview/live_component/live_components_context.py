@@ -31,14 +31,10 @@ class LiveComponentsContext:
         id = f"{user_id}-{component.__class__.__name__}"
         ref = ComponentReference(id, self.cid_index)
 
-        print("Registering component", id, ref)
         for c in self.components:
             if c.ref.id == id:
                 c.context = context
-                print("Component already registered", id)
                 return c.ref
-
-        print("Component not registered", id)
 
         self.components.append(LiveComponentContext(ref, component, context))
         self.cid_index += 1
