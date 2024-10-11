@@ -55,7 +55,7 @@ css = """
 <script defer type="text/javascript" src="/static/map.js"></script>
 
 <!-- Sortable JS for kanban example -->
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="https://unpkg.com/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="/static/kanban.js"></script>
 """
 
