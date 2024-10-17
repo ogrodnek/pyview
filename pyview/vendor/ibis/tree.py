@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Union
 
-Part = Union[str, "PartsTree", "PartsComprehension"]
+Part = Union[str, int, "PartsTree", "PartsComprehension"]
 
 
 @dataclass
@@ -20,7 +20,7 @@ class PartsComprehension:
                 return ""
 
         def render(p: Part) -> Any:
-            if isinstance(p, str):
+            if isinstance(p, str) or isinstance(p, int):
                 return p
             return p.render_parts()
 
@@ -45,7 +45,7 @@ class PartsTree:
         if len(self.statics) < len(self.dynamics) + 1:
             self.statics.append("")
 
-        if isinstance(d, str):
+        if isinstance(d, str) or isinstance(d, int):
             self.dynamics.append(d)
         elif isinstance(d, list):
             self.dynamics.append(PartsComprehension(d))
@@ -79,7 +79,7 @@ class PartsTree:
 
         if len(self.dynamics) > 0:
             for i, dynamic in enumerate(self.dynamics):
-                if isinstance(dynamic, str):
+                if isinstance(dynamic, str) or isinstance(dynamic, int):
                     resp[f"{i}"] = dynamic
                 else:
                     resp[f"{i}"] = dynamic.render_parts()

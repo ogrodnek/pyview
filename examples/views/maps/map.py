@@ -29,6 +29,7 @@ class MapLiveView(LiveView[MapContext]):
         socket.context = MapContext(
             parks=national_parks, selected_park_name=national_parks[0]["name"]
         )
+        socket.live_title = "Maps"
 
     async def handle_event(
         self, event, payload, socket: ConnectedLiveViewSocket[MapContext]
