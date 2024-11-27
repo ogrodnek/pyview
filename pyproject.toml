@@ -42,7 +42,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
-starlette = "0.38.5"
+starlette = "0.40.0"
 uvicorn = "0.30.6"
 wsproto = "1.2.0"
 APScheduler = "3.9.1.post1"
