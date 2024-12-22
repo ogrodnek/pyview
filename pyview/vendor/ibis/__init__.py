@@ -3,6 +3,7 @@ from . import nodes
 from . import loaders
 from . import errors
 from . import compiler
+from . import nodes_livecomponent
 
 from .template import Template
 
