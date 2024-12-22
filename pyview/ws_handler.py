@@ -177,7 +177,7 @@ class LiveSocketHandler:
                 )
 
             if event == "chunk":
-                socket.upload_manager.add_chunk(joinRef, payload)  # type: ignore
+                await socket.upload_manager.add_chunk(joinRef, payload)  # type: ignore
 
                 resp = [
                     joinRef,

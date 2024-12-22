@@ -1,10 +1,10 @@
 import datetime
 import uuid
+import aiofiles
 from pydantic import BaseModel, Field
-from typing import Optional, Any, Literal, Generator
+from typing import Optional, Any, Literal, AsyncGenerator
 from dataclasses import dataclass, field
-from contextlib import contextmanager
-import os
+from contextlib import asynccontextmanager
 import tempfile
 
 
@@ -47,14 +47,18 @@ def parse_entries(entries: list[dict]) -> list[UploadEntry]:
 class ActiveUpload:
     ref: str
     entry: UploadEntry
-    file: tempfile._TemporaryFileWrapper = field(init=False)
+    file_path: str = field(init=False)
 
     def __post_init__(self):
-        self.file = tempfile.NamedTemporaryFile(delete=False)
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            self.file_path = f.name
 
-    def close(self):
-        self.file.close()
-        os.remove(self.file.name)
+    async def write_chunk(self, chunk: bytes):
+        async with aiofiles.open(self.file_path, "ab") as f:
+            await f.write(chunk)
+
+    async def close(self):
+        await aiofiles.os.remove(self.file_path)
 
 
 @dataclass
@@ -64,16 +68,11 @@ class ActiveUploads:
     def add_upload(self, ref: str, entry: UploadEntry):
         self.uploads[ref] = ActiveUpload(ref, entry)
 
-    def add_chunk(self, ref: str, chunk: bytes):
-        self.uploads[ref].file.write(chunk)
-        self.uploads[ref].file.flush()
-        self.uploads[ref].entry.progress = self.uploads[ref].file.tell()
+    async def add_chunk(self, ref: str, chunk: bytes):
+        await self.uploads[ref].write_chunk(chunk)
 
     def no_progress(self) -> bool:
         return all(upload.entry.progress == 0 for upload in self.uploads.values())
-
-    def file_name(self, ref: str) -> str:
-        return self.uploads[ref].file.name
 
     def join_ref_for_entry(self, ref: str) -> str:
         return [
@@ -82,9 +81,9 @@ class ActiveUploads:
             if upload.entry.ref == ref
         ][0]
 
-    def close(self):
+    async def close(self):
         for upload in self.uploads.values():
-            upload.close()
+            await upload.close()
 
 
 class UploadConstraints(BaseModel):
@@ -135,22 +134,22 @@ class UploadConfig(BaseModel):
         self.entries_by_ref[ref].progress = progress
         self.entries_by_ref[ref].done = progress == 100
 
-    @contextmanager
-    def consume_uploads(self) -> Generator[list["ActiveUpload"], None, None]:
+    @asynccontextmanager
+    async def consume_uploads(self) -> AsyncGenerator[list[ActiveUpload], None]:
         try:
             upload_list = list(self.uploads.uploads.values())
             yield upload_list
         finally:
             try:
-                self.uploads.close()
+                await self.uploads.close()
             except Exception as e:
                 print("Error closing uploads", e)
 
             self.uploads = ActiveUploads()
             self.entries_by_ref = {}
 
-    def close(self):
-        self.uploads.close()
+    async def close(self):
+        await self.uploads.close()
 
 
 class UploadManager:
@@ -224,10 +223,9 @@ class UploadManager:
             entry = UploadEntry(**token)
             config.uploads.add_upload(joinRef, entry)
 
-    def add_chunk(self, joinRef: str, chunk: bytes):
+    async def add_chunk(self, joinRef: str, chunk: bytes):
         config = self.upload_config_join_refs[joinRef]
-        config.uploads.add_chunk(joinRef, chunk)
-        pass
+        await config.uploads.add_chunk(joinRef, chunk)
 
     def update_progress(self, joinRef: str, payload: dict[str, Any]):
         upload_config_ref = payload["ref"]
@@ -246,9 +244,9 @@ class UploadManager:
         config = self.upload_config_join_refs[joinRef]
         return config.uploads.no_progress()
 
-    def close(self):
+    async def close(self):
         for config in self.upload_configs.values():
-            config.close()
+            await config.close()
         self.upload_configs = {}
 
 

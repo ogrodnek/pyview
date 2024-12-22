@@ -33,7 +33,7 @@ class FileUploadDemoLiveView(LiveView[FileUploadDemoContext]):
         config = socket.allow_upload(
             "photos",
             constraints=UploadConstraints(
-                max_file_size=1 * 1024 * 1024, max_files=3, accept=[".jpg", ".jpeg"]
+                max_file_size=10 * 1024 * 1024, max_files=10, accept=[".jpg", ".jpeg"]
             ),
         )
         socket.context = FileUploadDemoContext(upload_config=config)
@@ -48,10 +48,10 @@ class FileUploadDemoLiveView(LiveView[FileUploadDemoContext]):
             return
 
         if event == "save":
-            with socket.context.upload_config.consume_uploads() as uploads:
+            async with socket.context.upload_config.consume_uploads() as uploads:
                 for upload in uploads:
                     socket.context.file_repository.add_file(
-                        upload.entry.name, upload.file.name, upload.entry.type
+                        upload.entry.name, upload.file_path, upload.entry.type
                     )
             socket.context.uploaded_files = [
                 f for f in socket.context.file_repository.get_all_files()

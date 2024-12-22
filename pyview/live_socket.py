@@ -135,7 +135,7 @@ class LiveViewSocket(Generic[T]):
         await self.pub_sub.unsubscribe_all_async()
 
         try:
-            self.upload_manager.close()
+            await self.upload_manager.close()
         except Exception:
             pass
 
