@@ -7,23 +7,19 @@ from pyview.live_view import LiveView
 
 
 class MockLiveView(LiveView):
-    async def render(self, context: dict[str, Any], meta):
-        return "mock"
+    pass
 
 
 class UserLiveView(LiveView):
-    async def render(self, context: dict[str, Any], meta):
-        return "user"
+    pass
 
 
 class ProductLiveView(LiveView):
-    async def render(self, context: dict[str, Any], meta):
-        return "product"
+    pass
 
 
 class BlogPostLiveView(LiveView):
-    async def render(self, context: dict[str, Any], meta):
-        return "blog"
+    pass
 
 
 @pytest.fixture
