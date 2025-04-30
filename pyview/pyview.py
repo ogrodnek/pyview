@@ -56,7 +56,6 @@ async def liveview_container(
     session = request.session if "session" in request.scope else {}
 
     await lv.mount(s, session)
-    await lv.handle_params(urlparse(url._url), parse_qs(url.query), s)
 
     # Parse query parameters
     query_params = parse_qs(url.query)
