@@ -1,8 +1,7 @@
 from starlette.applications import Starlette
-from starlette.websockets import WebSocket
 from starlette.responses import HTMLResponse
 from starlette.middleware.gzip import GZipMiddleware
-from starlette.routing import Route
+from starlette.routing import Route, WebSocketRoute
 from starlette.requests import Request
 import uuid
 from urllib.parse import parse_qs, urlparse
@@ -34,10 +33,7 @@ class PyView(Starlette):
         self.view_lookup = LiveViewLookup()
         self.live_handler = LiveSocketHandler(self.view_lookup)
 
-        async def live_websocket_endpoint(websocket: WebSocket):
-            await self.live_handler.handle(websocket)
-
-        self.add_websocket_route("/live/websocket", live_websocket_endpoint)
+        self.routes.append(WebSocketRoute("/live/websocket", self.live_handler.handle))
         self.add_middleware(GZipMiddleware)
 
     def add_live_view(self, path: str, view: type[LiveView]):
@@ -56,13 +52,22 @@ async def liveview_container(
 ):
     url = request.url
     path = url.path
-    lv: LiveView = view_lookup.get(path)
+    lv, path_params = view_lookup.get(path)
     s = UnconnectedSocket()
 
     session = request.session if "session" in request.scope else {}
 
     await lv.mount(s, session)
-    await lv.handle_params(urlparse(url._url), parse_qs(url.query), s)
+
+    # Parse query parameters
+    query_params = parse_qs(url.query)
+
+    # Merge path parameters with query parameters
+    # Path parameters take precedence in case of conflict
+    merged_params = {**query_params, **path_params}
+
+    # Pass merged parameters to handle_params
+    await lv.handle_params(urlparse(url._url), merged_params, s)
 
     set_component_factory(LiveComponentFactory(s.components))
 
