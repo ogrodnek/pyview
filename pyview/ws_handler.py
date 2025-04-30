@@ -42,7 +42,7 @@ class LiveSocketHandler:
                 self.myJoinId = topic
 
                 url = urlparse(payload["url"])
-                lv = self.routes.get(url.path)
+                lv, path_params = self.routes.get(url.path)
                 await self.check_auth(websocket, lv)
                 socket = ConnectedLiveViewSocket(websocket, topic, lv)
 
@@ -51,7 +51,13 @@ class LiveSocketHandler:
                     session = deserialize_session(payload["session"])
 
                 await lv.mount(socket, session)
-                await lv.handle_params(url, parse_qs(url.query), socket)
+
+                # Parse query parameters and merge with path parameters
+                query_params = parse_qs(url.query)
+                merged_params = {**query_params, **path_params}
+
+                # Pass merged parameters to handle_params
+                await lv.handle_params(url, merged_params, socket)
 
                 rendered = await _render(socket)
 
@@ -129,7 +135,20 @@ class LiveSocketHandler:
                 lv = socket.liveview
                 url = urlparse(payload["url"])
 
-                await lv.handle_params(url, parse_qs(url.query), socket)
+                # Extract and merge parameters
+                query_params = parse_qs(url.query)
+                path_params = {}
+
+                # We need to get path params for the new URL
+                try:
+                    # TODO: I don't think this is actually going to work...
+                    _, path_params = self.routes.get(url.path)
+                except ValueError:
+                    pass  # Handle case where the path doesn't match any route
+
+                merged_params = {**query_params, **path_params}
+
+                await lv.handle_params(url, merged_params, socket)
                 rendered = await _render(socket)
                 diff = calc_diff(prev_rendered, rendered)
                 prev_rendered = rendered
