@@ -1,20 +1,24 @@
 name: test
 
-on: pull_request
+on:
+  pull_request:
+  push:
+    branches: [main, master]
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up python
         id: setup-python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
+          cache: "poetry"
       - name: Install Poetry
-        uses: snok/install-poetry@v1
+        uses: snok/install-poetry@v1.3.4
         with:
           virtualenvs-create: true
           virtualenvs-in-project: true
@@ -31,6 +35,10 @@ jobs:
       - name: Install project
         run: poetry install --no-interaction
       - name: Run tests
-        run: poetry run pytest
+        run: pytest --cov --cov-branch --cov-report=xml
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
       - name: Run type checker
         run: poetry run pyright
