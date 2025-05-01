@@ -11,7 +11,7 @@ jobs:
     name: Deploy app
     runs-on: ubuntu-latest
     concurrency:
-      group: deploy-${{ github.ref }}
+      group: deploy-${{ github.ref_name }}
       cancel-in-progress: true
 
     steps:
