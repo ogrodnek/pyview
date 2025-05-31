@@ -1,4 +1,5 @@
 from pyview import LiveView, LiveViewSocket
+from pyview.events import event, BaseEventHandler
 from dataclasses import dataclass, field
 from .tasks import TaskRepository, TaskList
 from pyview.vendor.ibis import filters
@@ -24,7 +25,7 @@ class KanbanContext:
         self.task_lists = self.task_repository.task_lists
 
 
-class KanbanLiveView(LiveView[KanbanContext]):
+class KanbanLiveView(BaseEventHandler, LiveView[KanbanContext]):
     """
     Kanban Board
 
@@ -35,15 +36,19 @@ class KanbanLiveView(LiveView[KanbanContext]):
     async def mount(self, socket: LiveViewSocket[KanbanContext], session):
         socket.context = KanbanContext()
 
-    async def handle_event(self, event, payload, socket: LiveViewSocket[KanbanContext]):
-        if event == "task-moved":
-            task_id = payload["taskId"]
+    @event("task-moved")
+    async def handle_task_moved(
+        self, event, payload, socket: LiveViewSocket[KanbanContext]
+    ):
+        task_id = payload["taskId"]
 
-            socket.context.task_repository.move_task(
-                task_id, payload["from"], payload["to"], payload["order"]
-            )
-            return
+        socket.context.task_repository.move_task(
+            task_id, payload["from"], payload["to"], payload["order"]
+        )
 
-        if event == "add_task":
-            target_list = payload["task_list"]
-            socket.context.task_repository.random_task(target_list)
+    @event("add_task")
+    async def handle_add_task(
+        self, event, payload, socket: LiveViewSocket[KanbanContext]
+    ):
+        target_list = payload["task_list"]
+        socket.context.task_repository.random_task(target_list)
