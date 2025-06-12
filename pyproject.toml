@@ -1,19 +1,14 @@
-[tool.poetry]
+[project]
 name = "pyview-web"
-
-packages = [
-  { include = "pyview" },
-]
-
 version = "0.2.1"
 description = "LiveView in Python"
-authors = ["Larry Ogrodnek <ogrodnek@gmail.com>"]
-license = "MIT"
+authors = [
+    {name = "Larry Ogrodnek", email = "ogrodnek@gmail.com"},
+]
+license = {text = "MIT"}
 readme = "readme.md"
-homepage = "https://pyview.rocks"
-repository = "https://github.com/ogrodnek/pyview"
+requires-python = ">=3.10,<3.13"
 keywords = ["web", "api", "LiveView"]
-
 classifiers = [
     "Intended Audience :: Information Technology",
     "Intended Audience :: System Administrators",
@@ -40,35 +35,44 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP",
 ]
 
-[tool.poetry.dependencies]
-python = ">=3.10,<3.13"
-starlette = "0.40.0"
-uvicorn = "0.30.6"
-wsproto = "1.2.0"
-APScheduler = "3.9.1.post1"
-psutil = "^5.9.4"
-markupsafe = "^2.1.2"
-itsdangerous = "^2.1.2"
-pydantic = "^2.9.2"
+dependencies = [
+    "starlette==0.40.0",
+    "uvicorn==0.30.6",
+    "wsproto==1.2.0",
+    "APScheduler==3.9.1.post1",
+    "psutil>=5.9.4",
+    "markupsafe>=2.1.2",
+    "itsdangerous>=2.1.2",
+    "pydantic>=2.9.2",
+]
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.2.0"
-black = "24.3.0"
-pyright = "1.1.400"
-aiohttp = "^3.8.4"
-pytest-cov = "^6.1.1"
+[project.urls]
+Homepage = "https://pyview.rocks"
+Repository = "https://github.com/ogrodnek/pyview"
 
-[tool.poetry.group.profiling.dependencies]
-scalene = "^1.5.19"
-memray = "^1.6.0"
-
-
-[tool.poetry.group.docs.dependencies]
-mkdocs-material = "^9.1.2"
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.2.0",
+    "black==24.3.0",
+    "pyright==1.1.400",
+    "aiohttp>=3.8.4",
+    "pytest-cov>=6.1.1",
+]
+profiling = [
+    "scalene>=1.5.19",
+    "memray>=1.6.0",
+]
+docs = [
+    "mkdocs-material>=9.1.2",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pyview*"]
 
 [tool.pyright]
 exclude = [
