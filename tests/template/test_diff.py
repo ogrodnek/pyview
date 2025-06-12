@@ -110,3 +110,10 @@ def test_statics_only_change():
     r2 = t2.tree({"greeting": "Hello"})
 
     assert calc_diff(r1, r2) == {"s": ["<div>", "</div>"]}
+
+
+def test_nested_string_to_dict():
+    old = {"a": {"b": "some string with s inside"}}
+    new = {"a": {"b": {"s": [42]}}}
+
+    assert calc_diff(old, new) == {"a": {"b": {"s": [42]}}}

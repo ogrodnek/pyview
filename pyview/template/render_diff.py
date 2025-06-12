@@ -29,7 +29,7 @@ def calc_diff(old_tree: dict[str, Any], new_tree: dict[str, Any]) -> dict[str, A
             if old_dynamic != new_dynamic:
                 diff[key] = {"d": new_dynamic}
 
-        elif isinstance(new_tree[key], dict):
+        elif isinstance(new_tree[key], dict) and isinstance(old_tree[key], dict):
             nested_diff = calc_diff(old_tree[key], new_tree[key])
             if nested_diff:
                 diff[key] = nested_diff
