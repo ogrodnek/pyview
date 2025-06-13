@@ -17,6 +17,7 @@ from pyview.vendor.flet.pubsub import PubSubHub, PubSub
 from pyview.events import InfoEvent
 from pyview.uploads import UploadConstraints, UploadConfig, UploadManager
 from pyview.meta import PyViewMeta
+from pyview.template.render_diff import calc_diff
 import datetime
 
 
@@ -50,8 +51,8 @@ class ConnectedLiveViewSocket(Generic[T]):
     context: T
     live_title: Optional[str] = None
     pending_events: list[tuple[str, Any]]
-
     upload_manager: UploadManager
+    prev_rendered: Optional[dict[str, Any]] = None
 
     def __init__(self, websocket: WebSocket, topic: str, liveview: LiveView):
         self.websocket = websocket
@@ -93,9 +94,13 @@ class ConnectedLiveViewSocket(Generic[T]):
         )
 
     def diff(self, render: dict[str, Any]) -> dict[str, Any]:
-        # TODO: not a real diff
-        del render["s"]
-        return render
+        if self.prev_rendered:
+            diff = calc_diff(self.prev_rendered, render)
+        else:
+            diff = render
+
+        self.prev_rendered = render
+        return diff
 
     async def send_info(self, event: InfoEvent):
         await self.liveview.handle_info(event, self)
