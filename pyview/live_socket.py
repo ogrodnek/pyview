@@ -19,6 +19,7 @@ from pyview.uploads import UploadConstraints, UploadConfig, UploadManager
 from pyview.meta import PyViewMeta
 from pyview.template.render_diff import calc_diff
 import datetime
+from pyview.async_stream_runner import AsyncStreamRunner
 
 
 if TYPE_CHECKING:
@@ -63,6 +64,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         self.pub_sub = PubSub(pub_sub_hub, topic)
         self.pending_events = []
         self.upload_manager = UploadManager()
+        self.stream_runner = AsyncStreamRunner(self)
 
     @property
     def meta(self) -> PyViewMeta:
