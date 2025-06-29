@@ -1,47 +1,14 @@
-body {
-    max-width: max-content;
-    padding-left: 24px;
-}
-
-.map_wrapper {
-    display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 12px;
-    padding: 12px;
-}
-
-.sidebar ul {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-}
-
-.sidebar ul li {
-    margin-bottom: 4px;
-}
-
-.sidebar ul li a {
-    display: inline-block;
-    padding: 4px;
-    color: inherit;
-}
-
-.sidebar ul li a .icon {
+/* Park icon hover effect */
+.park-icon {
     transition: transform 0.3s ease;
     display: inline-block;
-    padding-right: 4px;
 }
 
-.sidebar ul li a:hover .name {
-    text-decoration: underline;
-    text-decoration-color: green;
+button:hover .park-icon {
+    transform: scale(1.2);
 }
 
-.sidebar ul li a:hover .icon {
-    transform: scale(1.5);
-}
-
+/* Map container styling */
 #map {
-    height: 640px;
-    width: 800px;
+    background-color: #f8f9fa;
 }

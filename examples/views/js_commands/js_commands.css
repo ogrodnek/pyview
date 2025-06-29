@@ -1,39 +1,24 @@
 .copied::after {
     content: "✓";
     margin-left: 8px;
+    color: #16a34a;
 }
 
-#copy-text {
-    font-size: 0.75rem;
-    background-color: #f0f0f0;
-    padding: 1em;
+.hint {
+    background-color: #eff6ff !important;
+    border-left-color: #3b82f6 !important;
 }
 
-#counter {
-    padding: 1em;
-    margin-block: 1em;
-    background-color: #eee;
-    border-radius: 1em;
-    width: 16ch;
+.warn {
+    background-color: #fef3c7 !important;
+    border-left-color: #f59e0b !important;
 }
-
-#focus-form {
-    margin-block: 1em;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25em;
-    width: 50ch;
-}
-
 
 @keyframes bounce {
-
-    0%,
-    100% {
+    0%, 100% {
         transform: translateY(-25%);
         animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
     }
-
     50% {
         transform: translateY(0);
         animation-timing-function: cubic-bezier(0, 0, 0.2, 1);

@@ -1,18 +1,50 @@
-<div id="light">
-  <h1>🎧 Volume Control</h1>
-  <div>
-    <div>{{volume}}%</div>
-    <progress id="volume_control" style="width: 300px; height: 2em; opacity: calc({{volume}}/100);" value="{{volume}}"
-      max="100"></progress>
-  </div>
-  <div>
-    <button phx-click="off" phx-window-keydown="key_update" phx-key="ArrowLeft">⬅️ Silence</button>
-    <button phx-click="down" phx-window-keydown="key_update" phx-key="ArrowDown">⬇️ Turn Down</button>
-    <button phx-click="up" phx-window-keydown="key_update" phx-key="ArrowUp">⬆️ Turn Up</button>
-    <button phx-click="on" phx-window-keydown="key_update" phx-key="ArrowRight">➡️ Cranked</button>
-  </div>
-
-  <div>
-    <h5>Try using the keys too!</h5>
+<div class="max-w-lg mx-auto">
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+    <h1 class="text-3xl font-bold text-center text-gray-900 mb-8">🎧 Volume Control</h1>
+    
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-sm font-medium text-gray-700">Volume</span>
+        <span class="text-2xl font-bold text-gray-900 tabular-nums">{{volume}}%</span>
+      </div>
+      
+      <div class="relative">
+        <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+          <div class="bg-blue-600 h-full rounded-full transition-all duration-300 ease-out" 
+               style="width: {{volume}}%; opacity: calc(0.3 + {{volume}}/100 * 0.7)">
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="grid grid-cols-4 gap-2">
+      <button phx-click="off" phx-window-keydown="key_update" phx-key="ArrowLeft"
+              class="px-3 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+        <div class="text-sm">Mute</div>
+        <div class="text-xs text-gray-500 mt-1">←</div>
+      </button>
+      
+      <button phx-click="down" phx-window-keydown="key_update" phx-key="ArrowDown"
+              class="px-3 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+        <div class="text-sm">Down</div>
+        <div class="text-xs text-gray-500 mt-1">↓</div>
+      </button>
+      
+      <button phx-click="up" phx-window-keydown="key_update" phx-key="ArrowUp"
+              class="px-3 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+        <div class="text-sm">Up</div>
+        <div class="text-xs text-gray-500 mt-1">↑</div>
+      </button>
+      
+      <button phx-click="on" phx-window-keydown="key_update" phx-key="ArrowRight"
+              class="px-3 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+        <div class="text-sm">Max</div>
+        <div class="text-xs text-gray-500 mt-1">→</div>
+      </button>
+    </div>
+    
+    <div class="mt-6 text-center">
+      <p class="text-sm text-gray-500">Use arrow keys for keyboard control</p>
+    </div>
   </div>
 </div>

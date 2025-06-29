@@ -1,67 +1,108 @@
-<div class="upload-wrapper">
-    <div class="upload-header">
-        <h1>📁 File Upload with PyView</h1>
-        <form id="upload-form" phx-change="validate" phx-submit="save">
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-8">📁 File Upload Demo</h1>
+        
+        <form id="upload-form" phx-change="validate" phx-submit="save" class="mb-8">
+            <!-- Upload Zone -->
             <div phx-drop-target="{{upload_config.ref}}"
-                style="border: 2px dashed #ccc; padding: 10px; margin: 10px 0; width: 500px">
-                <p class="upload-instructions">Add up to
-                    {{upload_config.constraints.max_files}} photos (max
-                    {{upload_config.constraints.max_file_size | readable_size}})
-                </p>
-                {{upload_config | live_file_input}}
-                <span class=" upload-instructions">
-                    ... or drag and drop files here
-                </span>
-            </div>
-            <div class="upload-button-container">
-                <button type="submit" phx-disable-with="Saving..."
-                    {%if not upload_config.entries %}disabled{%endif%}>Upload</button>
-            </div>
-        </form>
-    </div>
-
-    {% for error in upload_config.errors %}
-    <p class="error-message">🚫 {{ error.message }}</p>
-    {% endfor %}
-
-    <div class="file-upload-list">
-        {%if upload_config.entries %}
-        <h3>📤 Pending Uploads</h3>
-        {%endif%}
-
-
-        {% for entry in upload_config.entries %}
-        <div class="file-item {%if entry.errors%}error{%endif%}">
-            <div class="file-thumbnail">
-                {{ entry | upload_preview_tag}}
-            </div>
-            <div class="file-info">
-                <p>{{entry.name}}</p>
-                <p>{{entry.type}} • {{entry.size | readable_size}}</p>
-                {% for error in entry.errors %}
-                <p style="color: #721c24">{{error.message}}</p>
-                {% endfor %}
-                <div class="file-progress" style="width: {{entry.progress}}%;">
-                    <div class="file-progress-bar"></div>
+                 class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors bg-gray-50 hover:bg-gray-100">
+                <div class="space-y-4">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div>
+                        <p class="text-lg font-medium text-gray-900">
+                            Add up to {{upload_config.constraints.max_files}} photos
+                        </p>
+                        <p class="text-sm text-gray-500 mb-4">
+                            Max {{upload_config.constraints.max_file_size | readable_size}} per file
+                        </p>
+                        {{upload_config | live_file_input}}
+                        <p class="text-sm text-gray-500 mt-2">
+                            or drag and drop files here
+                        </p>
+                    </div>
                 </div>
             </div>
-            <a class="file-cancel" phx-click="cancel" phx-value-ref="{{ entry.ref }}">&times;</a>
+            
+            <!-- Upload Button -->
+            <div class="flex justify-end mt-6">
+                <button type="submit" 
+                        phx-disable-with="Uploading..."
+                        {%if not upload_config.entries %}disabled{%endif%}
+                        class="px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                    Upload Files
+                </button>
+            </div>
+        </form>
+
+        <!-- Error Messages -->
+        {% for error in upload_config.errors %}
+        <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+            <div class="flex">
+                <svg class="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                </svg>
+                <span class="text-sm font-medium text-red-800">{{ error.message }}</span>
+            </div>
         </div>
         {% endfor %}
-    </div>
 
-
-    <div class="uploaded-files">
-        {%if uploaded_files %}
-        <h3>🌐 Uploaded Images</h3>
-        {%endif%}
-        <div class="photo-grid" id="photo-grid">
-            {% for file in uploaded_files %}
-            <div class="photo-item">
-                <img src="{{file.inline_image}}" />
-                <div class="photo-caption">{{file.file_name | truncatechars(20)}}</div>
+        <!-- Pending Uploads -->
+        {%if upload_config.entries %}
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">📤 Pending Uploads</h2>
+            <div class="space-y-3">
+                {% for entry in upload_config.entries %}
+                <div class="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200 {%if entry.errors%}bg-red-50 border-red-200{%endif%}">
+                    <div class="w-16 h-16 bg-gray-200 rounded-md overflow-hidden mr-4 flex-shrink-0">
+                        {{ entry | upload_preview_tag}}
+                    </div>
+                    <div class="flex-grow min-w-0">
+                        <p class="font-medium text-gray-900 truncate">{{entry.name}}</p>
+                        <p class="text-sm text-gray-500">{{entry.type}} • {{entry.size | readable_size}}</p>
+                        {% for error in entry.errors %}
+                        <p class="text-sm text-red-600 mt-1">{{error.message}}</p>
+                        {% endfor %}
+                        <div class="mt-2">
+                            <div class="bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: {{entry.progress}}%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <button phx-click="cancel" phx-value-ref="{{ entry.ref }}"
+                            class="ml-4 text-gray-400 hover:text-gray-600 flex-shrink-0">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
+        {%endif%}
+
+        <!-- Uploaded Images -->
+        {%if uploaded_files %}
+        <div>
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">🖼️ Uploaded Images</h2>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {% for file in uploaded_files %}
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="aspect-square">
+                        <img src="{{file.inline_image}}" 
+                             alt="{{file.file_name}}"
+                             class="w-full h-full object-cover" />
+                    </div>
+                    <div class="p-2">
+                        <p class="text-xs text-gray-600 truncate" title="{{file.file_name}}">
+                            {{file.file_name | truncatechars(15)}}
+                        </p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {%endif%}
     </div>
 </div>

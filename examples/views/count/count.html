@@ -1,5 +1,26 @@
-<div>
-    <h1>Count is {{count}}</h1>
-    <button phx-click="decrement">-</button>
-    <button phx-click="increment">+</button>
+<div class="max-w-md mx-auto">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+        <h1 class="text-3xl font-bold text-center text-gray-900 mb-8">Basic Counter</h1>
+        
+        <div class="text-center mb-8">
+            <div class="text-6xl font-bold text-gray-800 tabular-nums">{{count}}</div>
+        </div>
+        
+        <div class="flex items-center justify-center space-x-4">
+            <button phx-click="decrement" 
+                    class="w-16 h-16 rounded-full bg-white border-2 border-gray-300 text-gray-700 text-2xl font-medium hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                −
+            </button>
+            <button phx-click="increment" 
+                    class="w-16 h-16 rounded-full bg-blue-600 text-white text-2xl font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                +
+            </button>
+        </div>
+        
+        <div class="mt-8 text-center">
+            <p class="text-sm text-gray-500">
+                Try changing the URL to <code class="px-2 py-1 bg-gray-100 rounded text-xs">/count?c=100</code>
+            </p>
+        </div>
+    </div>
 </div>
