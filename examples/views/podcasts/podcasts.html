@@ -1,36 +1,41 @@
-<div>
-    <h1>🎙️ Podcasts</h1>
-    <div style="padding-bottom: 8px; padding-top: 8px; display: flex;">
-        {% for p in podcasts %}
-        <div
-            style="margin-right: 16px; padding-bottom: 8px; width: fit-content; border-bottom: .3rem solid {% if p.id == currentPodcast.id %} red {% else %} transparent {% endif %};">
-            <a data-phx-link="patch" data-phx-link-state="push" href="/podcasts?id={{p.id}}">
-                <img width="64" height="64" src="{{ p.coverUrl }}" alt="{{ p.title }}" />
-            </a>
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-6">🎙️ Podcasts</h1>
+        
+        <!-- Podcast selector -->
+        <div class="mb-8">
+            <div class="flex gap-4 overflow-x-auto pb-4">
+                {% for p in podcasts %}
+                <a data-phx-link="patch" data-phx-link-state="push" href="/podcasts?id={{p.id}}"
+                   class="flex-shrink-0 group flex flex-col items-center">
+                    <img src="{{ p.coverUrl }}" 
+                         alt="{{ p.title }}" 
+                         class="w-20 h-20 rounded-lg object-cover group-hover:opacity-80 transition-opacity" />
+                    <div class="w-full h-1 mt-2 rounded-full {% if p.id == currentPodcast.id %}bg-blue-600{% else %}bg-transparent{% endif %}"></div>
+                </a>
+                {% endfor %}
+            </div>
         </div>
-        {% endfor %}
-    </div>
 
-    <div class="row">
-        <div class="col">
-            <div style="max-width: 500px;">
-                <h2 style="margin-top: 0;">{{ currentPodcast.title }}</h2>
-                <p>
-                    <small>
-                        {{ currentPodcast.description }}
-                    </small>
+        <!-- Selected podcast details -->
+        <div class="grid gap-6 md:grid-cols-2">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-900 mb-3">{{ currentPodcast.title }}</h2>
+                <p class="text-gray-600 mb-6 leading-relaxed">
+                    {{ currentPodcast.description }}
                 </p>
-                <h5>Recent Episodes</h5>
-                <ul>
+            </div>
+            
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Episodes</h3>
+                <div class="space-y-3 max-h-96 overflow-y-auto">
                     {% for e in currentPodcast.episodes %}
-                    <li>
-                        <div>
-                            {{ e.title }}
-                        </div>
-                        <small>{{ e.published }}</small>
-                    </li>
+                    <div class="border-b border-gray-100 pb-3 last:border-0">
+                        <h4 class="text-sm font-medium text-gray-900 mb-1">{{ e.title }}</h4>
+                        <time class="text-xs text-gray-500">{{ e.published }}</time>
+                    </div>
                     {% endfor %}
-                </ul>
+                </div>
             </div>
         </div>
     </div>

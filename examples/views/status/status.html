@@ -1,26 +1,56 @@
-<div>
-    <h1>🚀 Server Status</h1>
-    <div class="row">
-        <div class="col">
-            <div class="card info">
-                <p>Memory Used (MB)</p>
-                <p>{{ mem }}</p>
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
+        <div class="flex items-center justify-between mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">🚀 Server Status</h1>
+            <button phx-click="refresh" 
+                    class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh
+            </button>
+        </div>
+
+        <div class="grid gap-6 md:grid-cols-3">
+            <!-- Memory Usage (MB) -->
+            <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
+                <div class="flex items-center mb-3">
+                    <div class="w-3 h-3 bg-blue-600 rounded-full mr-3"></div>
+                    <h3 class="text-sm font-medium text-gray-700">Memory Used</h3>
+                </div>
+                <div class="flex items-baseline">
+                    <span class="text-3xl font-bold text-gray-900 tabular-nums">{{ mem }}</span>
+                    <span class="ml-2 text-sm text-gray-600">MB</span>
+                </div>
+            </div>
+
+            <!-- Memory Usage (%) -->
+            <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
+                <div class="flex items-center mb-3">
+                    <div class="w-3 h-3 bg-green-600 rounded-full mr-3"></div>
+                    <h3 class="text-sm font-medium text-gray-700">Memory Used</h3>
+                </div>
+                <div class="flex items-baseline">
+                    <span class="text-3xl font-bold text-gray-900 tabular-nums">{{ mem_pct }}</span>
+                    <span class="ml-2 text-sm text-gray-600">%</span>
+                </div>
+            </div>
+
+            <!-- CPU Usage (%) -->
+            <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6 border border-orange-200">
+                <div class="flex items-center mb-3">
+                    <div class="w-3 h-3 bg-orange-600 rounded-full mr-3"></div>
+                    <h3 class="text-sm font-medium text-gray-700">CPU Used</h3>
+                </div>
+                <div class="flex items-baseline">
+                    <span class="text-3xl font-bold text-gray-900 tabular-nums">{{ cpu_pct }}</span>
+                    <span class="ml-2 text-sm text-gray-600">%</span>
+                </div>
             </div>
         </div>
-        <div class="col">
-            <div class="col card info">
-                <p>Memory Used (%)</p>
-                <p>{{ mem_pct }}</p>
-            </div>
+
+        <div class="mt-6 text-center">
+            <p class="text-sm text-gray-500">Updates automatically every 5 seconds</p>
         </div>
-        <div class="col">
-            <div class="col card info">
-                <p>CPU Used (%)</p>
-                <p>{{ cpu_pct }}</p>
-            </div>
-        </div>
-    </div>
-    <div class="row">
-        <button phx-click="refresh">Refresh</button>
     </div>
 </div>

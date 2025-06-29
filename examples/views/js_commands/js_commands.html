@@ -7,88 +7,142 @@
     });
 </script>
 
-<div>
-    <h1>JS Commands</h1>
-    <p>PyView JS commands support is a work in progress.</p>
-    <p>
-        See the <a href="https://hexdocs.pm/phoenix_live_view/Phoenix.LiveView.JS.html">Phoenix LiveView JS docs</a>
-        for an idea of what's coming.
-    </p>
-    <h3>Show/Hide</h3>
-    <button phx-click='{{ js.show("#bq") }}'>Show</button>
-    <button phx-click='{{ js.hide("#bq") }}'>Hide</button>
-    <blockquote id="bq" class="hint">
-        <p>JS Commands let you update the DOM without making a trip to the server.</p>
-    </blockquote>
-    <hr />
-    <h3>Toggle</h3>
-    <button phx-click='{{ js.toggle("#bq2") }}'>Toggle</button>
-    <blockquote id="bq2" class="hint">
-        <p>JS Commands let you update the DOM without making a trip to the server.</p>
-    </blockquote>
-    <h3>Add/Remove Class</h3>
-    <button phx-click='{{ js.add_class("#bq3", "hint") }}'>Add "hint"</button>
-    <button phx-click='{{ js.add_class("#bq3", "warn") }}'>Add "warn"</button>
-    <button phx-click='{{ js.remove_class("#bq3", "warn", "hint") }}'>Remove all</button>
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-6">⚡ JS Commands</h1>
+        
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
+            <p class="text-sm text-blue-900 mb-2">PyView JS commands support is a work in progress.</p>
+            <p class="text-sm text-blue-900">
+                See the <a href="https://hexdocs.pm/phoenix_live_view/Phoenix.LiveView.JS.html" 
+                         class="underline hover:text-blue-700">Phoenix LiveView JS docs</a>
+                for an idea of what's coming.
+            </p>
+        </div>
 
-    <blockquote id="bq3">
-        <p>JS Commands let you update the DOM without making a trip to the server.</p>
-    </blockquote>
+        <div class="space-y-8">
+            <!-- Show/Hide Section -->
+            <section>
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Show/Hide</h2>
+                <div class="flex gap-2 mb-4">
+                    <button phx-click='{{ js.show("#bq") }}' 
+                            class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
+                        Show
+                    </button>
+                    <button phx-click='{{ js.hide("#bq") }}' 
+                            class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors">
+                        Hide
+                    </button>
+                </div>
+                <blockquote id="bq" class="bg-gray-50 border-l-4 border-gray-400 p-4 rounded-r-md">
+                    <p class="text-gray-700 italic">JS Commands let you update the DOM without making a trip to the server.</p>
+                </blockquote>
+            </section>
 
-    <h3>Dispatch</h3>
-    <p>
-        Dispatch lets you send custom javascript events on the client, which you can listen to
-        using <code>window.addEventListener</code>.
-    </p>
-    <p>
-        This example sends a "copy-to-clipboard" event when the button is clicked.
-    </p>
-    <p>
-        It also demonstrates how to chain multiple JS commands together - this example adds a class to the button
-        when the copy-to-clipboard event is dispatched.
-    </p>
-    <pre id="copy-text">{{ js.dispatch("copy-to-clipboard", "#copy-text") }}</pre>
+            <hr class="border-gray-200">
 
-    <button id="copy-button"
-        phx-click='{{ js.dispatch("copy-to-clipboard", "#copy-text") | js.add_class("#copy-button", "copied") }}'>Copy
-        to clipboard</button>
+            <!-- Toggle Section -->
+            <section>
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Toggle</h2>
+                <button phx-click='{{ js.toggle("#bq2") }}' 
+                        class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors mb-4">
+                    Toggle
+                </button>
+                <blockquote id="bq2" class="bg-gray-50 border-l-4 border-gray-400 p-4 rounded-r-md">
+                    <p class="text-gray-700 italic">JS Commands let you update the DOM without making a trip to the server.</p>
+                </blockquote>
+            </section>
 
-    <h3>Push</h3>
-    <p>
-        Push lets you push a new event to your view, similar to <code>phx-click</code>.
-    </p>
-    <p>
-        This example increments a counter when the button is clicked.
-    </p>
-    <p>
-        This can be useful if you want to chain the push event with other JS commands, like a transition. This example
-        uses the <code>js.transition</code> command to add a bounce animation to the counter when it is incremented.
-    </p>
-    <p id="counter">
-        <b>Counter</b> | <span>{{value}}</span>
-    </p>
-    <button phx-click='{{ js.push("increment") | js.transition("#counter", "bounce")}}'>Increment</button>
+            <!-- Add/Remove Class Section -->
+            <section>
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Add/Remove Class</h2>
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <button phx-click='{{ js.add_class("#bq3", "hint") }}' 
+                            class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
+                        Add "hint"
+                    </button>
+                    <button phx-click='{{ js.add_class("#bq3", "warn") }}' 
+                            class="px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors">
+                        Add "warn"
+                    </button>
+                    <button phx-click='{{ js.remove_class("#bq3", "warn", "hint") }}' 
+                            class="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors">
+                        Remove all
+                    </button>
+                </div>
+                <blockquote id="bq3" class="bg-gray-50 border-l-4 border-gray-400 p-4 rounded-r-md">
+                    <p class="text-gray-700 italic">JS Commands let you update the DOM without making a trip to the server.</p>
+                </blockquote>
+            </section>
 
-    <h3>
-        Focus
-    </h3>
-    <p>
-        Focus lets you focus an element on the page.
-    </p>
-    <p>
-        The first button uses <code>js.focus("#email")</code> to focus the email input.
-    </p>
-    <p>
-        The second button uses <code>js.focus_first("#focus-form")</code> to focus the first input in the form.
-    </p>
+            <!-- Dispatch Section -->
+            <section>
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Dispatch</h2>
+                <div class="prose prose-sm text-gray-600 mb-4 max-w-none">
+                    <p>Dispatch lets you send custom javascript events on the client, which you can listen to using <code class="px-2 py-1 bg-gray-100 rounded text-xs">window.addEventListener</code>.</p>
+                    <p>This example sends a "copy-to-clipboard" event when the button is clicked.</p>
+                    <p>It also demonstrates how to chain multiple JS commands together - this example adds a class to the button when the copy-to-clipboard event is dispatched.</p>
+                </div>
+                <pre id="copy-text" class="bg-gray-100 p-4 rounded-md text-sm font-mono mb-4 overflow-x-auto">{{ js.dispatch("copy-to-clipboard", "#copy-text") }}</pre>
+                <button id="copy-button"
+                        phx-click='{{ js.dispatch("copy-to-clipboard", "#copy-text") | js.add_class("#copy-button", "copied") }}'
+                        class="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors">
+                    Copy to clipboard
+                </button>
+            </section>
 
-    <button phx-click='{{ js.focus("#email") }}'>Focus</button>
-    <button phx-click='{{ js.focus_first("#focus-form") }}'>Focus first</button>
-    <form id="focus-form" autocomplete="off">
-        <label for="name">Name</label>
-        <input type="text" id="name" />
-        <label for="email">Email</label>
-        <input type="text" id="email" />
-    </form>
+            <!-- Push Section -->
+            <section>
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Push</h2>
+                <div class="prose prose-sm text-gray-600 mb-4 max-w-none">
+                    <p>Push lets you push a new event to your view, similar to <code class="px-2 py-1 bg-gray-100 rounded text-xs">phx-click</code>.</p>
+                    <p>This example increments a counter when the button is clicked.</p>
+                    <p>This can be useful if you want to chain the push event with other JS commands, like a transition. This example uses the <code class="px-2 py-1 bg-gray-100 rounded text-xs">js.transition</code> command to add a bounce animation to the counter when it is incremented.</p>
+                </div>
+                <div class="flex flex-col gap-4 items-start">
+                    <div id="counter" class="inline-flex items-center bg-white border border-gray-200 rounded-lg px-4 py-2 shadow-sm">
+                        <span class="text-sm font-medium text-gray-600 mr-2">Counter</span>
+                        <div class="w-px h-5 bg-gray-300 mr-2"></div>
+                        <span class="text-2xl font-bold text-gray-900 tabular-nums">{{value}}</span>
+                    </div>
+                    <button phx-click='{{ js.push("increment") | js.transition("#counter", "bounce")}}'
+                            class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                        Increment
+                    </button>
+                </div>
+            </section>
 
+            <!-- Focus Section -->
+            <section>
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Focus</h2>
+                <div class="prose prose-sm text-gray-600 mb-4 max-w-none">
+                    <p>Focus lets you focus an element on the page.</p>
+                    <p>The first button uses <code class="px-2 py-1 bg-gray-100 rounded text-xs">js.focus("#email")</code> to focus the email input.</p>
+                    <p>The second button uses <code class="px-2 py-1 bg-gray-100 rounded text-xs">js.focus_first("#focus-form")</code> to focus the first input in the form.</p>
+                </div>
+                <div class="flex gap-2 mb-4">
+                    <button phx-click='{{ js.focus("#email") }}'
+                            class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-colors">
+                        Focus Email
+                    </button>
+                    <button phx-click='{{ js.focus_first("#focus-form") }}'
+                            class="px-4 py-2 bg-cyan-600 text-white text-sm font-medium rounded-md hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors">
+                        Focus First
+                    </button>
+                </div>
+                <form id="focus-form" autocomplete="off" class="space-y-4 max-w-sm">
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                        <input type="text" id="name" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="text" id="email" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                </form>
+            </section>
+        </div>
+    </div>
 </div>

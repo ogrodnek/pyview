@@ -1,21 +1,81 @@
-<div style="padding: 8px">
-    <div style="padding-top: 12px; font-style: italic; font-size: smaller;">
-        <a href="/presence" target="_blank">Open this example in multiple windows</a> to see the connected list
-        update as users join and leave.
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
+        <!-- Flash Messages -->
+        {% if message %}
+        <div class="flash-message {{message.action}}">
+            <div class="flex items-center">
+                {% if message.action == 'joined' %}
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+                {% else %}
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
+                {% endif %}
+                <span class="font-medium">{{message.user.name}} {{message.action}}</span>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                👋 Live Presence Demo
+            </h1>
+            <p class="text-lg text-gray-600 mb-4">
+                Hello <span class="font-semibold" style="color: {{current_user.color}};">{{current_user.name}}</span>!
+            </p>
+            
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                    </svg>
+                    <div class="text-left">
+                        <p class="text-sm text-blue-900 font-medium mb-1">Try the real-time presence!</p>
+                        <p class="text-sm text-blue-700">
+                            <a href="/presence" target="_blank" class="underline hover:text-blue-800">
+                                Open this example in multiple windows
+                            </a>
+                            to see the connected list update as users join and leave.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Connected Users Section -->
+        <div>
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">
+                {{connected|len}} Connected User{%if connected|len != 1 %}s{%endif%}
+            </h2>
+            
+            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {% for user in connected %}
+                <div class="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div class="relative mr-3">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm"
+                             style="background-color: {{ user.color }};">
+                            {{ user.name.0|upper }}
+                        </div>
+                        {% if current_user == user %}
+                        <div class="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white pulse-dot"></div>
+                        {% else %}
+                        <div class="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <p class="font-medium text-gray-900">{{ user.name }}</p>
+                        {% if current_user == user %}
+                        <p class="text-xs text-gray-500">(You)</p>
+                        {% else %}
+                        <p class="text-xs text-gray-500">Online</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
     </div>
-    {% if message %}
-    <div class="flash-message {{message.action}}">{{message.user.name}} {{message.action}}</div>
-    {% endif %}
-    <h1>Hello <span style="color: {{current_user.color}};">{{current_user.name}}</span>!</h1>
-    <h2>{{connected|len}} Connected User{%if connected|len > 1 %}s{%endif%}</h2>
-    <ul class="user-list">
-        {% for user in connected %}
-        <li class="user-item">
-            <span class="color-circle" style="background-color: {{ user.color }};
-                         {% if current_user == user %}animation: pulse 2.5s infinite ease-in-out;{% endif %}">
-            </span>
-            <span>{{ user.name }}</span>
-        </li>
-        {% endfor %}
-    </ul>
 </div>

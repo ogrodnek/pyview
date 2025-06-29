@@ -1,22 +1,35 @@
-<h1>🌲 National Park Planner</h1>
-
-<div class="map_wrapper">
-    <div class="sidebar">
-        <ul>
-            {% for park in parks %}
-            <li>
-                <a href="#" phx-click="select-park" phx-value-name="{{ park.name }}"
-                    style="{% if selected_park_name == park.name %}color: green;{% endif %}"><span
-                        class="icon">{{park.icon}}</span>
-                    <span class="name">{{ park.name }}</span></a>
-            </li>
-            {% endfor %}
-        </ul>
-    </div>
-    <div class="content">
-        <div id="map_wrapper" phx-update="ignore">
-            <div id="map" phx-hook="ParksMap" data-parks="{{parks|json_encode}}">
-
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-8">🌲 National Park Planner</h1>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Sidebar -->
+            <div class="lg:col-span-1">
+                <div class="space-y-2">
+                    {% for park in parks %}
+                    <button phx-click="select-park" phx-value-name="{{ park.name }}"
+                            class="w-full text-left px-3 py-1.5 rounded-md border transition-all hover:bg-gray-50 hover:border-gray-300 
+                                   {% if selected_park_name == park.name %}bg-green-50 border-green-200 text-green-900{% else %}bg-white border-gray-200 text-gray-700{% endif %}">
+                        <div class="flex items-center">
+                            <span class="text-base mr-2 park-icon">{{park.icon}}</span>
+                            <span class="font-medium text-sm">{{ park.name }}</span>
+                        </div>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Map Container -->
+            <div class="lg:col-span-3">
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                    <div id="map_wrapper" phx-update="ignore">
+                        <div id="map" 
+                             phx-hook="ParksMap" 
+                             data-parks="{{parks|json_encode}}"
+                             class="w-full h-96 lg:h-[600px] rounded-md overflow-hidden border border-gray-300">
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

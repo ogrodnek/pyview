@@ -1,54 +1,102 @@
-<h1>⚽ Fifa Audiences</h1>
-<p>
-    <i>from <a href="https://fivethirtyeight.com/features/how-to-break-fifa/">How to Break FIFA
-            (FiveThirtyEight)</a></i>
-</p>
-<div id="audiences">
-    <div style="display: flex; justify-content: space-between;">
-        <form phx-change="select-per-page">
-            Show
-            <select name="perPage">
-                <option value="10" {% if paging.perPage == 10 %} selected{% endif %}>10</option>
-                <option value="25" {% if paging.perPage == 25 %} selected{% endif %}>25</option>
-                <option value="50" {% if paging.perPage == 50 %} selected{% endif %}>50</option>
-            </select>
-            <label for="perPage">per page</label>
-        </form>
-        <div class="float-right" style="align-self: baseline">
-            {{ paging.firstResult }} - {{ paging.lastResult }} of {{ paging.totalResults }}
-            {% if paging.hasPrev %}
-            <a data-phx-link="patch" data-phx-link-state="push"
-                href="/fifa?page={{paging.prevPage}}&perPage={{paging.perPage}}">Prev</a>
-            {% endif %}
-            {% if paging.hasNext %}
-            <a data-phx-link="patch" data-phx-link-state="push"
-                href="/fifa?page={{paging.nextPage}}&perPage={{paging.perPage}}">Next</a>
-            {% endif %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">⚽ FIFA World Cup Audiences</h1>
+            <p class="text-sm text-gray-600">
+                Data from <a href="https://fivethirtyeight.com/features/how-to-break-fifa/" 
+                           class="text-blue-600 hover:text-blue-800 underline">How to Break FIFA (FiveThirtyEight)</a>
+            </p>
         </div>
-    </div>
-    <div class="wrapper">
-        <table>
-            <thead>
-                <tr>
-                    <th>Country</th>
-                    <th>Confederation</th>
-                    <th>Population Share</th>
-                    <th>TV Audience Share</th>
-                    <th>GDP Weighted Share</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for a in audiences %}
-                <tr>
-                    <td>{{ a.country }}</td>
-                    <td>{{ a.confederation }}</td>
-                    <td>{{ a.population_share }}</td>
-                    <td>{{ a.tv_audience_share }}</td>
-                    <td>{{ a.gdp_weighted_share }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
 
+        <div id="audiences">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+                <form phx-change="select-per-page" class="flex items-center gap-2">
+                    <label for="perPage" class="text-sm text-gray-700">Show</label>
+                    <select name="perPage" 
+                            class="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="10" {% if paging.perPage == 10 %} selected{% endif %}>10</option>
+                        <option value="25" {% if paging.perPage == 25 %} selected{% endif %}>25</option>
+                        <option value="50" {% if paging.perPage == 50 %} selected{% endif %}>50</option>
+                    </select>
+                    <span class="text-sm text-gray-700">per page</span>
+                </form>
+                
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-gray-700">
+                        {{ paging.firstResult }}–{{ paging.lastResult }} of {{ paging.totalResults }}
+                    </span>
+                    <div class="flex gap-1">
+                        {% if paging.hasPrev %}
+                        <a data-phx-link="patch" data-phx-link-state="push"
+                           href="/fifa?page={{paging.prevPage}}&perPage={{paging.perPage}}"
+                           class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Previous
+                        </a>
+                        {% else %}
+                        <span class="px-3 py-1.5 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-200 rounded-md cursor-not-allowed">
+                            Previous
+                        </span>
+                        {% endif %}
+                        
+                        {% if paging.hasNext %}
+                        <a data-phx-link="patch" data-phx-link-state="push"
+                           href="/fifa?page={{paging.nextPage}}&perPage={{paging.perPage}}"
+                           class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Next
+                        </a>
+                        {% else %}
+                        <span class="px-3 py-1.5 text-sm font-medium text-gray-400 bg-gray-100 border border-gray-200 rounded-md cursor-not-allowed">
+                            Next
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Country
+                            </th>
+                            <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Confederation
+                            </th>
+                            <th class="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Population Share
+                            </th>
+                            <th class="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                TV Audience Share
+                            </th>
+                            <th class="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                GDP Weighted Share
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for a in audiences %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {{ a.country }}
+                            </td>
+                            <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500">
+                                {{ a.confederation }}
+                            </td>
+                            <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 text-right">
+                                {{ a.population_share }}
+                            </td>
+                            <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 text-right">
+                                {{ a.tv_audience_share }}
+                            </td>
+                            <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 text-right">
+                                {{ a.gdp_weighted_share }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>

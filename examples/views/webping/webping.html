@@ -1,30 +1,86 @@
-<button style="margin-left: 0" phx-click="ping">Ping</button>
-<span style="font-style: italic">Auto-updating every 10 seconds...</span>
-<div class="row">
-    {% for site in sites %}
-    <div class="col">
-        <blockquote class="{% if site.status == 'Error' %}warn{% else %}hint{% endif %}">
-            <span style="font-size: larger">{{ site.url }}</span>
-        </blockquote>
-
-        <div style="width: 100; height: 50">
-            {{ site.points | svg_chart(300, 100)}}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
+        <div class="flex items-center justify-between mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">📡 Web Ping Monitor</h1>
+            <div class="flex items-center gap-4">
+                <span class="text-sm text-gray-500 italic">Auto-updating every 10 seconds</span>
+                <button phx-click="ping"
+                        class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Ping Now
+                </button>
+            </div>
         </div>
 
-        <table>
-            <tr>
-                <th>response (ms)</th>
-                <th>status</th>
-                <th>date</th>
-            </tr>
-            {% for r in site.responses|reversed %}
-            <tr style="font-size: 12px; font-family: monospace;">
-                <td>{{ r.time_formatted }}</td>
-                <td>{{ r.status }}</td>
-                <td>{{ r.date | dtformat('%m-%d %I:%M:%S %p') }}</td>
-            </tr>
+        <div class="grid gap-6 lg:grid-cols-2">
+            {% for site in sites %}
+            <div class="bg-gray-50 rounded-lg border border-gray-200 p-6">
+                <!-- Site Header -->
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-gray-900">{{ site.url }}</h2>
+                    <div class="flex items-center">
+                        {% if site.status == 'Error' %}
+                        <div class="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+                        <span class="text-sm font-medium text-red-700">Error</span>
+                        {% else %}
+                        <div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                        <span class="text-sm font-medium text-green-700">Online</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Chart Container -->
+                <div class="bg-white rounded-md border border-gray-200 p-4 mb-4">
+                    <div class="w-full h-24 flex items-center justify-center">
+                        {{ site.points | svg_chart(300, 100)}}
+                    </div>
+                </div>
+
+                <!-- Response Table -->
+                <div class="overflow-hidden rounded-md border border-gray-200">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Response (ms)
+                                </th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Status
+                                </th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Date
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for r in site.responses|reversed %}
+                            <tr class="{% cycle 'bg-white', 'bg-gray-50' %}">
+                                <td class="px-3 py-2 whitespace-nowrap text-xs font-mono text-gray-900">
+                                    {{ r.time_formatted }}
+                                </td>
+                                <td class="px-3 py-2 whitespace-nowrap text-xs">
+                                    {% if r.status == 200 %}
+                                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                        {{ r.status }}
+                                    </span>
+                                    {% else %}
+                                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                        {{ r.status }}
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-3 py-2 whitespace-nowrap text-xs font-mono text-gray-500">
+                                    {{ r.date | dtformat('%m-%d %I:%M:%S %p') }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
             {% endfor %}
-        </table>
+        </div>
     </div>
-    {% endfor %}
 </div>
