@@ -5,7 +5,7 @@ from collections import deque
 from .chart import Point
 import time
 import aiohttp
-from pyview.events import InfoEvent
+from pyview.events import InfoEvent, info, BaseEventHandler
 
 
 @dataclass
@@ -38,7 +38,7 @@ class PingContext:
 timeout = aiohttp.ClientTimeout(total=10)
 
 
-class PingLiveView(LiveView[PingContext]):
+class PingLiveView(BaseEventHandler, LiveView[PingContext]):
     """
     Web Ping
 
@@ -53,11 +53,11 @@ class PingLiveView(LiveView[PingContext]):
             ]
         )
         if is_connected(socket):
-            socket.schedule_info("ping", 10)
-            await self.handle_info(InfoEvent("ping"), socket)
+            socket.schedule_info(InfoEvent("ping"), 10)
+            await self.handle_ping(InfoEvent("ping"), socket)
 
     async def handle_event(self, event, payload, socket: LiveViewSocket[PingContext]):
-        await self.handle_info(InfoEvent("ping"), socket)
+        await self.handle_ping(InfoEvent("ping"), socket)
 
     async def ping(self, site: PingSite):
         start = time.time_ns()
@@ -70,6 +70,7 @@ class PingLiveView(LiveView[PingContext]):
                 )
                 site.status = "OK" if status == 200 else "Error"
 
-    async def handle_info(self, event, socket: LiveViewSocket[PingContext]):
+    @info("ping")
+    async def handle_ping(self, event, socket: LiveViewSocket[PingContext]):
         for site in socket.context.sites:
             await self.ping(site)
