@@ -41,8 +41,8 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
-starlette = "0.40.0"
-uvicorn = "0.30.6"
+starlette = "0.47.1"
+uvicorn = "0.34.3"
 wsproto = "1.2.0"
 APScheduler = "3.11.0"
 markupsafe = "^3.0.2"
