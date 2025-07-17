@@ -8,6 +8,7 @@ from pyview.csrf import validate_csrf_token
 from pyview.session import deserialize_session
 from pyview.auth import AuthProviderFactory
 from pyview.phx_message import parse_message
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 
 class AuthException(Exception):
@@ -19,6 +20,8 @@ class LiveSocketHandler:
         self.routes = routes
         self.manager = ConnectionManager()
         self.sessions = 0
+        self.scheduler = AsyncIOScheduler()
+        self.scheduler.start()
 
     async def check_auth(self, websocket: WebSocket, lv):
         if not await AuthProviderFactory.get(lv).has_required_auth(websocket):
@@ -43,7 +46,7 @@ class LiveSocketHandler:
                 url = urlparse(payload["url"])
                 lv, path_params = self.routes.get(url.path)
                 await self.check_auth(websocket, lv)
-                socket = ConnectedLiveViewSocket(websocket, topic, lv)
+                socket = ConnectedLiveViewSocket(websocket, topic, lv, self.scheduler)
 
                 session = {}
                 if "session" in payload:

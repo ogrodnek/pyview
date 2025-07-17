@@ -7,15 +7,16 @@ readme = "README.md"
 package-mode = false
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.13"
+python = ">=3.11,<3.13"
 pyview-web = {path = "..", develop = true}
-aiohttp = "^3.10.11"
+aiohttp = "^3.12.14"
 pillow = "^10.4.0"
+psutil = "^7.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.0"
 black = "24.3.0"
-pyright = "1.1.400"
+pyright = "1.1.403"
 
 
 [build-system]

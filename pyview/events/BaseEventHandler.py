@@ -55,10 +55,10 @@ class BaseEventHandler:
         else:
             logging.warning(f"Unhandled event: {event} {payload}")
 
-    async def handle_info(self, info: "InfoEvent", socket):
-        handler = self._info_handlers.get(info.name)
+    async def handle_info(self, event: "InfoEvent", socket):
+        handler = self._info_handlers.get(event.name)
 
         if handler:
-            return await handler(self, info, socket)
+            return await handler(self, event, socket)
         else:
-            logging.warning(f"Unhandled info: {info.name} {info}")
+            logging.warning(f"Unhandled info: {event.name} {event}")

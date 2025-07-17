@@ -5,7 +5,7 @@ packages = [
   { include = "pyview" },
 ]
 
-version = "0.2.5"
+version = "0.2.6"
 description = "LiveView in Python"
 authors = ["Larry Ogrodnek <ogrodnek@gmail.com>"]
 license = "MIT"
@@ -41,13 +41,12 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
-starlette = "0.40.0"
-uvicorn = "0.30.6"
+starlette = "0.47.1"
+uvicorn = "0.34.3"
 wsproto = "1.2.0"
-APScheduler = "3.9.1.post1"
-psutil = "^5.9.4"
-markupsafe = "^2.1.2"
-itsdangerous = "^2.1.2"
+APScheduler = "3.11.0"
+markupsafe = "^3.0.2"
+itsdangerous = "^2.2.0"
 pydantic = "^2.9.2"
 click = "^8.1.7"
 
@@ -57,17 +56,14 @@ pv = "pyview.cli.main:cli"
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.0"
 black = "24.3.0"
-pyright = "1.1.400"
-aiohttp = "^3.8.4"
+pyright = "1.1.403"
 pytest-cov = "^6.1.1"
+pytest-asyncio = "0.21.2"
 
 [tool.poetry.group.profiling.dependencies]
 scalene = "^1.5.19"
 memray = "^1.6.0"
 
-
-[tool.poetry.group.docs.dependencies]
-mkdocs-material = "^9.1.2"
 
 [build-system]
 requires = ["poetry-core"]
@@ -82,3 +78,6 @@ exclude = [
     "**/node_modules",
     "**/__pycache__",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

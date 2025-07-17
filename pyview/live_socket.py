@@ -25,8 +25,6 @@ from pyview.async_stream_runner import AsyncStreamRunner
 if TYPE_CHECKING:
     from .live_view import LiveView
 
-scheduler = AsyncIOScheduler()
-scheduler.start()
 
 pub_sub_hub = PubSubHub()
 
@@ -55,7 +53,13 @@ class ConnectedLiveViewSocket(Generic[T]):
     upload_manager: UploadManager
     prev_rendered: Optional[dict[str, Any]] = None
 
-    def __init__(self, websocket: WebSocket, topic: str, liveview: LiveView):
+    def __init__(
+        self,
+        websocket: WebSocket,
+        topic: str,
+        liveview: LiveView,
+        scheduler: AsyncIOScheduler,
+    ):
         self.websocket = websocket
         self.topic = topic
         self.liveview = liveview
@@ -65,6 +69,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         self.pending_events = []
         self.upload_manager = UploadManager()
         self.stream_runner = AsyncStreamRunner(self)
+        self.scheduler = scheduler
 
     @property
     def meta(self) -> PyViewMeta:
@@ -81,13 +86,13 @@ class ConnectedLiveViewSocket(Generic[T]):
 
     def schedule_info(self, event, seconds):
         id = f"{self.topic}:{event}"
-        scheduler.add_job(
+        self.scheduler.add_job(
             self.send_info, args=[event], id=id, trigger="interval", seconds=seconds
         )
         self.scheduled_jobs.append(id)
 
     def schedule_info_once(self, event, seconds=None):
-        scheduler.add_job(
+        self.scheduler.add_job(
             self.send_info,
             args=[event],
             trigger="date",
@@ -114,7 +119,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         except Exception:
             for id in self.scheduled_jobs:
                 print("Removing job", id)
-                scheduler.remove_job(id)
+                self.scheduler.remove_job(id)
 
     async def push_patch(self, path: str, params: dict[str, Any] = {}):
         # or "replace"
@@ -156,7 +161,7 @@ class ConnectedLiveViewSocket(Generic[T]):
     async def close(self):
         self.connected = False
         for id in self.scheduled_jobs:
-            scheduler.remove_job(id)
+            self.scheduler.remove_job(id)
         await self.pub_sub.unsubscribe_all_async()
 
         try:
