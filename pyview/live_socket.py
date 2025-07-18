@@ -150,6 +150,36 @@ class ConnectedLiveViewSocket(Generic[T]):
         except Exception as e:
             print("Error sending message", e)
 
+    async def push_navigate(self, path: str, params: dict[str, Any] = {}):
+        """Navigate to a different LiveView without full page reload"""
+        await self._navigate(path, params, kind="push")
+
+    async def replace_navigate(self, path: str, params: dict[str, Any] = {}):
+        """Navigate to a different LiveView, replacing current history entry"""
+        await self._navigate(path, params, kind="replace")
+
+    async def _navigate(self, path: str, params: dict[str, Any], kind: str):
+        """Internal navigation helper"""
+        to = path
+        if params:
+            to = to + "?" + urlencode(params)
+        
+        message = [
+            None,
+            None,
+            self.topic,
+            "live_redirect",
+            {
+                "kind": kind,
+                "to": to,
+            },
+        ]
+        
+        try:
+            await self.websocket.send_text(json.dumps(message))
+        except Exception as e:
+            print("Error sending navigation message", e)
+
     async def push_event(self, event: str, value: dict[str, Any]):
         self.pending_events.append((event, value))
 
