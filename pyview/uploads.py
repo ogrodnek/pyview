@@ -1,11 +1,14 @@
 import datetime
 import uuid
+import logging
 from pydantic import BaseModel, Field
 from typing import Optional, Any, Literal, Generator
 from dataclasses import dataclass, field
 from contextlib import contextmanager
 import os
 import tempfile
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -143,8 +146,8 @@ class UploadConfig(BaseModel):
         finally:
             try:
                 self.uploads.close()
-            except Exception as e:
-                print("Error closing uploads", e)
+            except Exception:
+                logger.warning("Error closing uploads", exc_info=True)
 
             self.uploads = ActiveUploads()
             self.entries_by_ref = {}
@@ -185,14 +188,14 @@ class UploadManager:
                     entries = uploads[config.ref]
                     config.add_entries(entries)
                 else:
-                    print("can't find ref", config.ref)
+                    logger.warning("Upload config not found for ref: %s", config.ref)
 
     def process_allow_upload(self, payload: dict[str, Any]) -> dict[str, Any]:
         ref = payload["ref"]
         config = self.config_for_ref(ref)
 
         if not config:
-            print("Can't find config for ref", ref)
+            logger.warning("Can't find upload config for ref: %s", ref)
             return {"error": [(ref, "not_found")]}
 
         proposed_entries = payload["entries"]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 from starlette.websockets import WebSocket
 import json
+import logging
 from typing import (
     Any,
     TypeVar,
@@ -20,6 +21,8 @@ from pyview.meta import PyViewMeta
 from pyview.template.render_diff import calc_diff
 import datetime
 from pyview.async_stream_runner import AsyncStreamRunner
+
+logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
@@ -118,8 +121,11 @@ class ConnectedLiveViewSocket(Generic[T]):
             await self.websocket.send_text(json.dumps(resp))
         except Exception:
             for id in self.scheduled_jobs:
-                print("Removing job", id)
-                self.scheduler.remove_job(id)
+                logger.debug("Removing scheduled job %s", id)
+                try:
+                    self.scheduler.remove_job(id)
+                except Exception:
+                    logger.warning("Failed to remove scheduled job %s", id, exc_info=True)
 
     async def push_patch(self, path: str, params: dict[str, Any] = {}):
         # or "replace"
@@ -147,8 +153,8 @@ class ConnectedLiveViewSocket(Generic[T]):
         await self.liveview.handle_params(to, params, self)
         try:
             await self.websocket.send_text(json.dumps(message))
-        except Exception as e:
-            print("Error sending message", e)
+        except Exception:
+            logger.warning("Error sending patch message", exc_info=True)
 
     async def push_navigate(self, path: str, params: dict[str, Any] = {}):
         """Navigate to a different LiveView without full page reload"""
@@ -177,8 +183,8 @@ class ConnectedLiveViewSocket(Generic[T]):
         
         try:
             await self.websocket.send_text(json.dumps(message))
-        except Exception as e:
-            print("Error sending navigation message", e)
+        except Exception:
+            logger.warning("Error sending navigation message", exc_info=True)
 
     async def push_event(self, event: str, value: dict[str, Any]):
         self.pending_events.append((event, value))
