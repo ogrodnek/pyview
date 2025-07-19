@@ -1,0 +1,22 @@
+<div id="{{recipe.id}}" class="recipe_card">
+    <img src="{{recipe.img}}" alt="{{recipe.name}}">
+    <div class="recipe_card-attribution">
+        <span>Photo by <a href="{{recipe.attribution.url}}" target="_blank">{{recipe.attribution.name}}</a></span>
+    </div>
+    <div class="recipe_card-content">
+        <div class="recipe_card-header">
+            <span class="recipe_card-title">{{recipe.name}}</span>
+            <span class="recipe_card-time">{{recipe.time}}</span>
+        </div>
+
+        <div class="recipe_card-actions">
+            {% live_component "Ratings" with id = recipe.id & rating = recipe.rating %}
+            <a title="{%if recipe.bookmarked %}Remove {%endif%}Bookmark"
+                class="recipe_card-bookmark {%if recipe.bookmarked %}bookmarked{%endif%}" phx-click="bookmark"
+                phx-target="{{meta.myself.target}}" phx-value-id="{{recipe.id}}">
+                🔖
+            </a>
+        </div>
+    </div>
+</div>
+</div>

@@ -14,6 +14,7 @@ from .kanban import KanbanLiveView
 from .count_pubsub import CountLiveViewPubSub
 from .count import CountLiveView
 from .includes import IncludesLiveView
+from .recipes import RecipesLiveView
 
 __all__ = [
     "CountLiveView",
@@ -32,4 +33,5 @@ __all__ = [
     "FileUploadDemoLiveView",
     "KanbanLiveView",
     "IncludesLiveView",
+    "RecipesLiveView",
 ]
