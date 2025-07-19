@@ -5,12 +5,14 @@ from starlette.routing import Route, WebSocketRoute
 from starlette.requests import Request
 import uuid
 from urllib.parse import parse_qs, urlparse
+from typing import Optional
 
 from pyview.live_socket import UnconnectedSocket
 from pyview.csrf import generate_csrf_token
 from pyview.session import serialize_session
 from pyview.auth import AuthProviderFactory
 from pyview.meta import PyViewMeta
+from pyview.instrumentation import InstrumentationProvider, NoOpInstrumentation
 from .ws_handler import LiveSocketHandler
 from .live_view import LiveView
 from .live_routes import LiveViewLookup
@@ -24,12 +26,14 @@ from .template import (
 
 class PyView(Starlette):
     rootTemplate: RootTemplate
+    instrumentation: InstrumentationProvider
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, instrumentation: Optional[InstrumentationProvider] = None, **kwargs):
         super().__init__(*args, **kwargs)
         self.rootTemplate = defaultRootTemplate()
+        self.instrumentation = instrumentation or NoOpInstrumentation()
         self.view_lookup = LiveViewLookup()
-        self.live_handler = LiveSocketHandler(self.view_lookup)
+        self.live_handler = LiveSocketHandler(self.view_lookup, self.instrumentation)
 
         self.routes.append(WebSocketRoute("/live/websocket", self.live_handler.handle))
         self.add_middleware(GZipMiddleware)

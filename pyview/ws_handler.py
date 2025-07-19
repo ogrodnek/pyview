@@ -1,5 +1,6 @@
 from typing import Optional
 import json
+import logging
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from urllib.parse import urlparse, parse_qs
 from pyview.live_socket import ConnectedLiveViewSocket, LiveViewSocket
@@ -8,16 +9,54 @@ from pyview.csrf import validate_csrf_token
 from pyview.session import deserialize_session
 from pyview.auth import AuthProviderFactory
 from pyview.phx_message import parse_message
+from pyview.instrumentation import InstrumentationProvider
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+logger = logging.getLogger(__name__)
 
 
 class AuthException(Exception):
     pass
 
 
+class LiveSocketMetrics:
+    """Container for LiveSocket instrumentation metrics."""
+    
+    def __init__(self, instrumentation: InstrumentationProvider):
+        self.active_connections = instrumentation.create_updown_counter(
+            "pyview.websocket.active_connections",
+            "Number of active WebSocket connections"
+        )
+        self.mounts = instrumentation.create_counter(
+            "pyview.liveview.mounts",
+            "Total number of LiveView mounts"
+        )
+        self.events_processed = instrumentation.create_counter(
+            "pyview.events.processed",
+            "Total number of events processed"
+        )
+        self.event_duration = instrumentation.create_histogram(
+            "pyview.events.duration",
+            "Event processing duration",
+            unit="s"
+        )
+        self.message_size = instrumentation.create_histogram(
+            "pyview.websocket.message_size",
+            "WebSocket message size in bytes",
+            unit="bytes"
+        )
+        self.render_duration = instrumentation.create_histogram(
+            "pyview.render.duration",
+            "Template render duration",
+            unit="s"
+        )
+
+
 class LiveSocketHandler:
-    def __init__(self, routes: LiveViewLookup):
+    def __init__(self, routes: LiveViewLookup, instrumentation: InstrumentationProvider):
         self.routes = routes
+        self.instrumentation = instrumentation
+        self.metrics = LiveSocketMetrics(instrumentation)
         self.manager = ConnectionManager()
         self.sessions = 0
         self.scheduler = AsyncIOScheduler()
@@ -29,7 +68,9 @@ class LiveSocketHandler:
 
     async def handle(self, websocket: WebSocket):
         await self.manager.connect(websocket)
-
+        
+        # Track active connections
+        self.metrics.active_connections.add(1)
         self.sessions += 1
         topic = None
         socket: Optional[LiveViewSocket] = None
@@ -46,12 +87,16 @@ class LiveSocketHandler:
                 url = urlparse(payload["url"])
                 lv, path_params = self.routes.get(url.path)
                 await self.check_auth(websocket, lv)
-                socket = ConnectedLiveViewSocket(websocket, topic, lv, self.scheduler)
+                socket = ConnectedLiveViewSocket(websocket, topic, lv, self.scheduler, self.instrumentation)
 
                 session = {}
                 if "session" in payload:
                     session = deserialize_session(payload["session"])
 
+                # Track mount
+                view_name = lv.__class__.__name__
+                self.metrics.mounts.add(1, {"view": view_name})
+                
                 await lv.mount(socket, session)
 
                 # Parse query parameters and merge with path parameters
@@ -79,9 +124,16 @@ class LiveSocketHandler:
             if socket:
                 await socket.close()
             self.sessions -= 1
+            self.metrics.active_connections.add(-1)
         except AuthException:
             await websocket.close()
             self.sessions -= 1
+            self.metrics.active_connections.add(-1)
+        except Exception:
+            logger.exception("Unexpected error in WebSocket handler")
+            self.sessions -= 1
+            self.metrics.active_connections.add(-1)
+            raise
 
     async def handle_connected(self, myJoinId, socket: ConnectedLiveViewSocket):
         while True:
@@ -108,8 +160,19 @@ class LiveSocketHandler:
                     value = parse_qs(value)
                     socket.upload_manager.maybe_process_uploads(value, payload)
 
-                await socket.liveview.handle_event(payload["event"], value, socket)
-                rendered = await _render(socket)
+                # Track event metrics
+                event_name = payload["event"]
+                view_name = socket.liveview.__class__.__name__
+                self.metrics.events_processed.add(1, {"event": event_name, "view": view_name})
+                
+                # Time event processing
+                with self.instrumentation.time_histogram("pyview.events.duration", 
+                                                         {"event": event_name, "view": view_name}):
+                    await socket.liveview.handle_event(event_name, value, socket)
+                
+                # Time rendering
+                with self.instrumentation.time_histogram("pyview.render.duration", {"view": view_name}):
+                    rendered = await _render(socket)
 
                 hook_events = (
                     {} if not socket.pending_events else {"e": socket.pending_events}
@@ -126,9 +189,9 @@ class LiveSocketHandler:
                     "phx_reply",
                     {"response": {"diff": diff | hook_events}, "status": "ok"},
                 ]
-                await self.manager.send_personal_message(
-                    json.dumps(resp), socket.websocket
-                )
+                resp_json = json.dumps(resp)
+                self.metrics.message_size.record(len(resp_json))
+                await self.manager.send_personal_message(resp_json, socket.websocket)
                 continue
 
             if event == "live_patch":
@@ -217,7 +280,7 @@ class LiveSocketHandler:
 
                     # Create new socket for new LiveView
                     socket = ConnectedLiveViewSocket(
-                        socket.websocket, topic, lv, self.scheduler
+                        socket.websocket, topic, lv, self.scheduler, self.instrumentation
                     )
 
                     session = {}

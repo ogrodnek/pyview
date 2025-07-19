@@ -14,6 +14,7 @@ from typing import (
 )
 from urllib.parse import urlencode
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.jobstores.base import JobLookupError
 from pyview.vendor.flet.pubsub import PubSubHub, PubSub
 from pyview.events import InfoEvent
 from pyview.uploads import UploadConstraints, UploadConfig, UploadManager
@@ -27,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .live_view import LiveView
+    from .instrumentation import InstrumentationProvider
 
 
 pub_sub_hub = PubSubHub()
@@ -62,10 +64,12 @@ class ConnectedLiveViewSocket(Generic[T]):
         topic: str,
         liveview: LiveView,
         scheduler: AsyncIOScheduler,
+        instrumentation: "InstrumentationProvider",
     ):
         self.websocket = websocket
         self.topic = topic
         self.liveview = liveview
+        self.instrumentation = instrumentation
         self.scheduled_jobs = []
         self.connected = True
         self.pub_sub = PubSub(pub_sub_hub, topic)
@@ -125,7 +129,9 @@ class ConnectedLiveViewSocket(Generic[T]):
                 try:
                     self.scheduler.remove_job(id)
                 except Exception:
-                    logger.warning("Failed to remove scheduled job %s", id, exc_info=True)
+                    logger.warning(
+                        "Failed to remove scheduled job %s", id, exc_info=True
+                    )
 
     async def push_patch(self, path: str, params: dict[str, Any] = {}):
         # or "replace"
@@ -169,7 +175,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         to = path
         if params:
             to = to + "?" + urlencode(params)
-        
+
         message = [
             None,
             None,
@@ -180,7 +186,7 @@ class ConnectedLiveViewSocket(Generic[T]):
                 "to": to,
             },
         ]
-        
+
         try:
             await self.websocket.send_text(json.dumps(message))
         except Exception:
@@ -197,7 +203,10 @@ class ConnectedLiveViewSocket(Generic[T]):
     async def close(self):
         self.connected = False
         for id in self.scheduled_jobs:
-            self.scheduler.remove_job(id)
+            try:
+                self.scheduler.remove_job(id)
+            except JobLookupError:
+                pass
         await self.pub_sub.unsubscribe_all_async()
 
         try:
