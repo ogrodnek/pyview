@@ -188,21 +188,64 @@ class LiveSocketHandler:
                 )
                 continue
 
-            # file upload
+            # file upload or navigation
             if event == "phx_join":
-                socket.upload_manager.add_upload(joinRef, payload)
+                # Check if this is a file upload join (topic starts with "lvu:")
+                if topic.startswith("lvu:"):
+                    # This is a file upload join
+                    socket.upload_manager.add_upload(joinRef, payload)
 
-                resp = [
-                    joinRef,
-                    mesageRef,
-                    topic,
-                    "phx_reply",
-                    {"response": {}, "status": "ok"},
-                ]
+                    resp = [
+                        joinRef,
+                        mesageRef,
+                        topic,
+                        "phx_reply",
+                        {"response": {}, "status": "ok"},
+                    ]
 
-                await self.manager.send_personal_message(
-                    json.dumps(resp), socket.websocket
-                )
+                    await self.manager.send_personal_message(
+                        json.dumps(resp), socket.websocket
+                    )
+                else:
+                    # This is a navigation join (topic starts with "lv:")
+                    # Navigation payload has 'redirect' field instead of 'url'
+                    url_str_raw = payload.get("redirect") or payload.get("url")
+                    url_str: str = url_str_raw.decode("utf-8") if isinstance(url_str_raw, bytes) else str(url_str_raw)
+                    url = urlparse(url_str)
+                    lv, path_params = self.routes.get(url.path)
+                    await self.check_auth(socket.websocket, lv)
+
+                    # Create new socket for new LiveView
+                    socket = ConnectedLiveViewSocket(
+                        socket.websocket, topic, lv, self.scheduler
+                    )
+
+                    session = {}
+                    if "session" in payload:
+                        session = deserialize_session(payload["session"])
+
+                    await lv.mount(socket, session)
+
+                    # Parse query parameters and merge with path parameters
+                    query_params = parse_qs(url.query)
+                    merged_params = {**query_params, **path_params}
+
+                    await lv.handle_params(url, merged_params, socket)
+
+                    rendered = await _render(socket)
+                    socket.prev_rendered = rendered
+
+                    resp = [
+                        joinRef,
+                        mesageRef,
+                        topic,
+                        "phx_reply",
+                        {"response": {"rendered": rendered}, "status": "ok"},
+                    ]
+
+                    await self.manager.send_personal_message(
+                        json.dumps(resp), socket.websocket
+                    )
 
             if event == "chunk":
                 socket.upload_manager.add_chunk(joinRef, payload)  # type: ignore
@@ -249,6 +292,23 @@ class LiveSocketHandler:
                 await self.manager.send_personal_message(
                     json.dumps(resp), socket.websocket
                 )
+
+            if event == "phx_leave":
+                # Handle LiveView navigation - clean up current LiveView
+                await socket.close()
+
+                resp = [
+                    joinRef,
+                    mesageRef,
+                    topic,
+                    "phx_reply",
+                    {"response": {}, "status": "ok"},
+                ]
+                await self.manager.send_personal_message(
+                    json.dumps(resp), socket.websocket
+                )
+                # Continue to wait for next phx_join
+                continue
 
 
 async def _render(socket: ConnectedLiveViewSocket):
