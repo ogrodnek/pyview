@@ -47,6 +47,7 @@ class LiveView(Generic[T]):
         raise NotImplementedError()
 
 
+
 def _find_render(m: LiveView) -> Optional[LiveTemplate]:
     html = find_associated_file(m, ".html")
     if html is not None:
