@@ -5,7 +5,7 @@ packages = [
   { include = "pyview" },
 ]
 
-version = "0.3.0"
+version = "0.4.0"
 description = "LiveView in Python"
 authors = ["Larry Ogrodnek <ogrodnek@gmail.com>"]
 license = "MIT"
@@ -35,12 +35,13 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
     "Topic :: Internet :: WWW/HTTP",
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.11,<3.13"
+python = ">=3.11,<3.14"
 starlette = "0.47.1"
 uvicorn = "0.34.3"
 wsproto = "1.2.0"
@@ -61,7 +62,7 @@ pytest-cov = "^6.1.1"
 pytest-asyncio = "0.21.2"
 
 [tool.poetry.group.profiling.dependencies]
-scalene = "^1.5.19"
+scalene = {version = "^1.5.51", python = "!=3.11.0,>=3.11"}
 memray = "^1.6.0"
 
 
