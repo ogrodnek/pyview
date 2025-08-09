@@ -5,8 +5,7 @@ Converts Template objects into LiveView's diff tree structure.
 from typing import Any, Union
 from dataclasses import dataclass
 
-# Import our polyfill (in Python 3.14, this would be: from types import Template)
-from .tstring_polyfill import Template
+from string.templatelib import Template
 
 
 @dataclass
@@ -37,54 +36,66 @@ class LiveViewTemplate:
             "d": [[...], [...]]               # For comprehensions (loops)
         }
         """
-        parts: dict[str, Any] = {"s": []}
+        # Use the template.strings directly for the static parts
+        parts: dict[str, Any] = {"s": list(template.strings)}
         
-        # Process the template using iterator
+        # Process only the interpolations
         interp_index = 0
-        for static, interp in template:
-            parts["s"].append(static)
-            
-            # Check if there's an interpolation
-            if interp is not None:
+        for item in template:
+            if not isinstance(item, str):
+                # This is an Interpolation object
                 key = str(interp_index)
                 
+                # Get the actual value from the interpolation
+                interp_value = item.value
+                
+                # Apply format specifier if present
+                if hasattr(item, 'format_spec') and item.format_spec:
+                    try:
+                        formatted_value = format(interp_value, item.format_spec)
+                    except (ValueError, TypeError):
+                        # If formatting fails, use the value as-is
+                        formatted_value = interp_value
+                else:
+                    formatted_value = interp_value
+                
                 # Handle different interpolation types
-                if isinstance(interp, LiveComponentPlaceholder):
+                if isinstance(formatted_value, LiveComponentPlaceholder):
                     # Handle live component
                     if socket and hasattr(socket, 'components'):
                         cid = socket.components.register(
-                            interp.component_class,
-                            interp.component_id,
-                            interp.assigns
+                            formatted_value.component_class,
+                            formatted_value.component_id,
+                            formatted_value.assigns
                         )
                         parts[key] = {"c": cid}
                     else:
                         # Fallback if no socket available
-                        parts[key] = str(interp)
+                        parts[key] = str(formatted_value)
                 
-                elif isinstance(interp, Template):
+                elif isinstance(formatted_value, Template):
                     # Handle nested templates
-                    parts[key] = LiveViewTemplate.process(interp, socket)
+                    parts[key] = LiveViewTemplate.process(formatted_value, socket)
                 
-                elif isinstance(interp, str):
+                elif isinstance(formatted_value, str):
                     # Simple string interpolation (HTML escaped)
-                    parts[key] = LiveViewTemplate.escape_html(interp)
+                    parts[key] = LiveViewTemplate.escape_html(formatted_value)
                 
-                elif isinstance(interp, (int, float, bool)):
+                elif isinstance(formatted_value, (int, float, bool)):
                     # Primitive types
-                    parts[key] = str(interp)
+                    parts[key] = str(formatted_value)
                 
-                elif isinstance(interp, list):
+                elif isinstance(formatted_value, list):
                     # Handle list comprehensions
-                    parts[key] = LiveViewTemplate._process_list(interp, socket)
+                    parts[key] = LiveViewTemplate._process_list(formatted_value, socket)
                 
-                elif hasattr(interp, '__html__'):
+                elif hasattr(formatted_value, '__html__'):
                     # Handle objects that can render as HTML (like Markup)
-                    parts[key] = str(interp.__html__())
+                    parts[key] = str(formatted_value.__html__())
                 
                 else:
                     # Default: convert to string and escape
-                    parts[key] = LiveViewTemplate.escape_html(str(interp))
+                    parts[key] = LiveViewTemplate.escape_html(str(formatted_value))
                 
                 interp_index += 1
         
@@ -96,16 +107,17 @@ class LiveViewTemplate:
         if not items:
             return ""
         
-        # If all items are templates, process them
-        if all(isinstance(item, Template) for item in items):
-            return {
-                "d": [LiveViewTemplate.process(item, socket) for item in items]
-            }
+        # Process each item based on its type
+        processed_items = []
+        for item in items:
+            if isinstance(item, Template):
+                # Process template items
+                processed_items.append(LiveViewTemplate.process(item, socket))
+            else:
+                # Convert non-template items to escaped strings
+                processed_items.append([LiveViewTemplate.escape_html(str(item))])
         
-        # Otherwise, convert to strings with HTML escaping
-        return {
-            "d": [[LiveViewTemplate.escape_html(str(item))] for item in items]
-        }
+        return {"d": processed_items}
     
     @staticmethod
     def escape_html(text: str) -> str:
@@ -128,24 +140,11 @@ def live_component(
     Insert a live component into a template.
     
     Usage:
-        from .tstring_polyfill import t
-        template = t('<div>{comp}</div>', comp=live_component(MyComponent, id="comp-1", foo="bar"))
+        comp = live_component(MyComponent, id="comp-1", foo="bar")
+        template = t'<div>{comp}</div>'
     """
     return LiveComponentPlaceholder(
         component_class=component_class,
         component_id=id,
         assigns=assigns
     )
-
-
-# Convenience function for creating templates (development helper)
-def html(template_str: str, **kwargs) -> dict[str, Any]:
-    """
-    Create and process a template in one step.
-    
-    Usage:
-        tree = html('<div>{content}</div>', content="Hello")
-    """
-    from .tstring_polyfill import t
-    template = t(template_str, **kwargs)
-    return LiveViewTemplate.process(template)
