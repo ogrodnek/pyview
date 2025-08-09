@@ -26,8 +26,8 @@ from .views import (
     KanbanLiveView,
     IncludesLiveView,
 )
-from .views.tstring_demo import TStringDemoLiveView
-from .views.counter_tstring import CounterTStringLiveView
+
+from .views.count.count_tstring import CounterTStringLiveView
 
 app = PyView()
 app.mount(
@@ -141,7 +141,6 @@ routes = [
     ("/file_upload", FileUploadDemoLiveView),
     ("/kanban", KanbanLiveView),
     ("/includes", IncludesLiveView),
-    ("/tstring", TStringDemoLiveView),
     ("/counter_tstring", CounterTStringLiveView),
 ]
 

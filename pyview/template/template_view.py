@@ -1,10 +1,9 @@
 """
-TStringMixin for LiveView classes to support t-string templates.
-Much simpler approach than the hybrid renderer system.
+LiveView support for t-string templates.
 """
-from typing import Any, TypeVar, Protocol, Generic
+from typing import Any, TypeVar, Generic
 from .live_view_template import LiveViewTemplate
-from .tstring_polyfill import Template
+from string.templatelib import Template
 from pyview.meta import PyViewMeta
 
 T = TypeVar("T")
@@ -36,7 +35,14 @@ class TStringRenderedContent:
         if "d" in tree:
             # 'd' contains a list of tree structures
             items = tree["d"]
-            return "".join(self._tree_to_html(item) for item in items)
+            html_items = []
+            for item in items:
+                if isinstance(item, list) and len(item) == 1:
+                    # Handle the format [[item1], [item2], ...]
+                    html_items.append(str(item[0]))
+                else:
+                    html_items.append(self._tree_to_html(item))
+            return "".join(html_items)
         
         html_parts = []
         statics = tree.get("s", [])
@@ -88,7 +94,7 @@ class TemplateView(Generic[T]):
     
     def template(self, assigns: T, meta: PyViewMeta) -> Template:
         """
-        Override this method to provide your t-string template.
+        Override this method to provide a t-string template.
         
         Args:
             assigns: The typed context object (dataclass)

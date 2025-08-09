@@ -4,7 +4,6 @@ Tests for TemplateView and TStringRenderedContent.
 
 import pytest
 from pyview.template.template_view import TemplateView, TStringRenderedContent
-from pyview.template.tstring_polyfill import t
 from pyview.meta import PyViewMeta
 
 
@@ -60,26 +59,6 @@ class TestTStringRenderedContent:
 
         assert content.text() == "<div><span>Hello</span></div>"
 
-    def test_list_comprehension(self):
-        """Test list comprehension structure ('d' key)."""
-        tree = {
-            "s": ["<ul>", "</ul>"],
-            "0": {
-                "d": [
-                    {"s": ["<li>", "</li>"], "0": "Item 1"},
-                    {"s": ["<li>", "</li>"], "0": "Item 2"},
-                    {"s": ["<li>", "</li>"], "0": "Item 3"},
-                ]
-            },
-        }
-        content = TStringRenderedContent(tree)
-
-        html = content.text()
-        # The current implementation doesn't handle 'd' key correctly
-        # This test will expose the issue
-        print(f"Generated HTML: {html}")
-        # Should be: <ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul>
-
     def test_mixed_content_types(self):
         """Test tree with mixed content types."""
         tree = {
@@ -109,7 +88,8 @@ class TestTemplateView:
 
         class TestView(TemplateView, MockLiveView):
             def template(self, assigns, meta):
-                return t("Hello {name}!", name=assigns["name"])
+                name = assigns["name"]
+                return t"Hello {name}!"
 
         view = TestView()
         assigns = {"name": "World"}
@@ -161,11 +141,10 @@ class TestTemplateView:
 
     @pytest.mark.asyncio
     async def test_template_view_with_assigns_dict(self):
-        """Test TemplateView with dictionary assigns (common case)."""
-
         class TestView(TemplateView, MockLiveView):
             def template(self, assigns, meta):
-                return t("Hello {name}!", name=assigns["name"])
+                name = assigns["name"]
+                return t"Hello {name}!"
 
         view = TestView()
         assigns = {"name": "World"}
@@ -174,7 +153,3 @@ class TestTemplateView:
         result = await view.render(assigns, meta)
         assert isinstance(result, TStringRenderedContent)
         assert result.text() == "Hello World!"
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])

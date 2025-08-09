@@ -1,12 +1,7 @@
-"""
-Simple counter example using t-string templates.
-Shows the clean API for accessing dataclass context.
-"""
-
 from dataclasses import dataclass
 from pyview.live_view import LiveView
 from pyview.template.template_view import TemplateView
-from pyview.template.tstring_polyfill import t, Template
+from string.templatelib import Template
 from pyview.meta import PyViewMeta
 
 
@@ -16,42 +11,35 @@ class CounterContext:
 
 
 class CounterTStringLiveView(TemplateView, LiveView[CounterContext]):
-    """Simple counter using t-string templates."""
-
+    """Simple counter using Python 3.14 t-strings."""
+    
     async def mount(self, socket, session):
         socket.context = CounterContext(count=0)
-
+    
     async def handle_event(self, event, payload, socket):
         if event == "decrement":
             socket.context.count -= 1
         elif event == "increment":
             socket.context.count += 1
-
+    
     async def handle_params(self, url, params, socket):
-        # Handle URL params like /counter_tstring?c=100
         if "c" in params:
             socket.context.count = int(params["c"][0])
-
+    
     def template(self, assigns: CounterContext, meta: PyViewMeta) -> Template:
-        # Clean API: properly typed dataclass + access to meta!
-        print(f"assigns type: {type(assigns)}, count: {assigns.count}")
-        print(f"meta: {meta}")
-        count = assigns.count
-
-        return t(
-            """
+        return t"""
         <div class="max-w-md mx-auto">
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
                 <h1 class="text-3xl font-bold text-center text-gray-900 mb-4">
                     T-String Counter
                 </h1>
                 <p class="text-center text-gray-600 mb-8">
-                    Same counter, but using t-string templates!
+                    Using Python 3.14 t-strings!
                 </p>
                 
                 <div class="text-center mb-8">
                     <div class="text-6xl font-bold text-pyview-pink-600 tabular-nums">
-                        {count}
+                        {assigns.count}
                     </div>
                 </div>
                 
@@ -66,17 +54,15 @@ class CounterTStringLiveView(TemplateView, LiveView[CounterContext]):
                     </button>
                 </div>
                 
-                {url_tip}
-                            </div>
+                {self.url_tip()}
+                
+                {self.template_features()}
+            </div>
         </div>
-        """,
-            count=count,
-            url_tip=self.url_tip(),
-        )
-
-    def url_tip(self):
-        """Helper method for URL tip section."""
-        return t("""
+        """
+    
+    def url_tip(self) -> Template:
+        return t"""
         <div class="mt-8 text-center">
             <p class="text-sm text-gray-500">
                 Try changing the URL to 
@@ -85,4 +71,19 @@ class CounterTStringLiveView(TemplateView, LiveView[CounterContext]):
                 </code>
             </p>
         </div>
-        """)
+        """
+    
+    def template_features(self) -> Template:
+        return t"""
+        <div class="mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
+            <h3 class="text-sm font-semibold text-green-800 mb-2">
+                T-String Benefits:
+            </h3>
+            <div class="text-xs text-green-700 space-y-1">
+                <div>• Real Python 3.14 t-string literals</div>
+                <div>• Direct variable access: {'{assigns.count}'}</div>
+                <div>• Full IDE support and syntax highlighting</div>
+                <div>• Type-safe template composition</div>
+            </div>
+        </div>
+        """
