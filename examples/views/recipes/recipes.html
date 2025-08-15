@@ -1,0 +1,12 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shadows+Into+Light&display=swap" rel="stylesheet">
+
+<main>
+    <h1 class="recipes_title">Latest Recipes</h1>
+    <div class="recipes">
+        {% for recipe in recipes %}
+        {% live_component "RecipeCard" with id = recipe.id & recipe = recipe  %}
+        {% endfor %}
+    </div>
+</main>

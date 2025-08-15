@@ -35,6 +35,7 @@ class KanbanLiveView(BaseEventHandler, LiveView[KanbanContext]):
 
     async def mount(self, socket: LiveViewSocket[KanbanContext], session):
         socket.context = KanbanContext()
+        socket.live_title = "Kanban"
 
     @event("task-moved")
     async def handle_task_moved(
