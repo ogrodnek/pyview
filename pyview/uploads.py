@@ -2,7 +2,7 @@ import datetime
 import uuid
 import logging
 from pydantic import BaseModel, Field
-from typing import Optional, Any, Literal, Generator
+from typing import Optional, Any, Literal, Generator, Callable
 from dataclasses import dataclass, field
 from contextlib import contextmanager
 import os
@@ -105,6 +105,7 @@ class UploadConfig(BaseModel):
     errors: list[ConstraintViolation] = Field(default_factory=list)
     autoUpload: bool = False
     constraints: UploadConstraints = Field(default_factory=UploadConstraints)
+    progress_callback: Optional[Callable] = None
 
     uploads: ActiveUploads = Field(default_factory=ActiveUploads)
 
@@ -135,8 +136,9 @@ class UploadConfig(BaseModel):
             self.errors.append(ConstraintViolation(ref=self.ref, code="too_many_files"))
 
     def update_progress(self, ref: str, progress: int):
-        self.entries_by_ref[ref].progress = progress
-        self.entries_by_ref[ref].done = progress == 100
+        if ref in self.entries_by_ref:
+            self.entries_by_ref[ref].progress = progress
+            self.entries_by_ref[ref].done = progress == 100
 
     @contextmanager
     def consume_uploads(self) -> Generator[list["ActiveUpload"], None, None]:
@@ -152,6 +154,34 @@ class UploadConfig(BaseModel):
             self.uploads = ActiveUploads()
             self.entries_by_ref = {}
 
+    @contextmanager  
+    def consume_upload_entry(self, entry_ref: str) -> Generator[Optional["ActiveUpload"], None, None]:
+        """Consume a single upload entry by its ref"""
+        upload = None
+        join_ref = None
+        
+        # Find the join_ref for this entry
+        for jr, active_upload in self.uploads.uploads.items():
+            if active_upload.entry.ref == entry_ref:
+                upload = active_upload
+                join_ref = jr
+                break
+        
+        try:
+            yield upload
+        finally:
+            if upload and join_ref:
+                try:
+                    upload.close()
+                except Exception:
+                    logger.warning("Error closing upload entry", exc_info=True)
+                
+                # Remove only this specific upload
+                if join_ref in self.uploads.uploads:
+                    del self.uploads.uploads[join_ref]
+                if entry_ref in self.entries_by_ref:
+                    del self.entries_by_ref[entry_ref]
+
     def close(self):
         self.uploads.close()
 
@@ -165,9 +195,9 @@ class UploadManager:
         self.upload_config_join_refs = {}
 
     def allow_upload(
-        self, upload_name: str, constraints: UploadConstraints
+        self, upload_name: str, constraints: UploadConstraints, auto_upload: bool = False, progress: Optional[Callable] = None
     ) -> UploadConfig:
-        config = UploadConfig(name=upload_name, constraints=constraints)
+        config = UploadConfig(name=upload_name, constraints=constraints, autoUpload=auto_upload, progress_callback=progress)
         self.upload_configs[upload_name] = config
         return config
 
@@ -242,12 +272,32 @@ class UploadManager:
             config.update_progress(entry_ref, progress)
 
             if progress == 100:
-                joinRef = config.uploads.join_ref_for_entry(entry_ref)
-                del self.upload_config_join_refs[joinRef]
+                try:
+                    joinRef_to_remove = config.uploads.join_ref_for_entry(entry_ref)
+                    if joinRef_to_remove in self.upload_config_join_refs:
+                        del self.upload_config_join_refs[joinRef_to_remove]
+                except (IndexError, KeyError):
+                    # Entry might have already been consumed and removed
+                    pass
 
     def no_progress(self, joinRef) -> bool:
         config = self.upload_config_join_refs[joinRef]
         return config.uploads.no_progress()
+
+    async def trigger_progress_callback_if_exists(self, payload: dict[str, Any], socket):
+        """Trigger progress callback if one exists for this upload config"""
+        upload_config_ref = payload["ref"]
+        config = self.config_for_ref(upload_config_ref)
+        
+        if config and config.progress_callback:
+            entry_ref = payload["entry_ref"]
+            if entry_ref in config.entries_by_ref:
+                entry = config.entries_by_ref[entry_ref]
+                # Update entry progress before calling callback
+                progress = int(payload["progress"])
+                entry.progress = progress
+                entry.done = progress == 100
+                await config.progress_callback(entry, socket)
 
     def close(self):
         for config in self.upload_configs.values():
@@ -272,6 +322,7 @@ def live_file_input(config: Optional[UploadConfig]) -> Markup:
     accepted = ",".join(config.constraints.accept)
     accept = f'accept="{accepted}"' if accepted else ""
     multiple = "multiple" if config.constraints.max_files > 1 else ""
+    auto_upload = "data-phx-auto-upload" if config.autoUpload else ""
 
     return Markup(
         f"""
@@ -281,7 +332,7 @@ def live_file_input(config: Optional[UploadConfig]) -> Markup:
                data-phx-done-refs="{done_refs}"
                data-phx-preflighted-refs="{preflighted_refs}"
                data-phx-update="ignore" phx-hook="Phoenix.LiveFileUpload"
-               {accept} {multiple}>
+               {accept} {multiple} {auto_upload}>
             </input>
         """
     )
