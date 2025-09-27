@@ -47,9 +47,18 @@ class UnconnectedSocket(Generic[T]):
     connected: bool = False
 
     def allow_upload(
-        self, upload_name: str, constraints: UploadConstraints, auto_upload: bool = False, progress: Optional[Callable] = None
+        self,
+        upload_name: str,
+        constraints: UploadConstraints,
+        auto_upload: bool = False,
+        progress: Optional[Callable] = None,
     ) -> UploadConfig:
-        return UploadConfig(name=upload_name, constraints=constraints, autoUpload=auto_upload, progress_callback=progress)
+        return UploadConfig(
+            name=upload_name,
+            constraints=constraints,
+            autoUpload=auto_upload,
+            progress_callback=progress,
+        )
 
 
 class ConnectedLiveViewSocket(Generic[T]):
@@ -193,13 +202,38 @@ class ConnectedLiveViewSocket(Generic[T]):
         except Exception:
             logger.warning("Error sending navigation message", exc_info=True)
 
+    async def redirect(self, path: str, params: dict[str, Any] = {}):
+        """Redirect to a new location with full page reload"""
+        to = path
+        if params:
+            to = to + "?" + urlencode(params)
+
+        message = [
+            None,
+            None,
+            self.topic,
+            "redirect",
+            {"to": to},
+        ]
+
+        try:
+            await self.websocket.send_text(json.dumps(message))
+        except Exception:
+            logger.warning("Error sending redirect message", exc_info=True)
+
     async def push_event(self, event: str, value: dict[str, Any]):
         self.pending_events.append((event, value))
 
     def allow_upload(
-        self, upload_name: str, constraints: UploadConstraints, auto_upload: bool = False, progress: Optional[Callable] = None
+        self,
+        upload_name: str,
+        constraints: UploadConstraints,
+        auto_upload: bool = False,
+        progress: Optional[Callable] = None,
     ) -> UploadConfig:
-        return self.upload_manager.allow_upload(upload_name, constraints, auto_upload, progress)
+        return self.upload_manager.allow_upload(
+            upload_name, constraints, auto_upload, progress
+        )
 
     async def close(self):
         self.connected = False
