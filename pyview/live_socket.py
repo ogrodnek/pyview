@@ -11,6 +11,7 @@ from typing import (
     Union,
     TypeAlias,
     TypeGuard,
+    Callable,
 )
 from urllib.parse import urlencode
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -46,9 +47,9 @@ class UnconnectedSocket(Generic[T]):
     connected: bool = False
 
     def allow_upload(
-        self, upload_name: str, constraints: UploadConstraints
+        self, upload_name: str, constraints: UploadConstraints, auto_upload: bool = False, progress: Optional[Callable] = None
     ) -> UploadConfig:
-        return UploadConfig(name=upload_name, constraints=constraints)
+        return UploadConfig(name=upload_name, constraints=constraints, autoUpload=auto_upload, progress_callback=progress)
 
 
 class ConnectedLiveViewSocket(Generic[T]):
@@ -196,9 +197,9 @@ class ConnectedLiveViewSocket(Generic[T]):
         self.pending_events.append((event, value))
 
     def allow_upload(
-        self, upload_name: str, constraints: UploadConstraints
+        self, upload_name: str, constraints: UploadConstraints, auto_upload: bool = False, progress: Optional[Callable] = None
     ) -> UploadConfig:
-        return self.upload_manager.allow_upload(upload_name, constraints)
+        return self.upload_manager.allow_upload(upload_name, constraints, auto_upload, progress)
 
     async def close(self):
         self.connected = False
