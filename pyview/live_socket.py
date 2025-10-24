@@ -52,12 +52,14 @@ class UnconnectedSocket(Generic[T]):
         constraints: UploadConstraints,
         auto_upload: bool = False,
         progress: Optional[Callable] = None,
+        external: Optional[Callable] = None,
     ) -> UploadConfig:
         return UploadConfig(
             name=upload_name,
             constraints=constraints,
             autoUpload=auto_upload,
             progress_callback=progress,
+            external_callback=external,
         )
 
 
@@ -230,9 +232,10 @@ class ConnectedLiveViewSocket(Generic[T]):
         constraints: UploadConstraints,
         auto_upload: bool = False,
         progress: Optional[Callable] = None,
+        external: Optional[Callable] = None,
     ) -> UploadConfig:
         return self.upload_manager.allow_upload(
-            upload_name, constraints, auto_upload, progress
+            upload_name, constraints, auto_upload, progress, external
         )
 
     async def close(self):

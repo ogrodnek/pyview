@@ -27,6 +27,7 @@ import { LiveSocket } from "phoenix_live_view";
 import NProgress from "nprogress";
 
 let Hooks = window.Hooks ?? {};
+let Uploaders = window.Uploaders ?? {};
 
 let scrollAt = () => {
   let scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
@@ -55,12 +56,54 @@ Hooks.InfiniteScroll = {
   },
 };
 
+// Provide default S3 uploader if not already defined
+// Users can override by setting window.Uploaders.S3 before this script loads
+if (!Uploaders.S3) {
+  Uploaders.S3 = function (entries, onViewError) {
+    entries.forEach((entry) => {
+      let formData = new FormData();
+      let { url, fields } = entry.meta;
+
+      // Add all fields from presigned POST
+      Object.entries(fields).forEach(([key, val]) =>
+        formData.append(key, val)
+      );
+      formData.append("file", entry.file);
+
+      let xhr = new XMLHttpRequest();
+      onViewError(() => xhr.abort());
+
+      xhr.onload = () => {
+        if (xhr.status === 204 || xhr.status === 200) {
+          entry.progress(100);
+        } else {
+          entry.error(`S3 upload failed with status ${xhr.status}`);
+        }
+      };
+      xhr.onerror = () => entry.error("Network error during upload");
+
+      xhr.upload.addEventListener("progress", (event) => {
+        if (event.lengthComputable) {
+          let percent = Math.round((event.loaded / event.total) * 100);
+          if (percent < 100) {
+            entry.progress(percent);
+          }
+        }
+      });
+
+      xhr.open("POST", url, true);
+      xhr.send(formData);
+    });
+  };
+}
+
 let csrfToken = document
   .querySelector("meta[name='csrf-token']")
   .getAttribute("content");
 let liveSocket = new LiveSocket("/live", Socket, {
   hooks: Hooks,
   params: { _csrf_token: csrfToken },
+  uploaders: Uploaders,
 });
 
 // Show progress bar on live navigation and form submits

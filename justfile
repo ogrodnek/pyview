@@ -21,3 +21,6 @@ docker:
 
 type-check:
   poetry run pyright
+
+build-js:
+  cd pyview/assets && npx esbuild js/app.js --bundle --target=es2017 --outdir=../static/assets/

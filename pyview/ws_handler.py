@@ -228,8 +228,8 @@ class LiveSocketHandler:
                 continue
 
             if event == "allow_upload":
-                allow_upload_response = socket.upload_manager.process_allow_upload(
-                    payload
+                allow_upload_response = await socket.upload_manager.process_allow_upload(
+                    payload, socket.context
                 )
 
                 rendered = await _render(socket)

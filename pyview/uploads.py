@@ -14,21 +14,25 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ConstraintViolation:
     ref: str
-    code: Literal["too_large", "too_many_files"]
+    code: Literal["too_large", "too_many_files", "upload_failed"]
 
     @property
     def message(self) -> str:
         if self.code == "too_large":
             return "File too large"
-        return "Too many files"
+        if self.code == "too_many_files":
+            return "Too many files"
+        if self.code == "upload_failed":
+            return "Upload failed"
+        return self.code
 
 
 class UploadEntry(BaseModel):
-    path: str
     ref: str
     name: str
     size: int
     type: str
+    path: Optional[str] = None  # None for external uploads, set for internal uploads
     upload_config: Optional["UploadConfig"] = None
     uuid: str = Field(default_factory=lambda: str(uuid.uuid4()))
     valid: bool = True
@@ -40,6 +44,7 @@ class UploadEntry(BaseModel):
     last_modified: int = Field(
         default_factory=lambda: int(datetime.datetime.now().timestamp())
     )
+    meta: Optional["ExternalUploadMeta"] = None  # Metadata from external uploads
 
 
 def parse_entries(entries: list[dict]) -> list[UploadEntry]:
@@ -90,6 +95,20 @@ class ActiveUploads:
             upload.close()
 
 
+class ExternalUploadMeta(BaseModel):
+    """Metadata returned by external upload presign functions.
+
+    The 'uploader' field is required and specifies the name of the client-side
+    JavaScript uploader (e.g., "S3", "GCS", "Azure").
+
+    Additional provider-specific fields (url, fields, etc.) can be added as needed.
+    """
+    uploader: str  # Required - name of client-side JS uploader
+
+    # Allow extra fields for provider-specific data (url, fields, etc.)
+    model_config = {"extra": "allow"}
+
+
 class UploadConstraints(BaseModel):
     max_file_size: int = 10 * 1024 * 1024  # 10MB
     max_files: int = 10
@@ -106,12 +125,18 @@ class UploadConfig(BaseModel):
     autoUpload: bool = False
     constraints: UploadConstraints = Field(default_factory=UploadConstraints)
     progress_callback: Optional[Callable] = None
+    external_callback: Optional[Callable] = None
 
     uploads: ActiveUploads = Field(default_factory=ActiveUploads)
 
     @property
     def entries(self) -> list[UploadEntry]:
         return list(self.entries_by_ref.values())
+
+    @property
+    def is_external(self) -> bool:
+        """Returns True if this upload config uses external (direct-to-cloud) uploads"""
+        return self.external_callback is not None
 
     def cancel_entry(self, ref: str):
         del self.entries_by_ref[ref]
@@ -195,9 +220,20 @@ class UploadManager:
         self.upload_config_join_refs = {}
 
     def allow_upload(
-        self, upload_name: str, constraints: UploadConstraints, auto_upload: bool = False, progress: Optional[Callable] = None
+        self,
+        upload_name: str,
+        constraints: UploadConstraints,
+        auto_upload: bool = False,
+        progress: Optional[Callable] = None,
+        external: Optional[Callable] = None,
     ) -> UploadConfig:
-        config = UploadConfig(name=upload_name, constraints=constraints, autoUpload=auto_upload, progress_callback=progress)
+        config = UploadConfig(
+            name=upload_name,
+            constraints=constraints,
+            autoUpload=auto_upload,
+            progress_callback=progress,
+            external_callback=external,
+        )
         self.upload_configs[upload_name] = config
         return config
 
@@ -220,7 +256,71 @@ class UploadManager:
                 else:
                     logger.warning("Upload config not found for ref: %s", config.ref)
 
-    def process_allow_upload(self, payload: dict[str, Any]) -> dict[str, Any]:
+    def _validate_constraints(
+        self, config: UploadConfig, proposed_entries: list[dict[str, Any]]
+    ) -> list[ConstraintViolation]:
+        """Validate proposed entries against upload constraints."""
+        errors = []
+        for entry in proposed_entries:
+            if entry["size"] > config.constraints.max_file_size:
+                errors.append(ConstraintViolation(ref=entry["ref"], code="too_large"))
+
+        if len(proposed_entries) > config.constraints.max_files:
+            errors.append(ConstraintViolation(ref=config.ref, code="too_many_files"))
+
+        return errors
+
+    async def _process_external_upload(
+        self, config: UploadConfig, proposed_entries: list[dict[str, Any]], context: Any
+    ) -> dict[str, Any]:
+        """Process external (direct-to-cloud) upload by calling presign function for each entry."""
+        entries_with_meta = {}
+
+        if not config.external_callback:
+            logger.error("external_callback is required for external uploads")
+            return {"error": [("config", "external_callback_missing")]}
+
+        for entry_data in proposed_entries:
+            # Create UploadEntry to pass to presign function
+            entry = UploadEntry(**entry_data)
+            entry.upload_config = config
+
+            try:
+                # Call user's presign function
+                meta: ExternalUploadMeta = await config.external_callback(entry, context)
+
+                # Store metadata and mark entry as preflighted
+                entry.meta = meta
+                entry.preflighted = True
+                config.entries_by_ref[entry.ref] = entry
+
+                # Build entry JSON with metadata merged at top level
+                entry_dict = entry.model_dump(exclude={"upload_config", "meta"})
+                entry_dict.update(meta.model_dump())  # Merge meta fields into entry
+                entries_with_meta[entry.ref] = entry_dict
+
+            except Exception as e:
+                logger.error(f"Error calling presign function for entry {entry.ref}: {e}", exc_info=True)
+                return {"error": [(entry.ref, "presign_error")]}
+
+        configJson = config.constraints.model_dump()
+        return {"config": configJson, "entries": entries_with_meta}
+
+    def _process_internal_upload(self, config: UploadConfig) -> dict[str, Any]:
+        """Process internal (direct-to-server) upload."""
+        configJson = config.constraints.model_dump()
+        entryJson = {
+            e.ref: e.model_dump(exclude={"upload_config"}) for e in config.entries
+        }
+        return {"config": configJson, "entries": entryJson}
+
+    async def process_allow_upload(self, payload: dict[str, Any], context: Any) -> dict[str, Any]:
+        """Process allow_upload request from client.
+
+        Validates constraints and either:
+        - For external uploads: calls presign function to generate upload metadata
+        - For internal uploads: returns standard config/entries response
+        """
         ref = payload["ref"]
         config = self.config_for_ref(ref)
 
@@ -230,23 +330,16 @@ class UploadManager:
 
         proposed_entries = payload["entries"]
 
-        errors = []
-        for entry in proposed_entries:
-            if entry["size"] > config.constraints.max_file_size:
-                errors.append(ConstraintViolation(ref=entry["ref"], code="too_large"))
-
-        if len(proposed_entries) > config.constraints.max_files:
-            errors.append(ConstraintViolation(ref=ref, code="too_many_files"))
-
+        # Validate constraints
+        errors = self._validate_constraints(config, proposed_entries)
         if errors:
             return {"error": [(e.ref, e.code) for e in errors]}
 
-        configJson = config.constraints.model_dump()
-        entryJson = {
-            e.ref: e.model_dump(exclude={"upload_config"}) for e in config.entries
-        }
-
-        return {"config": configJson, "entries": entryJson}
+        # Handle external vs internal uploads
+        if config.is_external:
+            return await self._process_external_upload(config, proposed_entries, context)
+        else:
+            return self._process_internal_upload(config)
 
     def add_upload(self, joinRef: str, payload: dict[str, Any]):
         token = payload["token"]
@@ -265,7 +358,24 @@ class UploadManager:
     def update_progress(self, joinRef: str, payload: dict[str, Any]):
         upload_config_ref = payload["ref"]
         entry_ref = payload["entry_ref"]
-        progress = int(payload["progress"])
+        progress_data = payload["progress"]
+
+        # Handle error case: {error: "reason"}
+        if isinstance(progress_data, dict):
+            # Error occurred during upload (e.g., network error, S3 rejected, etc.)
+            error_msg = progress_data.get('error', 'Upload failed')
+            logger.warning(f"Upload error for entry {entry_ref}: {error_msg}")
+
+            config = self.config_for_ref(upload_config_ref)
+            if config and entry_ref in config.entries_by_ref:
+                entry = config.entries_by_ref[entry_ref]
+                entry.valid = False
+                entry.done = True
+                entry.errors.append(ConstraintViolation(ref=entry_ref, code="upload_failed"))
+            return
+
+        # Handle progress number
+        progress = int(progress_data)
 
         config = self.config_for_ref(upload_config_ref)
         if config:
