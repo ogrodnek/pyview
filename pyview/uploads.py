@@ -156,8 +156,12 @@ class UploadConfig(BaseModel):
     errors: list[ConstraintViolation] = Field(default_factory=list)
     autoUpload: bool = False
     constraints: UploadConstraints = Field(default_factory=UploadConstraints)
-    progress_callback: Optional[Callable] = None
-    external_callback: Optional[Callable] = None
+    progress_callback: Optional[
+        Callable[[UploadEntry, Any], Awaitable[None]]
+    ] = None
+    external_callback: Optional[
+        Callable[[UploadEntry, Any], Awaitable[ExternalUploadMeta]]
+    ] = None
     entry_complete_callback: Optional[
         Callable[[UploadEntry, UploadResult, Any], Awaitable[None]]
     ] = None
