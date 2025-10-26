@@ -86,6 +86,8 @@ class MyLiveView(LiveView[MyContext]):
 
 ### 4. Handle Upload Completion
 
+For simple uploads, handle the files in your event handler:
+
 ```python
     async def handle_event(self, event, payload, socket: LiveViewSocket[MyContext]):
         if event == "save":
@@ -107,6 +109,41 @@ class MyLiveView(LiveView[MyContext]):
 
             # Clear entries after saving
             socket.context.upload_config.entries_by_ref.clear()
+```
+
+For multipart uploads or when you need to handle errors/completion automatically, use the `entry_complete` callback with pattern matching:
+
+```python
+from pyview.uploads import UploadResult, UploadSuccess, UploadSuccessWithData, UploadFailure
+
+async def handle_upload_completion(
+    entry: UploadEntry,
+    result: UploadResult,
+    socket: LiveViewSocket[MyContext]
+):
+    """Handle upload completion or failure using pattern matching (Python 3.10+)."""
+    match result:
+        case UploadFailure(error):
+            # Upload failed - clean up, log error, notify user
+            logger.error(f"Upload failed for {entry.name}: {error}")
+            # For multipart: abort S3 multipart upload to prevent storage charges
+
+        case UploadSuccessWithData(data):
+            # Multipart upload completed - finalize with S3
+            # data contains: {complete: true, upload_id: "...", parts: [...]}
+            await complete_multipart_upload(entry, data, socket)
+
+        case UploadSuccess():
+            # Simple upload completed
+            logger.info(f"Upload completed: {entry.name}")
+
+# Configure with callback
+config = socket.allow_upload(
+    "files",
+    constraints=UploadConstraints(...),
+    external=presign_s3_upload,
+    entry_complete=handle_upload_completion  # Called on success or failure
+)
 ```
 
 ## Accessing External Upload Metadata

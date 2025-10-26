@@ -2,13 +2,45 @@ import datetime
 import uuid
 import logging
 from pydantic import BaseModel, Field
-from typing import Optional, Any, Literal, Generator, Callable
+from typing import Optional, Any, Literal, Generator, Callable, Awaitable
 from dataclasses import dataclass, field
 from contextlib import contextmanager
 import os
 import tempfile
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class UploadSuccess:
+    """Upload completed successfully (no additional data needed). """
+    pass
+
+
+@dataclass
+class UploadSuccessWithData:
+    """Upload completed successfully with completion data.
+
+    Used for multipart uploads where the client sends additional data like:
+    - upload_id: S3 multipart upload ID
+    - parts: List of {PartNumber, ETag} dicts
+    - key: S3 object key
+    - Any other provider-specific fields
+    """
+    data: dict
+
+
+@dataclass
+class UploadFailure:
+    """Upload failed with an error.
+
+    Used when the client reports an upload error.
+    """
+    error: str
+
+
+# Type alias for upload completion results
+UploadResult = UploadSuccess | UploadSuccessWithData | UploadFailure
 
 
 @dataclass
@@ -126,7 +158,9 @@ class UploadConfig(BaseModel):
     constraints: UploadConstraints = Field(default_factory=UploadConstraints)
     progress_callback: Optional[Callable] = None
     external_callback: Optional[Callable] = None
-    entry_complete_callback: Optional[Callable] = None
+    entry_complete_callback: Optional[
+        Callable[[UploadEntry, UploadResult, Any], Awaitable[None]]
+    ] = None
 
     uploads: ActiveUploads = Field(default_factory=ActiveUploads)
 
@@ -427,13 +461,10 @@ class UploadManager:
                     entry.progress = 100
                     entry.done = True
 
-                    # Call entry_complete callback with completion data
+                    # Call entry_complete callback with success result
                     if config.entry_complete_callback:
-                        await config.entry_complete_callback(
-                            entry,
-                            progress_data,
-                            socket
-                        )
+                        result = UploadSuccessWithData(data=progress_data)
+                        await config.entry_complete_callback(entry, result, socket)
                 return
 
             # Handle error case: {error: "reason"}
@@ -445,6 +476,11 @@ class UploadManager:
                 entry.valid = False
                 entry.done = True
                 entry.errors.append(ConstraintViolation(ref=entry_ref, code="upload_failed"))
+
+                # Call entry_complete callback with failure result
+                if config.entry_complete_callback:
+                    result = UploadFailure(error=error_msg)
+                    await config.entry_complete_callback(entry, result, socket)
             return
 
         # Handle progress number
@@ -455,11 +491,8 @@ class UploadManager:
         if progress == 100:
             entry = config.entries_by_ref.get(entry_ref)
             if entry and config.entry_complete_callback:
-                await config.entry_complete_callback(
-                    entry,
-                    100,  # completion_data is just the number
-                    socket
-                )
+                result = UploadSuccess()
+                await config.entry_complete_callback(entry, result, socket)
 
             # Cleanup for internal uploads only (external uploads never populate upload_config_join_refs)
             if not config.is_external:
