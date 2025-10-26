@@ -61,6 +61,7 @@ let csrfToken = document
 let liveSocket = new LiveSocket("/live", Socket, {
   hooks: Hooks,
   params: { _csrf_token: csrfToken },
+  uploaders: window.Uploaders || {},
 });
 
 // Show progress bar on live navigation and form submits
