@@ -367,6 +367,7 @@ class UploadManager:
     ) -> dict[str, Any]:
         """Process external (direct-to-cloud) upload by calling presign function for each entry."""
         entries_with_meta = {}
+        successfully_preflighted = []  # Track entries added to config for atomic cleanup
 
         if not config.external_callback:
             logger.error("external_callback is required for external uploads")
@@ -385,6 +386,7 @@ class UploadManager:
                 entry.meta = meta
                 entry.preflighted = True
                 config.entries_by_ref[entry.ref] = entry
+                successfully_preflighted.append(entry.ref)  # Track for cleanup
 
                 # Build entry JSON with metadata merged at top level
                 entry_dict = entry.model_dump(exclude={"upload_config", "meta"})
@@ -393,6 +395,11 @@ class UploadManager:
 
             except Exception as e:
                 logger.error(f"Error calling presign function for entry {entry.ref}: {e}", exc_info=True)
+
+                # Atomic cleanup: remove all entries added before this failure
+                for ref in successfully_preflighted:
+                    config.entries_by_ref.pop(ref, None)
+
                 return {"error": [(entry.ref, "presign_error")]}
 
         configJson = config.constraints.model_dump()
