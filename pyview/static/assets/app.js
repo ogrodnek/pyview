@@ -5442,8 +5442,6 @@ within:
   var import_nprogress = __toESM(require_nprogress());
   var _a;
   var Hooks2 = (_a = window.Hooks) != null ? _a : {};
-  var _a2;
-  var Uploaders = (_a2 = window.Uploaders) != null ? _a2 : {};
   var scrollAt = () => {
     let scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
     let scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
@@ -5467,43 +5465,11 @@ within:
       this.pending = this.page();
     }
   };
-  if (!Uploaders.S3) {
-    Uploaders.S3 = function(entries, onViewError) {
-      entries.forEach((entry) => {
-        let formData = new FormData();
-        let { url, fields } = entry.meta;
-        Object.entries(fields).forEach(
-          ([key, val]) => formData.append(key, val)
-        );
-        formData.append("file", entry.file);
-        let xhr = new XMLHttpRequest();
-        onViewError(() => xhr.abort());
-        xhr.onload = () => {
-          if (xhr.status === 204 || xhr.status === 200) {
-            entry.progress(100);
-          } else {
-            entry.error(`S3 upload failed with status ${xhr.status}`);
-          }
-        };
-        xhr.onerror = () => entry.error("Network error during upload");
-        xhr.upload.addEventListener("progress", (event) => {
-          if (event.lengthComputable) {
-            let percent = Math.round(event.loaded / event.total * 100);
-            if (percent < 100) {
-              entry.progress(percent);
-            }
-          }
-        });
-        xhr.open("POST", url, true);
-        xhr.send(formData);
-      });
-    };
-  }
   var csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
   var liveSocket = new LiveSocket("/live", Socket, {
     hooks: Hooks2,
     params: { _csrf_token: csrfToken },
-    uploaders: Uploaders
+    uploaders: window.Uploaders || {}
   });
   window.addEventListener("phx:page-loading-start", (info) => import_nprogress.default.start());
   window.addEventListener("phx:page-loading-stop", (info) => import_nprogress.default.done());

@@ -342,9 +342,9 @@ class LiveSocketHandler:
             if event == "progress":
                 # Trigger progress callback BEFORE updating progress (which may consume the entry)
                 await socket.upload_manager.trigger_progress_callback_if_exists(payload, socket)
-                
-                socket.upload_manager.update_progress(joinRef, payload)
-                
+
+                await socket.upload_manager.update_progress(joinRef, payload, socket)
+
                 rendered = await _render(socket)
                 diff = socket.diff(rendered)
 

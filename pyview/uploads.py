@@ -126,6 +126,7 @@ class UploadConfig(BaseModel):
     constraints: UploadConstraints = Field(default_factory=UploadConstraints)
     progress_callback: Optional[Callable] = None
     external_callback: Optional[Callable] = None
+    entry_complete_callback: Optional[Callable] = None
 
     uploads: ActiveUploads = Field(default_factory=ActiveUploads)
 
@@ -179,19 +180,19 @@ class UploadConfig(BaseModel):
             self.uploads = ActiveUploads()
             self.entries_by_ref = {}
 
-    @contextmanager  
+    @contextmanager
     def consume_upload_entry(self, entry_ref: str) -> Generator[Optional["ActiveUpload"], None, None]:
         """Consume a single upload entry by its ref"""
         upload = None
         join_ref = None
-        
+
         # Find the join_ref for this entry
         for jr, active_upload in self.uploads.uploads.items():
             if active_upload.entry.ref == entry_ref:
                 upload = active_upload
                 join_ref = jr
                 break
-        
+
         try:
             yield upload
         finally:
@@ -200,12 +201,63 @@ class UploadConfig(BaseModel):
                     upload.close()
                 except Exception:
                     logger.warning("Error closing upload entry", exc_info=True)
-                
+
                 # Remove only this specific upload
                 if join_ref in self.uploads.uploads:
                     del self.uploads.uploads[join_ref]
                 if entry_ref in self.entries_by_ref:
                     del self.entries_by_ref[entry_ref]
+
+    @contextmanager
+    def consume_external_upload(self, entry_ref: str) -> Generator[Optional["UploadEntry"], None, None]:
+        """Consume a single external upload entry by its ref.
+
+        For external uploads (direct-to-cloud), this returns the UploadEntry containing
+        metadata about the uploaded file. The entry is automatically removed after the
+        context manager exits.
+
+        Args:
+            entry_ref: The ref of the entry to consume
+
+        Yields:
+            UploadEntry if found, None otherwise
+
+        Raises:
+            ValueError: If called on a non-external upload config
+        """
+        if not self.is_external:
+            raise ValueError("consume_external_upload() can only be called on external upload configs")
+
+        entry = self.entries_by_ref.get(entry_ref)
+
+        try:
+            yield entry
+        finally:
+            if entry_ref in self.entries_by_ref:
+                del self.entries_by_ref[entry_ref]
+
+    @contextmanager
+    def consume_external_uploads(self) -> Generator[list["UploadEntry"], None, None]:
+        """Consume all external upload entries and clean up.
+
+        For external uploads (direct-to-cloud), this returns the UploadEntry objects
+        containing metadata about the uploaded files. The entries are automatically
+        cleared after the context manager exits.
+
+        Yields:
+            List of UploadEntry objects
+
+        Raises:
+            ValueError: If called on a non-external upload config
+        """
+        if not self.is_external:
+            raise ValueError("consume_external_uploads() can only be called on external upload configs")
+
+        try:
+            upload_list = list(self.entries_by_ref.values())
+            yield upload_list
+        finally:
+            self.entries_by_ref = {}
 
     def close(self):
         self.uploads.close()
@@ -226,6 +278,7 @@ class UploadManager:
         auto_upload: bool = False,
         progress: Optional[Callable] = None,
         external: Optional[Callable] = None,
+        entry_complete: Optional[Callable] = None,
     ) -> UploadConfig:
         config = UploadConfig(
             name=upload_name,
@@ -233,6 +286,7 @@ class UploadManager:
             autoUpload=auto_upload,
             progress_callback=progress,
             external_callback=external,
+            entry_complete_callback=entry_complete,
         )
         self.upload_configs[upload_name] = config
         return config
@@ -355,19 +409,38 @@ class UploadManager:
         config.uploads.add_chunk(joinRef, chunk)
         pass
 
-    def update_progress(self, joinRef: str, payload: dict[str, Any]):
+    async def update_progress(self, joinRef: str, payload: dict[str, Any], socket):
         upload_config_ref = payload["ref"]
         entry_ref = payload["entry_ref"]
         progress_data = payload["progress"]
 
-        # Handle error case: {error: "reason"}
+        config = self.config_for_ref(upload_config_ref)
+        if not config:
+            logger.warning(f"[update_progress] No config found for ref: {upload_config_ref}")
+            return
+
+        # Handle dict (error or completion)
         if isinstance(progress_data, dict):
-            # Error occurred during upload (e.g., network error, S3 rejected, etc.)
+            if progress_data.get('complete'):
+                entry = config.entries_by_ref.get(entry_ref)
+                if entry:
+                    entry.progress = 100
+                    entry.done = True
+
+                    # Call entry_complete callback with completion data
+                    if config.entry_complete_callback:
+                        await config.entry_complete_callback(
+                            entry,
+                            progress_data,
+                            socket
+                        )
+                return
+
+            # Handle error case: {error: "reason"}
             error_msg = progress_data.get('error', 'Upload failed')
             logger.warning(f"Upload error for entry {entry_ref}: {error_msg}")
 
-            config = self.config_for_ref(upload_config_ref)
-            if config and entry_ref in config.entries_by_ref:
+            if entry_ref in config.entries_by_ref:
                 entry = config.entries_by_ref[entry_ref]
                 entry.valid = False
                 entry.done = True
@@ -376,12 +449,20 @@ class UploadManager:
 
         # Handle progress number
         progress = int(progress_data)
+        config.update_progress(entry_ref, progress)
 
-        config = self.config_for_ref(upload_config_ref)
-        if config:
-            config.update_progress(entry_ref, progress)
+        # Fire entry_complete callback on 100
+        if progress == 100:
+            entry = config.entries_by_ref.get(entry_ref)
+            if entry and config.entry_complete_callback:
+                await config.entry_complete_callback(
+                    entry,
+                    100,  # completion_data is just the number
+                    socket
+                )
 
-            if progress == 100:
+            # Cleanup for internal uploads only (external uploads never populate upload_config_join_refs)
+            if not config.is_external:
                 try:
                     joinRef_to_remove = config.uploads.join_ref_for_entry(entry_ref)
                     if joinRef_to_remove in self.upload_config_join_refs:
@@ -398,15 +479,20 @@ class UploadManager:
         """Trigger progress callback if one exists for this upload config"""
         upload_config_ref = payload["ref"]
         config = self.config_for_ref(upload_config_ref)
-        
+
         if config and config.progress_callback:
             entry_ref = payload["entry_ref"]
             if entry_ref in config.entries_by_ref:
                 entry = config.entries_by_ref[entry_ref]
+                progress_data = payload["progress"]
+
                 # Update entry progress before calling callback
-                progress = int(payload["progress"])
-                entry.progress = progress
-                entry.done = progress == 100
+                if isinstance(progress_data, int):
+                    entry.progress = progress_data
+                    entry.done = progress_data == 100
+                # For dict (error or completion), don't update entry.progress here
+                # (will be handled in update_progress or completion handler)
+
                 await config.progress_callback(entry, socket)
 
     def close(self):
