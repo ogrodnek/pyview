@@ -25,6 +25,7 @@ from .views import (
     FileUploadDemoLiveView,
     KanbanLiveView,
     IncludesLiveView,
+    RecipesLiveView,
 )
 
 app = PyView()
@@ -35,6 +36,7 @@ app.mount(
             ("pyview", "static"),
             ("examples.views.maps", "static"),
             ("examples.views.kanban", "static"),
+            ("examples.views.recipes", "photos"),
         ]
     ),
     name="static",
@@ -139,6 +141,7 @@ routes = [
     ("/file_upload", FileUploadDemoLiveView),
     ("/kanban", KanbanLiveView),
     ("/includes", IncludesLiveView),
+    ("/recipes", RecipesLiveView),
 ]
 
 

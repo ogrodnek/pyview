@@ -15,10 +15,15 @@ def find_associated_file(o: object, extension: str) -> Optional[str]:
             return associated_file
 
 
-def find_associated_css(o: object) -> list[Markup]:
-    css_file = find_associated_file(o, ".css")
-    if css_file:
-        with open(css_file, "r") as css:
-            return [Markup(f"<style>{css.read()}</style>")]
+def find_associated_css(o: object | list[object]) -> list[Markup]:
 
-    return []
+    objects = o if isinstance(o, list) else [o]
+    files = set(f for f in [find_associated_file(o, ".css") for o in objects] if f)
+
+    ret = []
+    for file in files:
+        with open(file, "r") as css:
+            source_comment = f"<!-- {os.path.basename(file)} -->"
+            ret.append(Markup(f"\n{source_comment}\n<style>\n{css.read()}\n</style>"))
+
+    return ret

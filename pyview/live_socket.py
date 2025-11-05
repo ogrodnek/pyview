@@ -16,6 +16,7 @@ from typing import (
 from urllib.parse import urlencode
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.jobstores.base import JobLookupError
+from pyview.live_component.live_components_context import LiveComponentsContext
 from pyview.vendor.flet.pubsub import PubSubHub, PubSub
 from pyview.events import InfoEvent
 from pyview.uploads import UploadConstraints, UploadConfig, UploadManager
@@ -41,10 +42,20 @@ def is_connected(socket: LiveViewSocket[T]) -> TypeGuard["ConnectedLiveViewSocke
     return socket.connected
 
 
-class UnconnectedSocket(Generic[T]):
+class BaseSocket(Generic[T]):
     context: T
     live_title: Optional[str] = None
+    components: LiveComponentsContext
+
+    def __init__(self):
+        self.components = LiveComponentsContext()
+
+
+class UnconnectedSocket(BaseSocket[T]):
     connected: bool = False
+
+    def __init__(self):
+        super().__init__()
 
     def allow_upload(
         self,
@@ -65,9 +76,7 @@ class UnconnectedSocket(Generic[T]):
         )
 
 
-class ConnectedLiveViewSocket(Generic[T]):
-    context: T
-    live_title: Optional[str] = None
+class ConnectedLiveViewSocket(BaseSocket[T]):
     pending_events: list[tuple[str, Any]]
     upload_manager: UploadManager
     prev_rendered: Optional[dict[str, Any]] = None
@@ -80,6 +89,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         scheduler: AsyncIOScheduler,
         instrumentation: "InstrumentationProvider",
     ):
+        super().__init__()
         self.websocket = websocket
         self.topic = topic
         self.liveview = liveview

@@ -1,0 +1,32 @@
+:root {
+  --recipe-title-font: "Shadows Into Light", cursive;
+}
+
+main {
+  margin: 0;
+  padding: 20px;
+  height: 100vh;
+}
+
+.recipes_title {
+  margin-top: 0;
+}
+
+html {
+  background-color: #F0F0F0;
+}
+
+body {
+  max-width: 980px;
+}
+
+.recipes {
+  padding-block: 2em;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 2rem;
+}
+
+.attribution {
+  font-size: 0.7em;
+}
