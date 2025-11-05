@@ -1,0 +1,129 @@
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+        <h1 class="text-3xl font-bold text-center text-gray-900 mb-2">Typed Parameters Demo</h1>
+        <p class="text-center text-sm text-gray-500 mb-8">
+            Automatic type conversion for URL params and events
+        </p>
+
+        <!-- Counter Display -->
+        <div class="text-center mb-8">
+            <div class="text-6xl font-bold text-gray-800 tabular-nums">{{count}}</div>
+            <div class="text-sm text-gray-500 mt-2">
+                Multiplier: <span class="font-mono font-bold text-blue-600">×{{multiplier}}</span>
+                {% if enabled %}
+                <span class="ml-2 px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Enabled</span>
+                {% else %}
+                <span class="ml-2 px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">Disabled</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Message Display -->
+        {% if message %}
+        <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800 text-center">
+            {{message}}
+        </div>
+        {% endif %}
+
+        <!-- Controls -->
+        <div class="space-y-4 mb-6">
+            <div class="flex items-center justify-center space-x-4">
+                <button phx-click="decrement" phx-value-amount="1"
+                        class="px-6 py-3 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors">
+                    Decrement
+                </button>
+                <button phx-click="increment" phx-value-amount="1"
+                        class="px-6 py-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                    Increment
+                </button>
+            </div>
+
+            <div class="flex items-center justify-center space-x-2">
+                <span class="text-sm text-gray-600">By amount:</span>
+                <button phx-click="increment" phx-value-amount="5"
+                        class="px-3 py-1 rounded bg-gray-100 text-gray-700 text-sm hover:bg-gray-200">
+                    +5
+                </button>
+                <button phx-click="increment" phx-value-amount="10"
+                        class="px-3 py-1 rounded bg-gray-100 text-gray-700 text-sm hover:bg-gray-200">
+                    +10
+                </button>
+            </div>
+        </div>
+
+        <!-- Multiplier Control -->
+        <div class="border-t border-gray-200 pt-4 mb-4">
+            <div class="flex items-center justify-center space-x-2">
+                <span class="text-sm text-gray-600">Set multiplier:</span>
+                {% for m in [1, 2, 3, 5] %}
+                <button phx-click="set_multiplier" phx-value-value="{{m}}"
+                        class="px-3 py-1 rounded {% if multiplier == m %}bg-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %} text-sm">
+                    ×{{m}}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Tags Display -->
+        <div class="border-t border-gray-200 pt-4">
+            <div class="text-sm text-gray-600 mb-2">Tags:</div>
+            <div class="flex flex-wrap gap-2 mb-3">
+                {% if tags %}
+                {% for tag in tags %}
+                <span class="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">
+                    {{tag}}
+                </span>
+                {% endfor %}
+                {% else %}
+                <span class="text-sm text-gray-400 italic">No tags yet</span>
+                {% endif %}
+            </div>
+            <div class="flex gap-2">
+                <button phx-click="add_tag" phx-value-tag="python"
+                        class="px-3 py-1 rounded bg-gray-100 text-gray-700 text-sm hover:bg-gray-200">
+                    Add "python"
+                </button>
+                <button phx-click="add_tag" phx-value-tag="web"
+                        class="px-3 py-1 rounded bg-gray-100 text-gray-700 text-sm hover:bg-gray-200">
+                    Add "web"
+                </button>
+                {% if tags %}
+                <button phx-click="clear_tags"
+                        class="px-3 py-1 rounded bg-red-100 text-red-700 text-sm hover:bg-red-200">
+                    Clear
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Other Controls -->
+        <div class="border-t border-gray-200 pt-4 mt-4">
+            <div class="flex items-center justify-center space-x-4">
+                <button phx-click="toggle_enabled"
+                        class="px-4 py-2 rounded bg-gray-100 text-gray-700 text-sm hover:bg-gray-200">
+                    Toggle Enabled
+                </button>
+                <button phx-click="reset"
+                        class="px-4 py-2 rounded bg-gray-600 text-white text-sm hover:bg-gray-700">
+                    Reset All
+                </button>
+            </div>
+        </div>
+
+        <!-- Usage Examples -->
+        <div class="mt-8 space-y-2">
+            <p class="text-xs font-semibold text-gray-600 uppercase">Try these URLs:</p>
+            <div class="space-y-1">
+                <code class="block px-3 py-2 bg-gray-50 rounded text-xs text-gray-800 font-mono">
+                    /typed_params_demo?count=100
+                </code>
+                <code class="block px-3 py-2 bg-gray-50 rounded text-xs text-gray-800 font-mono">
+                    /typed_params_demo?count=50&multiplier=3
+                </code>
+                <code class="block px-3 py-2 bg-gray-50 rounded text-xs text-gray-800 font-mono">
+                    /typed_params_demo?count=10&enabled=false&tags=python&tags=web
+                </code>
+            </div>
+        </div>
+    </div>
+</div>
