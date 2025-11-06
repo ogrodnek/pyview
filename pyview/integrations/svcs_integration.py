@@ -105,6 +105,10 @@ async def get_services(socket: "LiveViewSocket", *service_types: type[T]) -> tup
     This function works with both HTTP requests (UnconnectedSocket) and
     WebSocket connections (ConnectedLiveViewSocket).
 
+    For WebSocket connections, the container is created once and reused for
+    all service requests during the connection lifetime. It's automatically
+    cleaned up when the connection closes.
+
     Args:
         socket: The LiveViewSocket (connected or unconnected)
         *service_types: One or more service types to retrieve
@@ -136,6 +140,7 @@ async def get_services(socket: "LiveViewSocket", *service_types: type[T]) -> tup
 
     if request is not None:
         # UnconnectedSocket - get from request state
+        # SVCSMiddleware creates and cleans up the container automatically
         if not hasattr(request.state, 'svcs'):
             raise RuntimeError(
                 "svcs not configured. Make sure SVCSMiddleware is installed "
@@ -143,16 +148,18 @@ async def get_services(socket: "LiveViewSocket", *service_types: type[T]) -> tup
             )
         container = request.state.svcs
     else:
-        # ConnectedLiveViewSocket - create container from app registry
-        if not hasattr(socket.state, 'svcs_registry'):
-            raise RuntimeError(
-                "svcs not configured. Make sure configure_svcs() was called."
-            )
-        container = svcs.Container(socket.state.svcs_registry)
+        # ConnectedLiveViewSocket - create ONE container per connection
+        # Store it on the socket itself (not on context which may not exist yet)
+        if not hasattr(socket, '_svcs_container'):
+            if not hasattr(socket.state, 'svcs_registry'):
+                raise RuntimeError(
+                    "svcs not configured. Make sure configure_svcs() was called."
+                )
+            socket._svcs_container = svcs.Container(socket.state.svcs_registry)
 
+        container = socket._svcs_container
+
+    # aget returns the service directly for single requests,
+    # or a list for multiple requests
     services = await container.aget(*service_types)
-
-    # Return single service directly, or tuple for multiple
-    if len(service_types) == 1:
-        return services[0]
     return services

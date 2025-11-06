@@ -300,6 +300,13 @@ class ConnectedLiveViewSocket(Generic[T]):
         except Exception:
             pass
 
+        # Clean up svcs container if it exists (from pyview.integrations.svcs_integration)
+        if hasattr(self, '_svcs_container'):
+            try:
+                await self._svcs_container.aclose()
+            except Exception:
+                pass
+
         try:
             await self.liveview.disconnect(self)
         except Exception:

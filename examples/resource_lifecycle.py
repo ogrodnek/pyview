@@ -423,30 +423,38 @@ def print_best_practices():
 └──────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────────────────┐
-│ 4. USE svcs FOR AUTOMATIC CLEANUP                               │
+│ 4. USE svcs FOR AUTOMATIC CLEANUP ⭐ RECOMMENDED                │
 ├──────────────────────────────────────────────────────────────────┤
-│ • svcs manages cleanup automatically                             │
-│ • Context managers are entered/exited                            │
-│ • Container cleanup on close                                     │
+│ • svcs manages cleanup automatically - NO manual cleanup needed! │
+│ • Context managers are entered/exited automatically              │
+│ • PyView closes the svcs container in socket.close()            │
+│ • Works seamlessly with both HTTP and WebSocket connections      │
 │                                                                  │
 │ Example:                                                         │
 │   registry.register_factory(DB, create_db)                       │
 │   db = await get_services(socket, DB)                            │
-│   # Cleanup automatic when connection closes                     │
+│   # That's it! PyView handles all cleanup automatically          │
+│                                                                  │
+│ What you DON'T need to do:                                       │
+│   ❌ DON'T call container.aclose() manually                      │
+│   ❌ DON'T clean up in disconnect()                              │
+│   ❌ DON'T worry about resource leaks                            │
 └──────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────────────────┐
-│ 5. WHAT TO CLEAN UP MANUALLY                                    │
+│ 5. WHAT TO CLEAN UP MANUALLY (if NOT using svcs)               │
 ├──────────────────────────────────────────────────────────────────┤
-│ ✅ Database connections (per-connection)                         │
-│ ✅ File handles                                                  │
-│ ✅ External API clients with state                               │
-│ ✅ Background tasks you spawned                                  │
+│ ⚠️  Database connections (per-connection)                        │
+│ ⚠️  File handles                                                 │
+│ ⚠️  External API clients with state                              │
+│ ⚠️  Background tasks you spawned                                 │
 │                                                                  │
-│ ❌ Scheduled jobs (PyView handles)                               │
-│ ❌ PubSub subscriptions (PyView handles)                         │
-│ ❌ Upload manager (PyView handles)                               │
-│ ❌ WebSocket connection (Starlette handles)                      │
+│ ✅ PyView handles automatically:                                 │
+│   • Scheduled jobs (socket.schedule_info)                        │
+│   • PubSub subscriptions (socket.subscribe)                      │
+│   • Upload manager (socket.allow_upload)                         │
+│   • WebSocket connection                                         │
+│   • svcs container cleanup (if using svcs)                       │
 └──────────────────────────────────────────────────────────────────┘
 """
 
@@ -474,17 +482,23 @@ PyView handles most cleanup automatically:
 ✅ PubSub subscriptions
 ✅ Upload manager
 ✅ Calls your disconnect() hook
+✅ svcs container cleanup (if using svcs)
 
-You need to clean up in disconnect():
+You need to clean up in disconnect() ONLY if NOT using svcs:
 ⚠️  Per-connection database connections
 ⚠️  File handles
 ⚠️  External API clients
 ⚠️  Background tasks
 
-Best approach:
+⭐ RECOMMENDED approach:
+1. Use svcs for dependency injection
+   - PyView automatically closes the svcs container
+   - Context managers are entered/exited automatically
+   - NO manual cleanup needed!
+
+Alternative approaches:
 1. Shared services → app.state (cleanup in lifespan)
 2. Per-connection → socket.context (cleanup in disconnect)
-3. Use svcs for automatic cleanup
     """)
 
 
