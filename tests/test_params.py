@@ -226,14 +226,64 @@ class TestConvertParams:
             convert_params({}, sig)
 
     def test_conversion_error(self):
-        """Conversion error should have helpful message."""
+        """Conversion error on required param should raise."""
 
         def dummy(count: int):
             pass
 
         sig = inspect.signature(dummy)
-        with pytest.raises(ValueError, match="Error converting parameter 'count'"):
+        with pytest.raises(ValueError, match="Error converting required parameter 'count'"):
             convert_params({"count": ["not-a-number"]}, sig)
+
+    def test_conversion_error_with_default(self, caplog):
+        """Conversion error with default should use default and log warning."""
+
+        def dummy(count: int = 0, page: int = 1):
+            pass
+
+        sig = inspect.signature(dummy)
+
+        # Should not raise, should use defaults
+        result = convert_params({"count": ["not-a-number"], "page": ["also-bad"]}, sig)
+        assert result == {"count": 0, "page": 1}
+
+        # Should log warnings
+        assert "Cannot convert" in caplog.text
+        assert "Using default: 0" in caplog.text
+
+    def test_conversion_error_with_optional(self, caplog):
+        """Conversion error on Optional param should use None and log warning."""
+
+        def dummy(name: Optional[str], count: Optional[int]):
+            pass
+
+        sig = inspect.signature(dummy)
+
+        # For Optional[int], invalid value should become None
+        result = convert_params({"count": ["not-a-number"], "name": ["validstr"]}, sig)
+        assert result == {"count": None, "name": "validstr"}
+
+        # Should log warning for count
+        assert "Using None" in caplog.text
+
+    def test_conversion_error_partial(self, caplog):
+        """Conversion errors should not affect valid params."""
+
+        def dummy(count: int = 0, page: int = 1, search: str = ""):
+            pass
+
+        sig = inspect.signature(dummy)
+
+        # count fails, but page and search should work
+        result = convert_params(
+            {"count": ["invalid"], "page": ["5"], "search": ["hello"]},
+            sig
+        )
+        assert result == {"count": 0, "page": 5, "search": "hello"}
+
+        # Only count should have warning
+        assert "Cannot convert" in caplog.text
+        assert "'count'" in caplog.text
 
     def test_path_param_string(self):
         """Path params (strings, not lists) should work."""
