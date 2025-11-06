@@ -23,6 +23,7 @@ from pyview.meta import PyViewMeta
 from pyview.template.render_diff import calc_diff
 import datetime
 from pyview.async_stream_runner import AsyncStreamRunner
+import svcs
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ class UnconnectedSocket(Generic[T]):
     context: T
     live_title: Optional[str] = None
     connected: bool = False
+    _svcs_container: Optional["svcs.Container"] = None  # Dependency injection container
 
     def allow_upload(
         self,
@@ -71,6 +73,7 @@ class ConnectedLiveViewSocket(Generic[T]):
     pending_events: list[tuple[str, Any]]
     upload_manager: UploadManager
     prev_rendered: Optional[dict[str, Any]] = None
+    _svcs_container: Optional["svcs.Container"] = None  # Dependency injection container
 
     def __init__(
         self,
@@ -79,6 +82,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         liveview: LiveView,
         scheduler: AsyncIOScheduler,
         instrumentation: "InstrumentationProvider",
+        svcs_registry: Optional["svcs.Registry"] = None,
     ):
         self.websocket = websocket
         self.topic = topic
@@ -91,6 +95,12 @@ class ConnectedLiveViewSocket(Generic[T]):
         self.upload_manager = UploadManager()
         self.stream_runner = AsyncStreamRunner(self)
         self.scheduler = scheduler
+
+        # Set up DI container for WebSocket connections
+        if svcs_registry is not None:
+            self._svcs_container = svcs.Container(svcs_registry)
+        else:
+            self._svcs_container = None
 
     @property
     def meta(self) -> PyViewMeta:

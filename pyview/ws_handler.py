@@ -87,7 +87,15 @@ class LiveSocketHandler:
                 url = urlparse(payload["url"])
                 lv, path_params = self.routes.get(url.path)
                 await self.check_auth(websocket, lv)
-                socket = ConnectedLiveViewSocket(websocket, topic, lv, self.scheduler, self.instrumentation)
+
+                # Get svcs registry from app state if DI is configured
+                svcs_registry = None
+                if hasattr(websocket.app.state, 'svcs_registry'):
+                    svcs_registry = websocket.app.state.svcs_registry
+
+                socket = ConnectedLiveViewSocket(
+                    websocket, topic, lv, self.scheduler, self.instrumentation, svcs_registry
+                )
 
                 session = {}
                 if "session" in payload:
@@ -278,9 +286,14 @@ class LiveSocketHandler:
                     lv, path_params = self.routes.get(url.path)
                     await self.check_auth(socket.websocket, lv)
 
+                    # Get svcs registry from app state if DI is configured
+                    svcs_registry = None
+                    if hasattr(socket.websocket.app.state, 'svcs_registry'):
+                        svcs_registry = socket.websocket.app.state.svcs_registry
+
                     # Create new socket for new LiveView
                     socket = ConnectedLiveViewSocket(
-                        socket.websocket, topic, lv, self.scheduler, self.instrumentation
+                        socket.websocket, topic, lv, self.scheduler, self.instrumentation, svcs_registry
                     )
 
                     session = {}
