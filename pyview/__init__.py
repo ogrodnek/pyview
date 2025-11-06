@@ -8,6 +8,7 @@ from pyview.live_socket import (
 from pyview.pyview import PyView, defaultRootTemplate
 from pyview.js import JsCommand
 from pyview.pyview import RootTemplateContext, RootTemplate
+from pyview.stream import Stream
 
 __all__ = [
     "LiveView",
@@ -19,4 +20,5 @@ __all__ = [
     "RootTemplate",
     "is_connected",
     "ConnectedLiveViewSocket",
+    "Stream",
 ]

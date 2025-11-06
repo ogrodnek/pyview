@@ -23,6 +23,8 @@ from pyview.meta import PyViewMeta
 from pyview.template.render_diff import calc_diff
 import datetime
 from pyview.async_stream_runner import AsyncStreamRunner
+from pyview.stream import Stream
+from dataclasses import is_dataclass, fields
 
 logger = logging.getLogger(__name__)
 
@@ -127,8 +129,73 @@ class ConnectedLiveViewSocket(Generic[T]):
         else:
             diff = render
 
+        # Add stream operations if any exist
+        stream_ops = self._extract_stream_operations(render)
+        if stream_ops:
+            diff["stream"] = stream_ops
+
         self.prev_rendered = render
         return diff
+
+    def _find_streams_in_context(self) -> list[tuple[str, Stream]]:
+        """Walk the context and find all Stream instances."""
+        streams = []
+
+        if is_dataclass(self.context):
+            # Context is a dataclass - iterate over fields
+            for field in fields(self.context):
+                value = getattr(self.context, field.name)
+                if isinstance(value, Stream):
+                    if not value.name:
+                        value.name = field.name
+                    streams.append((field.name, value))
+        elif isinstance(self.context, dict):
+            # Context is a dict - iterate over items
+            for key, value in self.context.items():
+                if isinstance(value, Stream):
+                    if not value.name:
+                        value.name = key
+                    streams.append((key, value))
+
+        return streams
+
+    def _extract_stream_operations(self, render: dict[str, Any]) -> Optional[list]:
+        """
+        Extract stream operations and format them for the wire protocol.
+
+        Returns a list of stream operations in the format:
+        [
+            [ref, inserts, deleteIds, reset],
+            ...
+        ]
+        """
+        streams = self._find_streams_in_context()
+        stream_ops = []
+
+        for name, stream in streams:
+            if stream.has_operations():
+                inserts, deletes, reset = stream.consume_operations()
+
+                # Build insert entries: [dom_id, at, limit, update_only]
+                # Note: We don't include the rendered HTML here - that goes in the main diff
+                insert_entries = []
+                for dom_id, at, item, limit, update_only in inserts:
+                    insert_entries.append([
+                        dom_id,
+                        at,
+                        limit if limit is not None else -1,
+                        update_only
+                    ])
+
+                # Add to operations: [ref, inserts, deleteIds, reset]
+                stream_ops.append([
+                    stream.ref,
+                    insert_entries,
+                    deletes,
+                    reset
+                ])
+
+        return stream_ops if stream_ops else None
 
     async def send_info(self, event: InfoEvent):
         await self.liveview.handle_info(event, self)
