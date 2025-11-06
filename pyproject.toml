@@ -50,7 +50,10 @@ markupsafe = "^3.0.2"
 itsdangerous = "^2.2.0"
 pydantic = "^2.9.2"
 click = "^8.1.7"
-svcs = "^25.1.0"
+svcs = {version = "^25.1.0", optional = true}
+
+[tool.poetry.extras]
+svcs = ["svcs"]
 
 [tool.poetry.scripts]
 pv = "pyview.cli.main:cli"

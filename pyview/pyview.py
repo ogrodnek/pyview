@@ -55,11 +55,7 @@ async def liveview_container(
     url = request.url
     path = url.path
     lv, path_params = view_lookup.get(path)
-    s = UnconnectedSocket()
-
-    # Attach svcs container if DI is configured
-    if hasattr(request.state, 'svcs'):
-        s._svcs_container = request.state.svcs
+    s = UnconnectedSocket(request)
 
     session = request.session if "session" in request.scope else {}
 

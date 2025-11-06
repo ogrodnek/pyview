@@ -1,5 +1,7 @@
 from __future__ import annotations
 from starlette.websockets import WebSocket
+from starlette.datastructures import State
+from starlette.requests import Request
 import json
 import logging
 from typing import (
@@ -23,7 +25,6 @@ from pyview.meta import PyViewMeta
 from pyview.template.render_diff import calc_diff
 import datetime
 from pyview.async_stream_runner import AsyncStreamRunner
-import svcs
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,31 @@ class UnconnectedSocket(Generic[T]):
     context: T
     live_title: Optional[str] = None
     connected: bool = False
-    _svcs_container: Optional["svcs.Container"] = None  # Dependency injection container
+    request: Optional[Request] = None  # HTTP request (for accessing request.state, etc.)
+    _state: Optional[State] = None  # Fallback state if no request
+
+    def __init__(self, request: Optional[Request] = None):
+        self.request = request
+        self._state = State() if request is None else None
+
+    @property
+    def state(self) -> State:
+        """
+        Access to request state for storing/retrieving arbitrary data.
+
+        This allows dependency injection frameworks and other extensions
+        to attach data to the socket. For example:
+
+            # In middleware or app setup:
+            request.state.db = database_connection
+
+            # In LiveView mount:
+            db = socket.state.db
+        """
+        if self.request is not None:
+            return self.request.state
+        # Return persistent fallback state for testing/non-HTTP usage
+        return self._state  # type: ignore
 
     def allow_upload(
         self,
@@ -73,7 +98,6 @@ class ConnectedLiveViewSocket(Generic[T]):
     pending_events: list[tuple[str, Any]]
     upload_manager: UploadManager
     prev_rendered: Optional[dict[str, Any]] = None
-    _svcs_container: Optional["svcs.Container"] = None  # Dependency injection container
 
     def __init__(
         self,
@@ -82,7 +106,6 @@ class ConnectedLiveViewSocket(Generic[T]):
         liveview: LiveView,
         scheduler: AsyncIOScheduler,
         instrumentation: "InstrumentationProvider",
-        svcs_registry: Optional["svcs.Registry"] = None,
     ):
         self.websocket = websocket
         self.topic = topic
@@ -96,11 +119,23 @@ class ConnectedLiveViewSocket(Generic[T]):
         self.stream_runner = AsyncStreamRunner(self)
         self.scheduler = scheduler
 
-        # Set up DI container for WebSocket connections
-        if svcs_registry is not None:
-            self._svcs_container = svcs.Container(svcs_registry)
-        else:
-            self._svcs_container = None
+    @property
+    def state(self) -> State:
+        """
+        Access to application state for storing/retrieving arbitrary data.
+
+        This allows dependency injection frameworks and other extensions
+        to attach data to the socket. For WebSocket connections, this
+        accesses the application state. For example:
+
+            # In app setup:
+            app.state.db_factory = create_database
+
+            # In LiveView mount:
+            db_factory = socket.state.db_factory
+            db = db_factory()
+        """
+        return self.websocket.app.state
 
     @property
     def meta(self) -> PyViewMeta:

@@ -2,7 +2,7 @@
 Example LiveView demonstrating dependency injection with svcs.
 """
 from pyview import LiveView, LiveViewSocket
-from pyview.di import get_services
+from pyview.integrations.svcs_integration import get_services
 from dataclasses import dataclass, field
 from .services import Database, TimeService, MessageService
 
