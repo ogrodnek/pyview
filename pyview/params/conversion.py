@@ -11,6 +11,9 @@ These functions are designed to be:
 
 from typing import Any, Union, get_origin, get_args, Type
 import inspect
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_param_value(value: Union[str, list[str]]) -> list[str]:
@@ -227,7 +230,33 @@ def convert_params(
             try:
                 converted[param_name] = convert_value(raw_params[param_name], target_type)
             except ValueError as e:
-                raise ValueError(f"Error converting parameter '{param_name}': {e}")
+                # Conversion failed - try to handle gracefully
+
+                # Check if there's a default value in the signature
+                if param.default != inspect.Parameter.empty:
+                    logger.warning(
+                        f"Cannot convert '{raw_params[param_name]}' to {target_type} "
+                        f"for parameter '{param_name}': {e}. Using default: {param.default}"
+                    )
+                    converted[param_name] = param.default
+                else:
+                    # No default - check if the type accepts None (Optional[T])
+                    origin = get_origin(target_type)
+                    args = get_args(target_type)
+                    if origin is Union and type(None) in args:
+                        logger.warning(
+                            f"Cannot convert '{raw_params[param_name]}' to {target_type} "
+                            f"for parameter '{param_name}': {e}. Using None"
+                        )
+                        converted[param_name] = None
+                    else:
+                        # Required parameter, no default, doesn't accept None
+                        # This is a true error - we can't proceed
+                        logger.error(
+                            f"Cannot convert '{raw_params[param_name]}' to {target_type} "
+                            f"for required parameter '{param_name}': {e}"
+                        )
+                        raise ValueError(f"Error converting required parameter '{param_name}': {e}")
         elif param.default != inspect.Parameter.empty:
             # Use default value
             converted[param_name] = param.default
