@@ -155,7 +155,13 @@ async def get_services(socket: "LiveViewSocket", *service_types: type[T]) -> tup
                 raise RuntimeError(
                     "svcs not configured. Make sure configure_svcs() was called."
                 )
-            socket._svcs_container = svcs.Container(socket.state.svcs_registry)
+            container = svcs.Container(socket.state.svcs_registry)
+            socket._svcs_container = container
+
+            # Register cleanup callback - socket will call this automatically
+            async def cleanup_container():
+                await container.aclose()
+            socket.register_cleanup(cleanup_container)
 
         container = socket._svcs_container
 

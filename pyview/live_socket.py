@@ -118,6 +118,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         self.upload_manager = UploadManager()
         self.stream_runner = AsyncStreamRunner(self)
         self.scheduler = scheduler
+        self._cleanup_callbacks: list[Callable] = []
 
     @property
     def state(self) -> State:
@@ -286,6 +287,28 @@ class ConnectedLiveViewSocket(Generic[T]):
             upload_name, constraints, auto_upload, progress, external, entry_complete
         )
 
+    def register_cleanup(self, callback: Callable):
+        """
+        Register a cleanup callback to be called when the socket closes.
+
+        This allows integrations and user code to register cleanup handlers
+        without needing to override disconnect(). Callbacks can be sync or async.
+
+        Example:
+            # In an integration or LiveView mount:
+            socket.register_cleanup(lambda: cleanup_resources())
+
+            # Or with async:
+            async def cleanup():
+                await close_connection()
+            socket.register_cleanup(cleanup)
+
+        Args:
+            callback: A callable (sync or async) to run during socket cleanup.
+                     Errors are logged but don't prevent other cleanups.
+        """
+        self._cleanup_callbacks.append(callback)
+
     async def close(self):
         self.connected = False
         for id in self.scheduled_jobs:
@@ -300,12 +323,16 @@ class ConnectedLiveViewSocket(Generic[T]):
         except Exception:
             pass
 
-        # Clean up svcs container if it exists (from pyview.integrations.svcs_integration)
-        if hasattr(self, '_svcs_container'):
+        # Run registered cleanup callbacks (from integrations, user code, etc.)
+        import inspect
+        for callback in self._cleanup_callbacks:
             try:
-                await self._svcs_container.aclose()
+                if inspect.iscoroutinefunction(callback):
+                    await callback()
+                else:
+                    callback()
             except Exception:
-                pass
+                logger.warning(f"Error in cleanup callback: {callback}", exc_info=True)
 
         try:
             await self.liveview.disconnect(self)
