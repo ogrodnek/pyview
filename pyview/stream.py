@@ -85,6 +85,9 @@ class Stream(Generic[T]):
         # Items for initial render
         self._initial_items: list[T] = []
 
+        # Track if we've been rendered (to avoid re-rendering initial items)
+        self._rendered = False
+
     def _make_dom_id_fn(self, dom_id: str | Callable[[T], str]) -> Callable[[T], str]:
         """Create a function that extracts DOM ID from an item."""
         if callable(dom_id):
@@ -97,15 +100,26 @@ class Stream(Generic[T]):
         """
         Iterate over stream items as (dom_id, item) tuples.
 
-        During initial render, yields all items.
-        During diffs, yields only items being inserted/updated.
-        """
-        # Initial render or items added via extend()
-        for item in self._initial_items:
-            dom_id = self._dom_id_fn(item)
-            yield (dom_id, item)
+        Yields items that need to be rendered in the template:
+        - On first render: yields _initial_items
+        - After first render: yields nothing (unless there are pending inserts)
+        - Pending inserts: yielded so their HTML gets rendered, then sent as stream ops
 
-        # Pending inserts
+        The template comprehension contains:
+        - Initial render: all initial items
+        - Subsequent renders with new items: ONLY the new items
+        - Subsequent renders without changes: empty
+        """
+        # Yield initial items only on first render
+        if not self._rendered and self._initial_items:
+            for item in self._initial_items:
+                dom_id = self._dom_id_fn(item)
+                yield (dom_id, item)
+            # Mark as rendered
+            self._rendered = True
+
+        # Yield pending inserts so they get rendered
+        # Their HTML goes in the comprehension, and stream ops tell client where to put them
         for dom_id, at, item, limit, update_only in self._inserts:
             yield (dom_id, item)
 
