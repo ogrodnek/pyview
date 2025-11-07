@@ -231,16 +231,21 @@ Open browser DevTools → Network → WS to see the minimal diffs being sent!
 
 ### Wire Protocol
 
-When you perform stream operations, PyView sends a minimal diff:
+When you perform stream operations, PyView sends a minimal diff using **keyed comprehensions**:
 
 ```json
 {
-  "0": "<div id=\"msg-5\">New message HTML</div>",
+  "2": {
+    "s": ["<div id=\"", "\" class=\"message\">...</div>"],
+    "k": [
+      ["msg-6", ["6", "Hello!", "Alice"]]
+    ]
+  },
   "stream": [
     [
       "phx-FmgPyOA",              // Stream ref (matches data-phx-stream)
       [
-        ["msg-5", 0, -1, false]   // [dom_id, at, limit, update_only]
+        ["msg-6", 0, -1, false]   // [dom_id, at, limit, update_only]
       ],
       [],                         // deleteIds
       false                       // reset
@@ -250,10 +255,16 @@ When you perform stream operations, PyView sends a minimal diff:
 ```
 
 **Key points:**
-1. New item HTML goes in the regular diff structure (`"0"`)
-2. Stream metadata goes in `"stream"` key
-3. Only the operation info is sent, not redundant data
-4. Client applies the operations to maintain the list
+1. Stream items use **keyed comprehensions** with the `"k"` key
+2. Format: `["key", [dynamic_values]]` - key is the DOM ID
+3. Stream metadata goes in `"stream"` key with positioning info
+4. Only new/changed items are sent in the comprehension
+5. Client uses keys (DOM IDs) to identify and position items
+
+**Keyed vs Regular Comprehensions:**
+- **Regular** (non-streams): `{"d": [[val1, val2], ...]}` - indexed by position
+- **Keyed** (streams): `{"k": [["key1", [val1]], ["key2", [val2]]]}` - indexed by key
+- Keyed comprehensions allow the client to track items by ID, not position
 
 ### JavaScript Client Support
 
