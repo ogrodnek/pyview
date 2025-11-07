@@ -24,7 +24,7 @@ Example usage:
             # Use your services...
 """
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, overload, Union
 from contextlib import asynccontextmanager
 
 if TYPE_CHECKING:
@@ -98,7 +98,7 @@ def configure_svcs(app: "Starlette"):
     return decorator
 
 
-async def get_services(socket: "LiveViewSocket", *service_types: type[T]) -> tuple[Any, ...]:
+async def get_services(socket: "LiveViewSocket", *service_types: type[T]) -> Union[T, list[Any]]:
     """
     Get one or more services from the svcs container.
 
@@ -115,7 +115,7 @@ async def get_services(socket: "LiveViewSocket", *service_types: type[T]) -> tup
 
     Returns:
         If one service type is requested, returns the service directly.
-        If multiple service types are requested, returns a tuple of services.
+        If multiple service types are requested, returns a list of services.
 
     Example:
         # Get single service
@@ -156,14 +156,14 @@ async def get_services(socket: "LiveViewSocket", *service_types: type[T]) -> tup
                     "svcs not configured. Make sure configure_svcs() was called."
                 )
             container = svcs.Container(socket.state.svcs_registry)
-            socket._svcs_container = container
+            socket._svcs_container = container  # type: ignore[attr-defined]
 
             # Register cleanup callback - socket will call this automatically
             async def cleanup_container():
                 await container.aclose()
-            socket.register_cleanup(cleanup_container)
+            socket.register_cleanup(cleanup_container)  # type: ignore[attr-defined]
 
-        container = socket._svcs_container
+        container = socket._svcs_container  # type: ignore[attr-defined]
 
     # aget returns the service directly for single requests,
     # or a list for multiple requests

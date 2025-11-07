@@ -24,6 +24,7 @@ from pyview.uploads import UploadConstraints, UploadConfig, UploadManager
 from pyview.meta import PyViewMeta
 from pyview.template.render_diff import calc_diff
 import datetime
+import inspect
 from pyview.async_stream_runner import AsyncStreamRunner
 
 logger = logging.getLogger(__name__)
@@ -324,7 +325,6 @@ class ConnectedLiveViewSocket(Generic[T]):
             pass
 
         # Run registered cleanup callbacks (from integrations, user code, etc.)
-        import inspect
         for callback in self._cleanup_callbacks:
             try:
                 if inspect.iscoroutinefunction(callback):
