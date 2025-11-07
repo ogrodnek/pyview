@@ -25,6 +25,7 @@ from .views import (
     FileUploadDemoLiveView,
     KanbanLiveView,
     IncludesLiveView,
+    StreamsLiveView,
 )
 
 app = PyView()
@@ -139,6 +140,7 @@ routes = [
     ("/file_upload", FileUploadDemoLiveView),
     ("/kanban", KanbanLiveView),
     ("/includes", IncludesLiveView),
+    ("/streams", StreamsLiveView),
 ]
 
 
