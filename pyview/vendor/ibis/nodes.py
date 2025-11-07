@@ -359,11 +359,58 @@ class ForNode(Node):
 
     def tree(self, context):
         output = []
+        keys = []  # Track keys for keyed comprehensions
 
         def visitor(node, ctx):
             output.append(node.tree(ctx))
 
-        self.visit_nodes(context, visitor)
+        # Check if we're iterating over a Stream (yields (key, item) tuples)
+        collection = self.expr.eval(context)
+        is_stream = False
+        if collection and hasattr(collection, "__iter__"):
+            # Peek at first item to check if it's a (key, item) tuple from a Stream
+            items = list(collection)
+            if items and len(items) > 0:
+                first_item = items[0]
+                # Stream iteration yields (dom_id, item) tuples with 2 elements
+                # where first element is a string (DOM ID)
+                if isinstance(first_item, tuple) and len(first_item) == 2:
+                    if isinstance(first_item[0], str):
+                        is_stream = True
+                        # Extract keys and items separately
+                        for key, item in items:
+                            keys.append(key)
+                            context.push()
+                            if len(self.loopvars) > 1:
+                                # Unpack the tuple into loop variables
+                                try:
+                                    unpacked = dict(zip(self.loopvars, (key, item)))
+                                except Exception as err:
+                                    msg = f"Unpacking error."
+                                    raise errors.TemplateRenderingError(msg, self.token) from err
+                                else:
+                                    context.update(unpacked)
+                            else:
+                                # Single loop variable gets the whole tuple
+                                context[self.loopvars[0]] = (key, item)
+
+                            context["loop"] = {
+                                "index": len(keys) - 1,
+                                "count": len(keys),
+                                "length": len(items),
+                                "is_first": len(keys) == 1,
+                                "is_last": len(keys) == len(items),
+                                "parent": context.get("loop"),
+                            }
+                            visitor(self.for_branch, context)
+                            context.pop()
+
+            # If not a stream, use the default visitor
+            if not is_stream:
+                self.visit_nodes(context, visitor)
+        else:
+            # Empty collection
+            return visitor(self.empty_branch, context)
 
         if len(output) < 1:
             return ""
@@ -373,15 +420,30 @@ class ForNode(Node):
         if len(s) < 1:
             return ""
 
-        d = []
-        for o in output:
-            del o["s"]
-            d.append([v for k, v in o.items()])
+        # Use keyed format for streams, regular format otherwise
+        if is_stream and keys:
+            # Keyed comprehension format: {"s": [...], "k": [[key, [dynamics]], ...]}
+            k = []
+            for i, o in enumerate(output):
+                del o["s"]
+                dynamics = [v for _, v in o.items()]
+                k.append([keys[i], dynamics])
 
-        return {
-            "s": s,
-            "d": d,
-        }
+            return {
+                "s": s,
+                "k": k,
+            }
+        else:
+            # Regular comprehension format: {"s": [...], "d": [[dynamics], ...]}
+            d = []
+            for o in output:
+                del o["s"]
+                d.append([v for k, v in o.items()])
+
+            return {
+                "s": s,
+                "d": d,
+            }
 
     def tree_parts(self, context):
         output = []
