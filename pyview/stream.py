@@ -160,6 +160,10 @@ class Stream(Generic[T]):
         """
         Bulk insert multiple items.
 
+        For initial loading (before first render), items are added to _initial_items
+        to avoid sending them as stream operations. For subsequent calls, items are
+        added as insert operations.
+
         Args:
             items: List of items to insert
             at: Position to insert (-1 = append, 0 = prepend)
@@ -168,12 +172,22 @@ class Stream(Generic[T]):
             Self for method chaining
 
         Example:
-            # Load initial messages
+            # Load initial messages during mount
             messages = await load_messages()
             socket.context.messages.extend(messages)
+
+            # Add more messages later (sent as stream operations)
+            new_messages = await load_more()
+            socket.context.messages.extend(new_messages, at=0)
         """
-        for item in items:
-            self.insert(item, at=at)
+        # If no operations have been performed yet, this is initial loading
+        # Add to _initial_items instead of creating operations
+        if not self.has_operations() and not self._initial_items:
+            self._initial_items.extend(items)
+        else:
+            # Subsequent calls create stream operations
+            for item in items:
+                self.insert(item, at=at)
         return self
 
     def update(self, item: T) -> "Stream[T]":

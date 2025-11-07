@@ -195,7 +195,9 @@ def test_extend_items():
     result = stream.extend(messages)
 
     assert result is stream
-    assert len(stream._inserts) == 2
+    # First extend populates _initial_items, not _inserts
+    assert len(stream._initial_items) == 2
+    assert len(stream._inserts) == 0
 
 
 def test_extend_at_beginning():
@@ -205,7 +207,9 @@ def test_extend_at_beginning():
 
     stream.extend(messages, at=0)
 
-    assert stream._inserts[0][1] == 0
+    # First extend populates _initial_items regardless of 'at' parameter
+    assert len(stream._initial_items) == 1
+    assert len(stream._inserts) == 0
 
 
 def test_extend_at_end():
@@ -215,7 +219,9 @@ def test_extend_at_end():
 
     stream.extend(messages, at=-1)
 
-    assert stream._inserts[0][1] == -1
+    # First extend populates _initial_items regardless of 'at' parameter
+    assert len(stream._initial_items) == 1
+    assert len(stream._inserts) == 0
 
 
 def test_extend_empty_list():
@@ -225,6 +231,26 @@ def test_extend_empty_list():
     stream.extend([])
 
     assert len(stream._inserts) == 0
+
+
+def test_extend_subsequent_calls_create_operations():
+    """Test that extend() after initial load creates stream operations."""
+    stream = Stream[Message](dom_id="id")
+
+    # First extend - goes to _initial_items
+    initial_messages = [Message(id=1, text="First")]
+    stream.extend(initial_messages)
+    assert len(stream._initial_items) == 1
+    assert len(stream._inserts) == 0
+
+    # Second extend - creates operations
+    new_messages = [Message(id=2, text="Second"), Message(id=3, text="Third")]
+    stream.extend(new_messages, at=0)
+    assert len(stream._inserts) == 2
+    assert stream._inserts[0][1] == 0  # at position
+
+    # Initial items unchanged
+    assert len(stream._initial_items) == 1
 
 
 # ============================================================================
