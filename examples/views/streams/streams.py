@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from typing import Optional
 from pyview import LiveView, LiveViewSocket, ConnectedLiveViewSocket, Stream
 import random
-import time
 
 
 @dataclass
@@ -18,7 +17,6 @@ class Message:
     id: int
     text: str
     user: str
-    timestamp: float
 
 
 @dataclass
@@ -52,8 +50,7 @@ class StreamsLiveView(LiveView[StreamsContext]):
             Message(
                 id=i,
                 text=self._random_message(),
-                user=random.choice(["Alice", "Bob", "Charlie"]),
-                timestamp=time.time() - (10 - i) * 60
+                user=random.choice(["Alice", "Bob", "Charlie"])
             )
             for i in range(1, 6)
         ]
@@ -80,8 +77,7 @@ class StreamsLiveView(LiveView[StreamsContext]):
             new_msg = Message(
                 id=socket.context.next_id,
                 text=self._random_message(),
-                user=random.choice(["Alice", "Bob", "Charlie"]),
-                timestamp=time.time()
+                user=random.choice(["Alice", "Bob", "Charlie"])
             )
             socket.context.messages.prepend(new_msg)
             socket.context.next_id += 1
@@ -92,8 +88,7 @@ class StreamsLiveView(LiveView[StreamsContext]):
             new_msg = Message(
                 id=socket.context.next_id,
                 text=self._random_message(),
-                user=random.choice(["Alice", "Bob", "Charlie"]),
-                timestamp=time.time()
+                user=random.choice(["Alice", "Bob", "Charlie"])
             )
             socket.context.messages.append(new_msg)
             socket.context.next_id += 1
@@ -105,8 +100,7 @@ class StreamsLiveView(LiveView[StreamsContext]):
                 Message(
                     id=socket.context.next_id + i,
                     text=self._random_message(),
-                    user=random.choice(["Alice", "Bob", "Charlie"]),
-                    timestamp=time.time()
+                    user=random.choice(["Alice", "Bob", "Charlie"])
                 )
                 for i in range(5)
             ]
@@ -126,8 +120,7 @@ class StreamsLiveView(LiveView[StreamsContext]):
                 Message(
                     id=i,
                     text=self._random_message(),
-                    user=random.choice(["Alice", "Bob", "Charlie"]),
-                    timestamp=time.time()
+                    user=random.choice(["Alice", "Bob", "Charlie"])
                 )
                 for i in range(1, 4)
             ]
@@ -150,13 +143,3 @@ class StreamsLiveView(LiveView[StreamsContext]):
             "No more full page reloads!"
         ]
         return random.choice(messages)
-
-    def _format_timestamp(self, timestamp: float) -> str:
-        """Format timestamp as relative time."""
-        seconds_ago = int(time.time() - timestamp)
-        if seconds_ago < 60:
-            return f"{seconds_ago}s ago"
-        elif seconds_ago < 3600:
-            return f"{seconds_ago // 60}m ago"
-        else:
-            return f"{seconds_ago // 3600}h ago"

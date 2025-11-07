@@ -3,9 +3,6 @@
     <!-- Header -->
     <div class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6">
       <h1 class="text-3xl font-bold mb-2">Streams Demo</h1>
-      <p class="text-blue-100">
-        Efficient list operations with Phoenix LiveView Streams
-      </p>
       <p class="text-sm text-blue-200 mt-2">
         Total messages: <span class="font-semibold">{{ context.message_count }}</span>
       </p>
@@ -18,30 +15,27 @@
           phx-click="add_top"
           class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition"
         >
-          ⬆️ Add to Top
+          Add to Top
         </button>
         <button
           phx-click="add_bottom"
           class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
         >
-          ⬇️ Add to Bottom
+          Add to Bottom
         </button>
         <button
           phx-click="add_bulk"
           class="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition"
         >
-          📦 Add 5 Messages
+          Add 5 Messages
         </button>
         <button
           phx-click="reset"
           class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
         >
-          🔄 Reset Stream
+          Reset
         </button>
       </div>
-      <p class="text-xs text-gray-500 mt-2">
-        💡 Open browser DevTools → Network → WS to see minimal diffs being sent!
-      </p>
     </div>
 
     <!-- Messages List (Stream Container) -->
@@ -60,9 +54,6 @@
           <div class="flex-1">
             <div class="flex items-center gap-2 mb-1">
               <span class="font-semibold text-gray-900">{{ msg.user }}</span>
-              <span class="text-xs text-gray-500">
-                {{ msg.timestamp  }}s ago
-              </span>
               <span class="text-xs text-gray-400">
                 #{{ msg.id }}
               </span>
@@ -81,66 +72,6 @@
       </div>
       {% endfor %}
     </div>
-
-    <!-- Info Footer -->
-    <div class="bg-gray-50 p-4 border-t border-gray-200">
-      <h3 class="font-semibold text-gray-700 mb-2">How Streams Work:</h3>
-      <ul class="text-sm text-gray-600 space-y-1">
-        <li>✅ Only send insert/delete operations, not the entire list</li>
-        <li>✅ No server-side memory for maintaining the full collection</li>
-        <li>✅ Client maintains the list and applies minimal diffs</li>
-        <li>✅ Perfect for infinite scroll, live feeds, chat messages, etc.</li>
-      </ul>
-    </div>
-  </div>
-
-  <!-- Implementation Details -->
-  <div class="mt-6 bg-gray-800 text-gray-100 rounded-lg p-6">
-    <h3 class="text-lg font-bold mb-4 text-white">Implementation Details</h3>
-
-    <div class="space-y-4 text-sm">
-      <div>
-        <p class="font-semibold text-purple-400 mb-1">1. Initialize Stream in Context:</p>
-        <pre class="bg-gray-900 p-3 rounded overflow-x-auto"><code>@dataclass
-class StreamsContext:
-    messages: Stream[Message]
-
-messages_stream = Stream[Message](
-    dom_id=lambda msg: f"msg-{msg.id}"
-)</code></pre>
-      </div>
-
-      <div>
-        <p class="font-semibold text-green-400 mb-1">2. Mark Container in Template:</p>
-        <pre class="bg-gray-900 p-3 rounded overflow-x-auto"><code>&lt;div id="messages-stream"
-     phx-update="stream"
-     data-phx-stream="{{ context.messages.ref }}"&gt;
-  {% for dom_id, msg in context.messages %}
-    &lt;div id="{{ dom_id }}"&gt;
-      {{ msg.text }}
-    &lt;/div&gt;
-  {% endfor %}
-&lt;/div&gt;</code></pre>
-      </div>
-
-      <div>
-        <p class="font-semibold text-blue-400 mb-1">3. Perform Operations:</p>
-        <pre class="bg-gray-900 p-3 rounded overflow-x-auto"><code># Prepend
-socket.context.messages.prepend(new_msg)
-
-# Append
-socket.context.messages.append(new_msg)
-
-# Insert at position
-socket.context.messages.insert(new_msg, at=5)
-
-# Delete
-socket.context.messages.remove(old_msg)
-socket.context.messages.remove_by_id("msg-123")
-
-# Reset
-socket.context.messages.reset(new_list)</code></pre>
-      </div>
-    </div>
   </div>
 </div>
+
