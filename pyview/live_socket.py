@@ -22,6 +22,7 @@ from pyview.uploads import UploadConstraints, UploadConfig, UploadManager
 from pyview.meta import PyViewMeta
 from pyview.template.render_diff import calc_diff
 import datetime
+import uuid
 from pyview.async_stream_runner import AsyncStreamRunner
 
 logger = logging.getLogger(__name__)
@@ -84,7 +85,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         self.topic = topic
         self.liveview = liveview
         self.instrumentation = instrumentation
-        self.scheduled_jobs = []
+        self.scheduled_jobs = set()
         self.connected = True
         self.pub_sub = PubSub(pub_sub_hub, topic)
         self.pending_events = []
@@ -110,16 +111,19 @@ class ConnectedLiveViewSocket(Generic[T]):
         self.scheduler.add_job(
             self.send_info, args=[event], id=id, trigger="interval", seconds=seconds
         )
-        self.scheduled_jobs.append(id)
+        self.scheduled_jobs.add(id)
 
     def schedule_info_once(self, event, seconds=None):
+        job_id = f"{self.topic}:once:{uuid.uuid4().hex}"
         self.scheduler.add_job(
-            self.send_info,
-            args=[event],
+            self._send_info_once,
+            args=[job_id, event],
+            id=job_id,
             trigger="date",
             run_date=datetime.datetime.now() + datetime.timedelta(seconds=seconds or 0),
             misfire_grace_time=None,
         )
+        self.scheduled_jobs.add(job_id)
 
     def diff(self, render: dict[str, Any]) -> dict[str, Any]:
         if self.prev_rendered:
@@ -130,6 +134,11 @@ class ConnectedLiveViewSocket(Generic[T]):
         self.prev_rendered = render
         return diff
 
+    async def _send_info_once(self, job_id: str, event: InfoEvent):
+        """Wrapper for one-time info sends that cleans up the job ID after execution"""
+        await self.send_info(event)
+        self.scheduled_jobs.discard(job_id)
+
     async def send_info(self, event: InfoEvent):
         await self.liveview.handle_info(event, self)
         r = await self.liveview.render(self.context, self.meta)
@@ -138,7 +147,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         try:
             await self.websocket.send_text(json.dumps(resp))
         except Exception:
-            for id in self.scheduled_jobs:
+            for id in list(self.scheduled_jobs):
                 logger.debug("Removing scheduled job %s", id)
                 try:
                     self.scheduler.remove_job(id)
@@ -243,7 +252,7 @@ class ConnectedLiveViewSocket(Generic[T]):
 
     async def close(self):
         self.connected = False
-        for id in self.scheduled_jobs:
+        for id in list(self.scheduled_jobs):
             try:
                 self.scheduler.remove_job(id)
             except JobLookupError:
