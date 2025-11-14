@@ -1,6 +1,6 @@
-FROM python:3.14-alpine as build
+FROM python:3.14-alpine AS build
 
-RUN apk add build-base libffi-dev
+RUN apk add build-base libffi-dev zlib-dev jpeg-dev
 RUN pip install poetry
 ENV POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_IN_PROJECT=1 \
@@ -14,7 +14,9 @@ COPY . .
 WORKDIR /app/examples
 RUN poetry install --no-root --only main --no-cache
 
-FROM python:3.14-alpine as runtime
+FROM python:3.14-alpine AS runtime
+
+RUN apk add --no-cache zlib jpeg
 
 ENV VIRTUAL_ENV=/app/examples/.venv \
     PATH="/app/examples/.venv/bin:$PATH"
