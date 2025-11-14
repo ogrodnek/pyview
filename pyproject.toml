@@ -64,7 +64,6 @@ pytest-asyncio = "^1.3.0"
 
 [tool.poetry.group.profiling.dependencies]
 scalene = {version = "^1.5.51", python = "!=3.11.0,>=3.11"}
-memray = "^1.6.0"
 
 
 [build-system]
