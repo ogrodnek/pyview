@@ -5,6 +5,8 @@ from collections import deque
 from .chart import Point
 import time
 import aiohttp
+import ssl
+import certifi
 from pyview.events import InfoEvent, info, BaseEventHandler
 
 
@@ -36,6 +38,7 @@ class PingContext:
 
 
 timeout = aiohttp.ClientTimeout(total=10)
+ssl_context = ssl.create_default_context(cafile=certifi.where())
 
 
 class PingLiveView(BaseEventHandler, LiveView[PingContext]):
@@ -61,7 +64,8 @@ class PingLiveView(BaseEventHandler, LiveView[PingContext]):
 
     async def ping(self, site: PingSite):
         start = time.time_ns()
-        async with aiohttp.ClientSession(timeout=timeout) as session:
+        connector = aiohttp.TCPConnector(ssl=ssl_context)
+        async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
             async with session.head(site.url) as response:
                 status = response.status
                 diff = (time.time_ns() - start) / 1_000_000
