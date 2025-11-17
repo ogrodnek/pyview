@@ -92,13 +92,9 @@ class JsCommands:
     def dispatch(self, event: str, selector: str) -> "JsCommands":
         return self.add(JsCommand("dispatch", {"to": selector, "event": event}))
 
-    def push(
-        self, event: str, payload: Optional[dict[str, Any]] = None
-    ) -> "JsCommands":
+    def push(self, event: str, payload: Optional[dict[str, Any]] = None) -> "JsCommands":
         return self.add(
-            JsCommand(
-                "push", {"event": event} | ({"value": payload} if payload else {})
-            )
+            JsCommand("push", {"event": event} | ({"value": payload} if payload else {}))
         )
 
     def focus(self, selector: str) -> "JsCommands":
@@ -107,9 +103,7 @@ class JsCommands:
     def focus_first(self, selector: str) -> "JsCommands":
         return self.add(JsCommand("focus_first", {"to": selector}))
 
-    def transition(
-        self, selector: str, transition: str, time: int = 200
-    ) -> "JsCommands":
+    def transition(self, selector: str, transition: str, time: int = 200) -> "JsCommands":
         return self.add(
             JsCommand(
                 "transition",

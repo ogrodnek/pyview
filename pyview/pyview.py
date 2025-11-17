@@ -42,18 +42,14 @@ class PyView(Starlette):
 
     def add_live_view(self, path: str, view: type[LiveView]):
         async def lv(request: Request):
-            return await liveview_container(
-                self.rootTemplate, self.view_lookup, request
-            )
+            return await liveview_container(self.rootTemplate, self.view_lookup, request)
 
         self.view_lookup.add(path, view)
         auth = AuthProviderFactory.get(view)
         self.routes.append(Route(path, auth.wrap(lv), methods=["GET"]))
 
 
-async def liveview_container(
-    template: RootTemplate, view_lookup: LiveViewLookup, request: Request
-):
+async def liveview_container(template: RootTemplate, view_lookup: LiveViewLookup, request: Request):
     url = request.url
     path = url.path
     lv, path_params = view_lookup.get(path)

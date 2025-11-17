@@ -73,7 +73,9 @@ class InstrumentationProvider(ABC):
         pass
 
     @abstractmethod
-    def create_updown_counter(self, name: str, description: str = "", unit: str = "") -> UpDownCounter:
+    def create_updown_counter(
+        self, name: str, description: str = "", unit: str = ""
+    ) -> UpDownCounter:
         """Create an up/down counter instrument."""
         pass
 
@@ -88,22 +90,30 @@ class InstrumentationProvider(ABC):
         pass
 
     # Convenience methods (simple, pass name each time)
-    def increment_counter(self, name: str, value: float = 1, attributes: Optional[dict[str, Any]] = None) -> None:
+    def increment_counter(
+        self, name: str, value: float = 1, attributes: Optional[dict[str, Any]] = None
+    ) -> None:
         """Convenience method to increment a counter."""
         counter = self.create_counter(name)
         counter.add(value, attributes)
 
-    def update_updown_counter(self, name: str, value: float, attributes: Optional[dict[str, Any]] = None) -> None:
+    def update_updown_counter(
+        self, name: str, value: float, attributes: Optional[dict[str, Any]] = None
+    ) -> None:
         """Convenience method to update an up/down counter."""
         counter = self.create_updown_counter(name)
         counter.add(value, attributes)
 
-    def record_gauge(self, name: str, value: float, attributes: Optional[dict[str, Any]] = None) -> None:
+    def record_gauge(
+        self, name: str, value: float, attributes: Optional[dict[str, Any]] = None
+    ) -> None:
         """Convenience method to record a gauge value."""
         gauge = self.create_gauge(name)
         gauge.set(value, attributes)
 
-    def record_histogram(self, name: str, value: float, attributes: Optional[dict[str, Any]] = None) -> None:
+    def record_histogram(
+        self, name: str, value: float, attributes: Optional[dict[str, Any]] = None
+    ) -> None:
         """Convenience method to record a histogram value."""
         histogram = self.create_histogram(name)
         histogram.record(value, attributes)
@@ -133,21 +143,27 @@ class InstrumentationProvider(ABC):
     # Decorator for tracing functions
     def trace(self, name: Optional[str] = None, attributes: Optional[dict[str, Any]] = None):
         """Decorator to trace function execution."""
+
         def decorator(func: Callable):
             span_name = name or f"{func.__module__}.{func.__name__}"
 
             if asyncio.iscoroutinefunction(func):
+
                 @functools.wraps(func)
                 async def async_wrapper(*args, **kwargs):
                     with self.span(span_name, attributes):
                         return await func(*args, **kwargs)
+
                 return async_wrapper
             else:
+
                 @functools.wraps(func)
                 def sync_wrapper(*args, **kwargs):
                     with self.span(span_name, attributes):
                         return func(*args, **kwargs)
+
                 return sync_wrapper
+
         return decorator
 
     # Timing helpers
@@ -162,21 +178,29 @@ class InstrumentationProvider(ABC):
             duration = time.perf_counter() - start
             histogram.record(duration, attributes)
 
-    def time_function(self, histogram_name: Optional[str] = None, attributes: Optional[dict[str, Any]] = None):
+    def time_function(
+        self, histogram_name: Optional[str] = None, attributes: Optional[dict[str, Any]] = None
+    ):
         """Decorator to time function execution."""
+
         def decorator(func: Callable):
             name = histogram_name or f"{func.__module__}.{func.__name__}.duration"
 
             if asyncio.iscoroutinefunction(func):
+
                 @functools.wraps(func)
                 async def async_wrapper(*args, **kwargs):
                     with self.time_histogram(name, attributes):
                         return await func(*args, **kwargs)
+
                 return async_wrapper
             else:
+
                 @functools.wraps(func)
                 def sync_wrapper(*args, **kwargs):
                     with self.time_histogram(name, attributes):
                         return func(*args, **kwargs)
+
                 return sync_wrapper
+
         return decorator

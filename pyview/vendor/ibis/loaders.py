@@ -20,7 +20,6 @@ from .template import Template
 #     template = loader('subdir/foo.txt')
 #
 class FileLoader:
-
     def __init__(self, base_dir):
         self.base_dir = base_dir
         self.cache = {}
@@ -32,7 +31,7 @@ class FileLoader:
         path = os.path.join(self.base_dir, filename)
         if os.path.isfile(path):
             try:
-                with open(path, encoding='utf-8') as file:
+                with open(path, encoding="utf-8") as file:
                     template_string = file.read()
             except OSError as err:
                 msg = f"FileLoader cannot load the template file '{filename}'."
@@ -42,14 +41,15 @@ class FileLoader:
             self.cache[filename] = template
             return template
 
-        msg = f"FileLoader with base '{self.base_dir}' cannot locate the template file '{filename}'."
+        msg = (
+            f"FileLoader with base '{self.base_dir}' cannot locate the template file '{filename}'."
+        )
         raise TemplateLoadError(msg)
 
 
 # Like FileLoader but templates are automatically recompiled if the underlying template file
 # is modified.
 class FileReloader:
-
     def __init__(self, base_dir):
         self.base_dir = base_dir
         self.cache = {}
@@ -63,7 +63,7 @@ class FileReloader:
                     return self.cache[filename][1]
 
             try:
-                with open(path, encoding='utf-8') as file:
+                with open(path, encoding="utf-8") as file:
                     template_string = file.read()
             except OSError as err:
                 msg = f"FileReloader cannot load the template file '{filename}'."
@@ -80,7 +80,6 @@ class FileReloader:
 # Loads templates from a dictionary of template strings. Templates are compiled once and cached for
 # future use.
 class DictLoader:
-
     def __init__(self, template_strings):
         self.templates = {}
         self.template_strings = template_strings

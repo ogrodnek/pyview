@@ -34,18 +34,14 @@ class CheckboxLiveView(LiveView[CheckboxContext]):
             await socket.subscribe("checkboxes")
             socket.schedule_info("random_toggle", 3)
 
-    async def handle_event(
-        self, event, payload, socket: ConnectedLiveViewSocket[CheckboxContext]
-    ):
+    async def handle_event(self, event, payload, socket: ConnectedLiveViewSocket[CheckboxContext]):
         if event == "toggle":
             index = int(payload["index"])
             value = CHECKBOXES.toggle(index)
 
             await socket.broadcast("checkboxes", {"index": index, "value": value})
 
-    async def handle_info(
-        self, event, socket: ConnectedLiveViewSocket[CheckboxContext]
-    ):
+    async def handle_info(self, event, socket: ConnectedLiveViewSocket[CheckboxContext]):
         if event == "random_toggle":
             index, value = CHECKBOXES.random_toggle()
             await socket.broadcast("checkboxes", {"index": index, "value": value})

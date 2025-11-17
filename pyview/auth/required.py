@@ -19,9 +19,7 @@ class RequiredScopeAuthProvider(AuthProvider):
     status_code: int = 403
     redirect: typing.Optional[str] = None
 
-    def wrap(
-        self, func: typing.Callable[_P, typing.Any]
-    ) -> typing.Callable[_P, typing.Any]:
+    def wrap(self, func: typing.Callable[_P, typing.Any]) -> typing.Callable[_P, typing.Any]:
         return starlette_requires(self.scopes, self.status_code, self.redirect)(func)
 
     async def has_required_auth(self, websocket: WebSocket) -> bool:

@@ -59,21 +59,15 @@ class PubSubHub:
                     await self.__send_async(handler, [message])
 
     def send_others_on_topic(self, except_session_id: str, topic: str, message: Any):
-        logging.debug(
-            f"pubsub.send_others_on_topic({except_session_id}, {topic}, {message})"
-        )
+        logging.debug(f"pubsub.send_others_on_topic({except_session_id}, {topic}, {message})")
         with self.__lock:
             if topic in self.__topic_subscribers:
                 for session_id, handler in self.__topic_subscribers[topic].items():
                     if except_session_id != session_id:
                         self.__send(handler, [topic, message])
 
-    async def send_others_on_topic_async(
-        self, except_session_id: str, topic: str, message: Any
-    ):
-        logging.debug(
-            f"pubsub.send_others_on_topic_async({except_session_id}, {topic}, {message})"
-        )
+    async def send_others_on_topic_async(self, except_session_id: str, topic: str, message: Any):
+        logging.debug(f"pubsub.send_others_on_topic_async({except_session_id}, {topic}, {message})")
         async with self.__async_lock:
             if topic in self.__topic_subscribers:
                 for session_id, handler in self.__topic_subscribers[topic].items():
@@ -205,9 +199,7 @@ class PubSub:
         self.__pubsub.send_others_on_topic(self.__session_id, topic, message)
 
     async def send_others_on_topic_async(self, topic: str, message: Any):
-        await self.__pubsub.send_others_on_topic_async(
-            self.__session_id, topic, message
-        )
+        await self.__pubsub.send_others_on_topic_async(self.__session_id, topic, message)
 
     def subscribe(self, handler: Callable):
         self.__pubsub.subscribe(self.__session_id, handler)

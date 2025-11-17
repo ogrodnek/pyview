@@ -81,7 +81,9 @@ class NoOpInstrumentation(InstrumentationProvider):
         """Return a no-op counter."""
         return self._counter
 
-    def create_updown_counter(self, name: str, description: str = "", unit: str = "") -> UpDownCounter:
+    def create_updown_counter(
+        self, name: str, description: str = "", unit: str = ""
+    ) -> UpDownCounter:
         """Return a no-op up/down counter."""
         return self._updown_counter
 

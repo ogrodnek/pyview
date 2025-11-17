@@ -74,9 +74,7 @@ class PingLiveView(BaseEventHandler, LiveView[PingContext]):
         ):
             status = response.status
             diff = (time.time_ns() - start) / 1_000_000
-            site.responses.append(
-                PingResponse(status, diff, datetime.datetime.now())
-            )
+            site.responses.append(PingResponse(status, diff, datetime.datetime.now()))
             site.status = "OK" if status == 200 else "Error"
 
     @info("ping")

@@ -24,63 +24,65 @@ def temp_dir():
 def test_create_view_basic(runner, temp_dir):
     """Test creating a basic view with all files."""
     with runner.isolated_filesystem():
-        result = runner.invoke(cli, ['create-view', 'Counter'])
+        result = runner.invoke(cli, ["create-view", "Counter"])
 
         assert result.exit_code == 0
-        assert 'LiveView created successfully!' in result.output
+        assert "LiveView created successfully!" in result.output
 
         # Check that all files were created
-        view_dir = Path('views/counter')
+        view_dir = Path("views/counter")
         assert view_dir.exists()
-        assert (view_dir / '__init__.py').exists()
-        assert (view_dir / 'counter.py').exists()
-        assert (view_dir / 'counter.html').exists()
-        assert (view_dir / 'counter.css').exists()
+        assert (view_dir / "__init__.py").exists()
+        assert (view_dir / "counter.py").exists()
+        assert (view_dir / "counter.html").exists()
+        assert (view_dir / "counter.css").exists()
 
         # Check Python file content
-        py_content = (view_dir / 'counter.py').read_text()
-        assert 'class CounterContext:' in py_content
-        assert 'class CounterLiveView(BaseEventHandler, LiveView[CounterContext]):' in py_content
-        assert 'async def mount(self, socket: LiveViewSocket[CounterContext], session):' in py_content
-        assert 'socket.context = CounterContext()' in py_content
+        py_content = (view_dir / "counter.py").read_text()
+        assert "class CounterContext:" in py_content
+        assert "class CounterLiveView(BaseEventHandler, LiveView[CounterContext]):" in py_content
+        assert (
+            "async def mount(self, socket: LiveViewSocket[CounterContext], session):" in py_content
+        )
+        assert "socket.context = CounterContext()" in py_content
 
 
 def test_create_view_no_css(runner, temp_dir):
     """Test creating a view without CSS file."""
     with runner.isolated_filesystem():
-        result = runner.invoke(cli, ['create-view', 'Counter', '--no-css'])
+        result = runner.invoke(cli, ["create-view", "Counter", "--no-css"])
 
         assert result.exit_code == 0
 
-        view_dir = Path('views/counter')
+        view_dir = Path("views/counter")
         assert view_dir.exists()
-        assert (view_dir / '__init__.py').exists()
-        assert (view_dir / 'counter.py').exists()
-        assert (view_dir / 'counter.html').exists()
-        assert not (view_dir / 'counter.css').exists()
+        assert (view_dir / "__init__.py").exists()
+        assert (view_dir / "counter.py").exists()
+        assert (view_dir / "counter.html").exists()
+        assert not (view_dir / "counter.css").exists()
 
 
 def test_create_view_custom_path(runner, temp_dir):
     """Test creating a view in a custom directory."""
     with runner.isolated_filesystem():
-        result = runner.invoke(cli, ['create-view', 'MyView', '--path', 'custom/views'])
+        result = runner.invoke(cli, ["create-view", "MyView", "--path", "custom/views"])
 
         assert result.exit_code == 0
 
-        view_dir = Path('custom/views/my_view')
+        view_dir = Path("custom/views/my_view")
         assert view_dir.exists()
-        assert (view_dir / 'my_view.py').exists()
+        assert (view_dir / "my_view.py").exists()
 
 
 def test_create_view_already_exists(runner, temp_dir):
     """Test error when view directory already exists."""
     with runner.isolated_filesystem():
         # Create the view first time
-        result = runner.invoke(cli, ['create-view', 'Counter'])
+        result = runner.invoke(cli, ["create-view", "Counter"])
         assert result.exit_code == 0
 
         # Try to create again
-        result = runner.invoke(cli, ['create-view', 'Counter'])
+        result = runner.invoke(cli, ["create-view", "Counter"])
         assert result.exit_code != 0
         assert "Error: Directory 'views/counter' already exists" in result.output
 
@@ -88,18 +90,18 @@ def test_create_view_already_exists(runner, temp_dir):
 def test_pascal_case_conversion(runner, temp_dir):
     """Test that PascalCase names are converted properly."""
     with runner.isolated_filesystem():
-        result = runner.invoke(cli, ['create-view', 'UserProfile'])
+        result = runner.invoke(cli, ["create-view", "UserProfile"])
 
         assert result.exit_code == 0
 
-        view_dir = Path('views/user_profile')
+        view_dir = Path("views/user_profile")
         assert view_dir.exists()
-        assert (view_dir / 'user_profile.py').exists()
+        assert (view_dir / "user_profile.py").exists()
 
         # Check class names
-        py_content = (view_dir / 'user_profile.py').read_text()
-        assert 'class UserProfileContext:' in py_content
-        assert 'class UserProfileLiveView' in py_content
+        py_content = (view_dir / "user_profile.py").read_text()
+        assert "class UserProfileContext:" in py_content
+        assert "class UserProfileLiveView" in py_content
 
 
 def test_detect_package_structure_poetry(temp_dir):
@@ -165,15 +167,15 @@ packages = [
 """
         Path("pyproject.toml").write_text(pyproject_content)
 
-        result = runner.invoke(cli, ['create-view', 'Counter'])
+        result = runner.invoke(cli, ["create-view", "Counter"])
 
         assert result.exit_code == 0
-        assert 'LiveView created successfully!' in result.output
+        assert "LiveView created successfully!" in result.output
 
         # Check that view was created in detected path
-        view_dir = Path('src/myapp/views/counter')
+        view_dir = Path("src/myapp/views/counter")
         assert view_dir.exists()
-        assert (view_dir / 'counter.py').exists()
+        assert (view_dir / "counter.py").exists()
 
         # Check import advice uses detected package
-        assert 'from myapp.views.counter import CounterLiveView' in result.output
+        assert "from myapp.views.counter import CounterLiveView" in result.output

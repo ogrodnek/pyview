@@ -53,7 +53,6 @@ def register(keyword, endword=None):
 #     foo.bar.baz('bam')|filter(25, 'text')
 #
 class Expression:
-
     re_func_call = re.compile(r"^([\w.]+)\((.*)\)$")
     re_varstring = re.compile(r"^[\w.]+$")
 
@@ -99,9 +98,7 @@ class Expression:
         for filter_expr in filter_list:
             _, filter_name, filter_args = self._try_parse_as_func_call(filter_expr)
             if filter_name in filters.filtermap:
-                self.filters.append(
-                    (filter_name, filters.filtermap[filter_name], filter_args)
-                )
+                self.filters.append((filter_name, filters.filtermap[filter_name], filter_args))
             else:
                 msg = f"Unrecognised filter name '{filter_name}'."
                 raise errors.TemplateSyntaxError(msg, self.token)
@@ -154,9 +151,7 @@ class Node:
             raise
         except Exception as err:
             if token:
-                tagname = (
-                    f"'{token.keyword}'" if token.type == "INSTRUCTION" else token.type
-                )
+                tagname = f"'{token.keyword}'" if token.type == "INSTRUCTION" else token.type
                 msg = f"An unexpected error occurred while parsing the {tagname} tag: "
                 msg += f"{err.__class__.__name__}: {err}"
             else:
@@ -184,9 +179,7 @@ class Node:
                     if self.token.type == "INSTRUCTION"
                     else self.token.type
                 )
-                msg = (
-                    f"An unexpected error occurred while rendering the {tagname} tag: "
-                )
+                msg = f"An unexpected error occurred while rendering the {tagname} tag: "
                 msg += f"{err.__class__.__name__}: {err}"
             else:
                 msg = f"Unexpected rendering error: {err.__class__.__name__}: {err}"
@@ -285,12 +278,11 @@ class PrintNode(Node):
                 if content:
                     break
 
-        return (
-            str(content) if isinstance(content, Markup) else str(escape(str(content)))
-        )
+        return str(content) if isinstance(content, Markup) else str(escape(str(content)))
 
 
 NodeVisitor = Callable[[Node, Any], Any]
+
 
 # ForNodes implement `for ... in ...` looping over iterables.
 #
@@ -302,7 +294,6 @@ NodeVisitor = Callable[[Node, Any], Any]
 #
 @register("for", "endfor")
 class ForNode(Node):
-
     regex = re.compile(r"for\s+(\w+(?:,\s*\w+)*)\s+in\s+(.+)")
 
     def process_token(self, token):
@@ -421,7 +412,6 @@ class EmptyNode(Node):
 # Note that explicit brackets are not supported.
 @register("if", "endif")
 class IfNode(Node):
-
     condition = collections.namedtuple("Condition", "negated lhs op rhs")
 
     re_condition = re.compile(
@@ -620,9 +610,7 @@ class IncludeNode(Node):
                     name, expr = chunk.split("=", 1)
                     self.variables[name.strip()] = Expression(expr.strip(), token)
                 except:
-                    raise errors.TemplateSyntaxError(
-                        "Malformed 'include' tag.", token
-                    ) from None
+                    raise errors.TemplateSyntaxError("Malformed 'include' tag.", token) from None
         else:
             raise errors.TemplateSyntaxError("Malformed 'include' tag.", token)
 
@@ -654,8 +642,10 @@ class IncludeNode(Node):
 
     def tree_parts(self, context) -> PartsTree:
         output = []
+
         def visitor(ctx, node):
             output.append(node.tree_parts(ctx))
+
         self.visit_node(context, visitor)
         return output[0]
 
@@ -672,9 +662,7 @@ class ExtendsNode(Node):
         try:
             tag, arg = token.text.split(None, 1)
         except:
-            raise errors.TemplateSyntaxError(
-                "Malformed 'extends' tag.", token
-            ) from None
+            raise errors.TemplateSyntaxError("Malformed 'extends' tag.", token) from None
 
         expr = Expression(arg, token)
         if expr.is_literal and isinstance(expr.literal, str):
@@ -744,9 +732,7 @@ class WithNode(Node):
                 name, expr = chunk.split("=", 1)
                 self.variables[name.strip()] = Expression(expr.strip(), token)
             except:
-                raise errors.TemplateSyntaxError(
-                    "Malformed 'with' tag.", token
-                ) from None
+                raise errors.TemplateSyntaxError("Malformed 'with' tag.", token) from None
 
     def wrender(self, context):
         context.push()

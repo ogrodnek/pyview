@@ -1,4 +1,3 @@
-
 import pytest
 from starlette.routing import compile_path
 

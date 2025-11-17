@@ -62,9 +62,7 @@ class TaskRepository:
         self._tasks_by_id[task.id] = task
         self._task_lists_by_status[status].tasks.append(task)
 
-    def move_task(
-        self, task_id: str, from_status: TaskStatus, to_status: TaskStatus, order
-    ):
+    def move_task(self, task_id: str, from_status: TaskStatus, to_status: TaskStatus, order):
         from_list = self._task_lists_by_status[from_status]
         to_list = self._task_lists_by_status[to_status]
 

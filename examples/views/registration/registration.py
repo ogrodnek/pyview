@@ -16,14 +16,18 @@ def input_tag(
     changeset: ChangeSet, field_name: str, options: Optional[dict[str, str]] = None
 ) -> Markup:
     type = (options or {}).get("type", "text")
-    error_class = "border-red-300 focus:border-red-500 focus:ring-red-500" if changeset.errors.get(field_name) else "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+    error_class = (
+        "border-red-300 focus:border-red-500 focus:ring-red-500"
+        if changeset.errors.get(field_name)
+        else "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+    )
     return Markup(
         """<input type="{type}" id="{field_name}" name="{field_name}" phx-debounce="2000" value="{value}" class="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 transition-colors {error_class}" />"""
     ).format(
         type=type,
         field_name=field_name,
         value=changeset.changes.get(field_name, ""),
-        error_class=error_class
+        error_class=error_class,
     )
 
 
@@ -71,9 +75,7 @@ class RegistrationLiveView(LiveView):
     async def mount(self, socket: LiveViewSocket, session):
         socket.context = RegistrationContext(changeset=change_set(Registration))
 
-    async def handle_event(
-        self, event, payload, socket: LiveViewSocket[RegistrationContext]
-    ):
+    async def handle_event(self, event, payload, socket: LiveViewSocket[RegistrationContext]):
         print(event, payload)
         if event == "validate":
             socket.context["changeset"].apply(payload)

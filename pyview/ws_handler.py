@@ -27,31 +27,22 @@ class LiveSocketMetrics:
 
     def __init__(self, instrumentation: InstrumentationProvider):
         self.active_connections = instrumentation.create_updown_counter(
-            "pyview.websocket.active_connections",
-            "Number of active WebSocket connections"
+            "pyview.websocket.active_connections", "Number of active WebSocket connections"
         )
         self.mounts = instrumentation.create_counter(
-            "pyview.liveview.mounts",
-            "Total number of LiveView mounts"
+            "pyview.liveview.mounts", "Total number of LiveView mounts"
         )
         self.events_processed = instrumentation.create_counter(
-            "pyview.events.processed",
-            "Total number of events processed"
+            "pyview.events.processed", "Total number of events processed"
         )
         self.event_duration = instrumentation.create_histogram(
-            "pyview.events.duration",
-            "Event processing duration",
-            unit="s"
+            "pyview.events.duration", "Event processing duration", unit="s"
         )
         self.message_size = instrumentation.create_histogram(
-            "pyview.websocket.message_size",
-            "WebSocket message size in bytes",
-            unit="bytes"
+            "pyview.websocket.message_size", "WebSocket message size in bytes", unit="bytes"
         )
         self.render_duration = instrumentation.create_histogram(
-            "pyview.render.duration",
-            "Template render duration",
-            unit="s"
+            "pyview.render.duration", "Template render duration", unit="s"
         )
 
 
@@ -90,7 +81,9 @@ class LiveSocketHandler:
                 url = urlparse(payload["url"])
                 lv, path_params = self.routes.get(url.path)
                 await self.check_auth(websocket, lv)
-                socket = ConnectedLiveViewSocket(websocket, topic, lv, self.scheduler, self.instrumentation)
+                socket = ConnectedLiveViewSocket(
+                    websocket, topic, lv, self.scheduler, self.instrumentation
+                )
 
                 session = {}
                 if "session" in payload:
@@ -151,9 +144,7 @@ class LiveSocketHandler:
                     "phx_reply",
                     {"response": {}, "status": "ok"},
                 ]
-                await self.manager.send_personal_message(
-                    json.dumps(resp), socket.websocket
-                )
+                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
                 continue
 
             if event == "event":
@@ -169,17 +160,18 @@ class LiveSocketHandler:
                 self.metrics.events_processed.add(1, {"event": event_name, "view": view_name})
 
                 # Time event processing
-                with self.instrumentation.time_histogram("pyview.events.duration",
-                                                         {"event": event_name, "view": view_name}):
+                with self.instrumentation.time_histogram(
+                    "pyview.events.duration", {"event": event_name, "view": view_name}
+                ):
                     await socket.liveview.handle_event(event_name, value, socket)
 
                 # Time rendering
-                with self.instrumentation.time_histogram("pyview.render.duration", {"view": view_name}):
+                with self.instrumentation.time_histogram(
+                    "pyview.render.duration", {"view": view_name}
+                ):
                     rendered = await _render(socket)
 
-                hook_events = (
-                    {} if not socket.pending_events else {"e": socket.pending_events}
-                )
+                hook_events = {} if not socket.pending_events else {"e": socket.pending_events}
 
                 diff = socket.diff(rendered)
 
@@ -223,9 +215,7 @@ class LiveSocketHandler:
                     "phx_reply",
                     {"response": {"diff": diff}, "status": "ok"},
                 ]
-                await self.manager.send_personal_message(
-                    json.dumps(resp), socket.websocket
-                )
+                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
                 continue
 
             if event == "allow_upload":
@@ -247,9 +237,7 @@ class LiveSocketHandler:
                     },
                 ]
 
-                await self.manager.send_personal_message(
-                    json.dumps(resp), socket.websocket
-                )
+                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
                 continue
 
             # file upload or navigation
@@ -267,14 +255,16 @@ class LiveSocketHandler:
                         {"response": {}, "status": "ok"},
                     ]
 
-                    await self.manager.send_personal_message(
-                        json.dumps(resp), socket.websocket
-                    )
+                    await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
                 else:
                     # This is a navigation join (topic starts with "lv:")
                     # Navigation payload has 'redirect' field instead of 'url'
                     url_str_raw = payload.get("redirect") or payload.get("url")
-                    url_str: str = url_str_raw.decode("utf-8") if isinstance(url_str_raw, bytes) else str(url_str_raw)
+                    url_str: str = (
+                        url_str_raw.decode("utf-8")
+                        if isinstance(url_str_raw, bytes)
+                        else str(url_str_raw)
+                    )
                     url = urlparse(url_str)
                     lv, path_params = self.routes.get(url.path)
                     await self.check_auth(socket.websocket, lv)
@@ -307,9 +297,7 @@ class LiveSocketHandler:
                         {"response": {"rendered": rendered}, "status": "ok"},
                     ]
 
-                    await self.manager.send_personal_message(
-                        json.dumps(resp), socket.websocket
-                    )
+                    await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
 
             if event == "chunk":
                 socket.upload_manager.add_chunk(joinRef, payload)  # type: ignore
@@ -336,9 +324,7 @@ class LiveSocketHandler:
                         socket.websocket,
                     )
 
-                await self.manager.send_personal_message(
-                    json.dumps(resp), socket.websocket
-                )
+                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
 
             if event == "progress":
                 # Trigger progress callback BEFORE updating progress (which may consume the entry)
@@ -357,9 +343,7 @@ class LiveSocketHandler:
                     {"response": {"diff": diff}, "status": "ok"},
                 ]
 
-                await self.manager.send_personal_message(
-                    json.dumps(resp), socket.websocket
-                )
+                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
 
             if event == "phx_leave":
                 # Handle LiveView navigation - clean up current LiveView
@@ -372,9 +356,7 @@ class LiveSocketHandler:
                     "phx_reply",
                     {"response": {}, "status": "ok"},
                 ]
-                await self.manager.send_personal_message(
-                    json.dumps(resp), socket.websocket
-                )
+                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
                 # Continue to wait for next phx_join
                 continue
 

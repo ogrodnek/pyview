@@ -8,11 +8,9 @@ _CallableType = TypeVar("_CallableType", bound=Callable)
 
 
 class AuthProvider(Protocol):
-    async def has_required_auth(self, websocket: WebSocket) -> bool:
-        ...
+    async def has_required_auth(self, websocket: WebSocket) -> bool: ...
 
-    def wrap(self, func: _CallableType) -> _CallableType:
-        ...
+    def wrap(self, func: _CallableType) -> _CallableType: ...
 
 
 class AllowAllAuthProvider(AuthProvider):

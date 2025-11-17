@@ -39,9 +39,7 @@ class KanbanLiveView(BaseEventHandler, LiveView[KanbanContext]):
         socket.context = KanbanContext()
 
     @event("task-moved")
-    async def handle_task_moved(
-        self, event, payload, socket: LiveViewSocket[KanbanContext]
-    ):
+    async def handle_task_moved(self, event, payload, socket: LiveViewSocket[KanbanContext]):
         task_id = payload["taskId"]
 
         socket.context.task_repository.move_task(
@@ -49,8 +47,6 @@ class KanbanLiveView(BaseEventHandler, LiveView[KanbanContext]):
         )
 
     @event("add_task")
-    async def handle_add_task(
-        self, event, payload, socket: LiveViewSocket[KanbanContext]
-    ):
+    async def handle_add_task(self, event, payload, socket: LiveViewSocket[KanbanContext]):
         target_list = payload["task_list"]
         socket.context.task_repository.random_task(target_list)

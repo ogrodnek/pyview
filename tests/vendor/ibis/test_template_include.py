@@ -13,6 +13,7 @@ def template_loader():
         }
     )
 
+
 def test_template_include(template_loader):
     a = Template("<div>{% include 'header.html' with gr=greeting %}</div>")
     d = {"greeting": "Hello"}

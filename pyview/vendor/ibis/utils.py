@@ -3,7 +3,6 @@ import re
 
 # Splits a string on instances of a delimiter character. Ignores quoted delimiters.
 def splitc(s, delimiter, strip=False, discard_empty=False, maxsplit=-1):
-
     tokens, buf, expecting, escaped = [], [], None, False
 
     for index, char in enumerate(s):
@@ -13,18 +12,18 @@ def splitc(s, delimiter, strip=False, discard_empty=False, maxsplit=-1):
                 expecting = None
         else:
             if char == delimiter:
-                tokens.append(''.join(buf))
+                tokens.append("".join(buf))
                 buf = []
                 if len(tokens) == maxsplit:
-                    buf.append(s[index+1:])
+                    buf.append(s[index + 1 :])
                     break
             else:
                 buf.append(char)
                 if char in ('"', "'"):
                     expecting = char
-        escaped = not escaped if char == '\\' else False
+        escaped = not escaped if char == "\\" else False
 
-    tokens.append(''.join(buf))
+    tokens.append("".join(buf))
 
     if strip:
         tokens = [t.strip() for t in tokens]
@@ -49,20 +48,20 @@ def splitws(s, maxsplit=-1):
             if char.isspace():
                 if wsrun:
                     continue
-                tokens.append(''.join(buf))
+                tokens.append("".join(buf))
                 buf = []
                 wsrun = True
                 if len(tokens) == maxsplit:
-                    buf.append(s[index+1:].lstrip())
+                    buf.append(s[index + 1 :].lstrip())
                     break
             else:
                 buf.append(char)
                 wsrun = False
                 if char in ('"', "'"):
                     expecting = char
-        escaped = not escaped if char == '\\' else False
+        escaped = not escaped if char == "\\" else False
 
-    tokens.append(''.join(buf))
+    tokens.append("".join(buf))
     return tokens
 
 
@@ -71,22 +70,22 @@ def splitre(s, delimiters, keep_delimiters=False):
     tokens, buf = [], []
     end_last_match = 0
 
-    pattern = r'''"(?:[^\\"]|\\.)*"|'(?:[^\\']|\\.)*'|%s'''
-    pattern %= '|'.join(delimiters)
+    pattern = r""""(?:[^\\"]|\\.)*"|'(?:[^\\']|\\.)*'|%s"""
+    pattern %= "|".join(delimiters)
 
     for match in re.finditer(pattern, s):
         if match.group()[0] in ["'", '"']:
-            buf.append(s[end_last_match:match.end()])
+            buf.append(s[end_last_match : match.end()])
             end_last_match = match.end()
             continue
-        buf.append(s[end_last_match:match.start()])
-        tokens.append(''.join(buf))
+        buf.append(s[end_last_match : match.start()])
+        tokens.append("".join(buf))
         buf = []
         end_last_match = match.end()
         if keep_delimiters:
             tokens.append(match.group())
 
     buf.append(s[end_last_match:])
-    tokens.append(''.join(buf))
+    tokens.append("".join(buf))
 
     return tokens

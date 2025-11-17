@@ -36,9 +36,7 @@ class Template:
 
     def _render(self, context):
         context.templates.append(self)
-        if self.root_node.children and isinstance(
-            self.root_node.children[0], ExtendsNode
-        ):
+        if self.root_node.children and isinstance(self.root_node.children[0], ExtendsNode):
             if ibis.loader:
                 parent_template = ibis.loader(self.root_node.children[0].parent_name)
                 return parent_template._render(context)

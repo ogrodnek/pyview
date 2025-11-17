@@ -32,9 +32,7 @@ class MapLiveView(LiveView[MapContext]):
             parks=national_parks, selected_park_name=national_parks[0]["name"]
         )
 
-    async def handle_event(
-        self, event, payload, socket: ConnectedLiveViewSocket[MapContext]
-    ):
+    async def handle_event(self, event, payload, socket: ConnectedLiveViewSocket[MapContext]):
         print(event, payload)
 
         park = [p for p in national_parks if p["name"] == payload["name"]][0]

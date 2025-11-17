@@ -27,9 +27,7 @@ class CountLiveViewPubSub(LiveView[Count]):
         if is_connected(socket):
             await socket.subscribe("count")
 
-    async def handle_event(
-        self, event, payload, socket: ConnectedLiveViewSocket[Count]
-    ):
+    async def handle_event(self, event, payload, socket: ConnectedLiveViewSocket[Count]):
         if event == "decrement":
             socket.context.decrement()
         if event == "increment":

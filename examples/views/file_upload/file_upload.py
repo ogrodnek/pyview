@@ -46,9 +46,7 @@ class FileUploadDemoLiveView(LiveView[FileUploadDemoContext]):
         socket.context = FileUploadDemoContext(upload_config=config)
         socket.live_title = "File Upload Demo"
 
-    async def handle_event(
-        self, event, payload, socket: LiveViewSocket[FileUploadDemoContext]
-    ):
+    async def handle_event(self, event, payload, socket: LiveViewSocket[FileUploadDemoContext]):
         if event == "cancel":
             cancel_ref = payload["ref"]
             socket.context.upload_config.cancel_entry(cancel_ref)

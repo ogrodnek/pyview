@@ -28,6 +28,7 @@ class FileRepository:
     """
     A simple repository to store file entries thumbnails as base64 strings for demo purposes.
     """
+
     def __init__(self):
         self.all_files = collections.deque(maxlen=10)
 

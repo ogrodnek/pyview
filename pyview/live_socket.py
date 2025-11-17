@@ -156,9 +156,7 @@ class ConnectedLiveViewSocket(Generic[T]):
                 try:
                     self.scheduler.remove_job(id)
                 except Exception:
-                    logger.warning(
-                        "Failed to remove scheduled job %s", id, exc_info=True
-                    )
+                    logger.warning("Failed to remove scheduled job %s", id, exc_info=True)
 
     async def push_patch(self, path: str, params: Optional[dict[str, Any]] = None):
         if params is None:

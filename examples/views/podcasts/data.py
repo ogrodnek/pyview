@@ -42,9 +42,7 @@ def podcasts() -> list[Podcast]:
             "https://cdn.atp.fm/artwork",
             "Three nerds discussing tech, Apple, programming, and loosely related matters.",
             [
-                Episode(
-                    522, "522: I’ll Just Keep You for Ten Years", "Thu, 16 Feb 2023"
-                ),
+                Episode(522, "522: I’ll Just Keep You for Ten Years", "Thu, 16 Feb 2023"),
                 Episode(521, "521: Dance Compatible", "Thu, 09 Feb 2023"),
                 Episode(520, "520: Bananas Ingestion System", "Thu, 02 Feb 2023"),
             ],

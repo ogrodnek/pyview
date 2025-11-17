@@ -4,16 +4,15 @@ from . import errors
 
 # User-configurable functions and variables available in all contexts.
 builtins = {
-    'now': datetime.datetime.now,
-    'range': range,
+    "now": datetime.datetime.now,
+    "range": range,
 }
 
 
 # A wrapper around a stack of dictionaries.
 class DataStack:
-
     def __init__(self):
-       self.stack = []
+        self.stack = []
 
     def __getitem__(self, key):
         for d in reversed(self.stack):
@@ -25,16 +24,17 @@ class DataStack:
 # A Context object is a wrapper around the user's input data. Its `.resolve()` method contains
 # the lookup-logic for resolving dotted variable names.
 class Context:
-
     def __init__(self, data_dict, strict_mode):
         # Stack of data dictionaries for the .resolve() method.
         self.data = DataStack()
 
         # Standard builtins.
-        self.data.stack.append({
-            'context': self,
-            'is_defined': self.is_defined,
-        })
+        self.data.stack.append(
+            {
+                "context": self,
+                "is_defined": self.is_defined,
+            }
+        )
 
         # User-configurable builtins.
         self.data.stack.append(builtins)
@@ -75,7 +75,7 @@ class Context:
     def resolve(self, varstring, token):
         words = []
         result = self.data
-        for word in varstring.split('.'):
+        for word in varstring.split("."):
             words.append(word)
             if hasattr(result, word):
                 result = getattr(result, word)
@@ -95,7 +95,7 @@ class Context:
 
     def is_defined(self, varstring):
         current = self.data
-        for word in varstring.split('.'):
+        for word in varstring.split("."):
             if hasattr(current, word):
                 current = getattr(current, word)
             else:
@@ -111,9 +111,8 @@ class Context:
 
 # Null type returned when a context lookup fails.
 class Undefined:
-
     def __str__(self):
-        return ''
+        return ""
 
     def __bool__(self):
         return False
@@ -135,4 +134,3 @@ class Undefined:
 
     def __ne__(self, other):
         return True
-
