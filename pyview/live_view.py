@@ -1,4 +1,4 @@
-from typing import Any, Generic, Optional, TypeVar, Union
+from typing import Any, Generic, Optional, TypeVar
 from urllib.parse import ParseResult
 
 from pyview.events import InfoEvent
@@ -17,9 +17,6 @@ T = TypeVar("T")
 
 Session = dict[str, Any]
 
-# TODO: ideally this would always be a ParseResult, but we need to update push_patch
-URL = Union[ParseResult, str]
-
 
 class LiveView(Generic[T]):
     def __init__(self):
@@ -34,7 +31,7 @@ class LiveView(Generic[T]):
     async def handle_info(self, event: InfoEvent, socket: ConnectedLiveViewSocket[T]):
         pass
 
-    async def handle_params(self, url: URL, params, socket: LiveViewSocket[T]):
+    async def handle_params(self, url: ParseResult, params, socket: LiveViewSocket[T]):
         pass
 
     async def disconnect(self, socket: ConnectedLiveViewSocket[T]):
