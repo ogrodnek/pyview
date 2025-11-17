@@ -7,7 +7,10 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Generator, Literal, Optional
 
+from markupsafe import Markup
 from pydantic import BaseModel, Field
+
+from pyview.vendor.ibis import filters
 
 logger = logging.getLogger(__name__)
 
@@ -544,11 +547,6 @@ class UploadManager:
         for config in self.upload_configs.values():
             config.close()
         self.upload_configs = {}
-
-
-from markupsafe import Markup
-
-from pyview.vendor.ibis import filters
 
 
 @filters.register

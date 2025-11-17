@@ -1,4 +1,5 @@
 import json
+import struct
 
 from starlette.types import Message
 from starlette.websockets import WebSocketDisconnect
@@ -18,9 +19,6 @@ def parse_message(message: Message) -> tuple[str, str, str, str, dict]:
     # {'type': 'websocket.disconnect', 'code': <CloseReason.NO_STATUS_RCVD: 1005>}
     # TODO handle: other errors?
     raise WebSocketDisconnect(message["code"])
-
-
-import struct
 
 
 class BinaryUploadSerDe:
