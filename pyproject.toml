@@ -57,7 +57,7 @@ pv = "pyview.cli.main:cli"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
-ruff = "^0.8.0"
+ruff = "^0.14.0"
 pyright = "^1.1.403"
 pytest-cov = "^6.1.1"
 pytest-asyncio = "^1.3.0"
@@ -101,8 +101,9 @@ select = [
 ]
 ignore = [
     "E501",   # line too long (handled by formatter)
-    "UP007",  # use-pep604-annotation (Union[X, Y] -> X | Y, Optional[X] -> X | None)
+    "UP007",  # use-pep604-annotation (Union[X, Y] -> X | Y)
     "UP035",  # deprecated-import (keep typing.Iterator instead of collections.abc.Iterator)
+    "UP045",  # non-pep604-annotation (keep Optional[X] instead of X | None)
     "N802",   # mixed case function names
     "N803",   # mixed case variable
     "N806",   # mixed case variable in function
