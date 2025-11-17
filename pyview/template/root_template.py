@@ -31,9 +31,8 @@ def _defaultRootTemplate(
     context: RootTemplateContext, css: Markup, contentWrapper: ContentWrapper
 ) -> str:
     suffix = " | LiveView"
-    render_title = (
-        (context["title"] + suffix) if context.get("title", None) is not None else "LiveView"
-    )  # type: ignore
+    title = context.get("title")
+    render_title = (title + suffix) if title is not None else "LiveView"
     main_content = contentWrapper(
         context,
         Markup(
