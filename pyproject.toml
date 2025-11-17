@@ -109,6 +109,7 @@ ignore = [
     "N806",   # mixed case variable in function
     "N815",   # mixed case attributes
     "N818",   # exception naming (keep AuthException, not AuthError)
+    "N999",   # invalid module name (allow PascalCase module names)
     "SIM108", # prefer if-else blocks over ternary operators for readability
 ]
 
@@ -116,7 +117,7 @@ ignore = [
 known-first-party = ["pyview"]
 
 [tool.ruff.lint.per-file-ignores]
-"pyview/vendor/**" = ["E722", "F811", "N818", "SIM102", "SIM103", "SIM118"]  # Ignore vendored code issues
+"pyview/vendor/**" = ["E722", "F811", "N818", "SIM102", "SIM103", "SIM118", "UP031"]  # Ignore vendored code issues
 
 [tool.ruff.format]
 quote-style = "double"
