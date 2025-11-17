@@ -91,7 +91,7 @@ class ActiveUpload:
     file: tempfile._TemporaryFileWrapper = field(init=False)
 
     def __post_init__(self):
-        self.file = tempfile.NamedTemporaryFile(delete=False)
+        self.file = tempfile.NamedTemporaryFile(delete=False)  # noqa: SIM115
 
     def close(self):
         self.file.close()
