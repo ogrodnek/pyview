@@ -43,7 +43,7 @@ DATA = None
 def _get_data() -> list[FifaAudience]:
     global DATA
     if DATA is None:
-        DATA = [fa for fa in _read_data()]
+        DATA = list(_read_data())
     return DATA
 
 

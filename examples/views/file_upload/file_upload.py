@@ -60,6 +60,4 @@ class FileUploadDemoLiveView(LiveView[FileUploadDemoContext]):
                     socket.context.file_repository.add_file(
                         upload.entry.name, upload.file.name, upload.entry.type
                     )
-            socket.context.uploaded_files = [
-                f for f in socket.context.file_repository.get_all_files()
-            ]
+            socket.context.uploaded_files = list(socket.context.file_repository.get_all_files())

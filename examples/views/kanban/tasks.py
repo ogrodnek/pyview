@@ -56,7 +56,7 @@ class TaskRepository:
 
     @property
     def task_lists(self):
-        return [tl for tl in self._task_lists_by_status.values()]
+        return list(self._task_lists_by_status.values())
 
     def add_task(self, task: Task, status: TaskStatus):
         self._tasks_by_id[task.id] = task
