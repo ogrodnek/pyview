@@ -103,6 +103,10 @@ ignore = [
     "E501",   # line too long (handled by formatter)
     "UP007",  # use-pep604-annotation (keep Optional[str] instead of str | None)
     "UP035",  # deprecated-import (keep typing.Iterator instead of collections.abc.Iterator)
+    "N802", # mixed case function names
+    "N803", # mixed case variable
+    "N806",
+    "N815", # mixed case attributes
 ]
 
 [tool.ruff.lint.isort]
