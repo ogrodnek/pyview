@@ -1,6 +1,6 @@
-import sys
 import typing
 from dataclasses import dataclass
+from typing import ParamSpec
 
 from starlette.authentication import has_required_scope
 from starlette.authentication import requires as starlette_requires
@@ -9,11 +9,6 @@ from starlette.websockets import WebSocket
 from pyview import LiveView
 
 from .provider import AuthProvider, AuthProviderFactory
-
-if sys.version_info >= (3, 10):  # pragma: no cover
-    from typing import ParamSpec
-else:  # pragma: no cover
-    from typing_extensions import ParamSpec
 
 _P = ParamSpec("_P")
 
