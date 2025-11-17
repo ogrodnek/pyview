@@ -18,4 +18,5 @@ __all__ = [
     "RootTemplate",
     "is_connected",
     "ConnectedLiveViewSocket",
+    "UnconnectedSocket",
 ]
