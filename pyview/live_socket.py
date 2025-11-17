@@ -4,6 +4,7 @@ import datetime
 import json
 import logging
 import uuid
+from contextlib import suppress
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -265,21 +266,15 @@ class ConnectedLiveViewSocket(Generic[T]):
     async def close(self):
         self.connected = False
         for id in list(self.scheduled_jobs):
-            try:
+            with suppress(JobLookupError):
                 self.scheduler.remove_job(id)
-            except JobLookupError:
-                pass
         await self.pub_sub.unsubscribe_all_async()
 
-        try:
+        with suppress(Exception):
             self.upload_manager.close()
-        except Exception:
-            pass
 
-        try:
+        with suppress(Exception):
             await self.liveview.disconnect(self)
-        except Exception:
-            pass
 
 
 LiveViewSocket: TypeAlias = Union[ConnectedLiveViewSocket[T], UnconnectedSocket[T]]

@@ -1,5 +1,6 @@
 import json
 import logging
+from contextlib import suppress
 from typing import Optional
 from urllib.parse import parse_qs, urlparse
 
@@ -205,11 +206,9 @@ class LiveSocketHandler:
                 path_params = {}
 
                 # We need to get path params for the new URL
-                try:
+                with suppress(ValueError):
                     # TODO: I don't think this is actually going to work...
                     _, path_params = self.routes.get(url.path)
-                except ValueError:
-                    pass  # Handle case where the path doesn't match any route
 
                 merged_params = {**query_params, **path_params}
 
