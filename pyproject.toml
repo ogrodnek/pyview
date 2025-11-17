@@ -104,10 +104,11 @@ ignore = [
     "UP007",  # use-pep604-annotation (Union[X, None] -> X | None)
     "UP045",  # use-pep604-annotation (Optional[X] -> X | None)
     "UP035",  # deprecated-import (keep typing.Iterator instead of collections.abc.Iterator)
-    "N802", # mixed case function names
-    "N803", # mixed case variable
-    "N806",
-    "N815", # mixed case attributes
+    "N802",   # mixed case function names
+    "N803",   # mixed case variable
+    "N806",   # mixed case variable in function
+    "N815",   # mixed case attributes
+    "N818",   # exception naming (keep AuthException, not AuthError)
 ]
 
 [tool.ruff.lint.isort]
