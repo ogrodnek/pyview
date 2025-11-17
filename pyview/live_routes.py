@@ -17,7 +17,7 @@ class LiveViewLookup:
         # Find all matching routes
         matches = []
 
-        for path_format, path_regex, param_convertors, lv in self.routes:
+        for _path_format, path_regex, param_convertors, lv in self.routes:
             match_obj = path_regex.match(path)
             if match_obj is not None:
                 params = match_obj.groupdict()

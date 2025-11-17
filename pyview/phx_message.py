@@ -28,7 +28,7 @@ class BinaryUploadSerDe:
         offset = 0
 
         # Read the kind (1 byte)
-        kind = struct.unpack_from("B", encoded_data, offset)[0]
+        _kind = struct.unpack_from("B", encoded_data, offset)[0]
         offset += 1
 
         # Read lengths (4 bytes total, 1 byte each)
