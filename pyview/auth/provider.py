@@ -1,5 +1,7 @@
-from typing import Protocol, TypeVar, Callable
+from typing import Callable, Protocol, TypeVar
+
 from starlette.websockets import WebSocket
+
 from pyview import LiveView
 
 _CallableType = TypeVar("_CallableType", bound=Callable)
@@ -28,5 +30,5 @@ class AuthProviderFactory:
 
     @classmethod
     def set(cls, lv: type[LiveView], auth_provider: AuthProvider) -> type[LiveView]:
-        setattr(lv, "__pyview_auth_provider__", auth_provider)
+        lv.__pyview_auth_provider__ = auth_provider
         return lv

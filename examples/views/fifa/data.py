@@ -1,6 +1,6 @@
-from dataclasses import dataclass
 import csv
 import os
+from dataclasses import dataclass
 
 
 @dataclass

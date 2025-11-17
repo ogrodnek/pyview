@@ -1,12 +1,14 @@
 from __future__ import annotations
-from pyview import LiveView, LiveViewSocket
-from typing import TypedDict, Optional
+
+from typing import Optional, TypedDict
+
+from markupsafe import Markup
+from pydantic import BaseModel, Field, model_validator
 from typing_extensions import Self
 
-from pydantic import BaseModel, Field, model_validator
-from pyview.changesets import change_set, ChangeSet
+from pyview import LiveView, LiveViewSocket
+from pyview.changesets import ChangeSet, change_set
 from pyview.vendor.ibis import filters
-from markupsafe import Markup
 
 
 @filters.register
@@ -18,8 +20,8 @@ def input_tag(
     return Markup(
         """<input type="{type}" id="{field_name}" name="{field_name}" phx-debounce="2000" value="{value}" class="w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 transition-colors {error_class}" />"""
     ).format(
-        type=type, 
-        field_name=field_name, 
+        type=type,
+        field_name=field_name,
         value=changeset.changes.get(field_name, ""),
         error_class=error_class
     )

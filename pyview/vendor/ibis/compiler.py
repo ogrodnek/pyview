@@ -1,6 +1,4 @@
-from . import nodes
-from . import errors
-
+from . import errors, nodes
 
 # Token delimiters.
 comment_start = '{#'
@@ -117,20 +115,14 @@ class Lexer:
                 self.index += len(instruction_end)
                 return
             self.advance()
-        msg = f"Unclosed instruction tag."
+        msg = "Unclosed instruction tag."
         raise errors.TemplateLexingError(msg, self.template_id, start_line_number)
 
     def read_text(self):
         start_index = self.index
         start_line_number = self.line_number
         while self.index < len(self.template_string):
-            if self.match(comment_start):
-                break
-            elif self.match(eprint_start):
-                break
-            elif self.match(print_start):
-                break
-            elif self.match(instruction_start):
+            if self.match(comment_start) or self.match(eprint_start) or self.match(print_start) or self.match(instruction_start):
                 break
             self.advance()
         text = self.template_string[start_index:self.index]
@@ -174,7 +166,7 @@ class Parser:
                     stack.pop()
                     expecting.pop()
             elif token.keyword == '':
-                msg = f"Empty instruction tag."
+                msg = "Empty instruction tag."
                 raise errors.TemplateSyntaxError(msg, token)
             else:
                 msg = f"Unrecognised instruction tag '{token.keyword}'."
@@ -182,7 +174,7 @@ class Parser:
 
         if expecting:
             token = stack[-1].token
-            msg = f"Unexpected end of template. "
+            msg = "Unexpected end of template. "
             msg += f"Ibis was expecting a closing '{expecting[-1]}' tag to close the "
             msg += f"'{token.keyword}' tag opened in line {token.line_number}."
             raise errors.TemplateSyntaxError(msg, token)

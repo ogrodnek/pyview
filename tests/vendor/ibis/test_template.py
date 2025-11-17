@@ -1,5 +1,6 @@
-from pyview.vendor.ibis import Template
 from markupsafe import Markup
+
+from pyview.vendor.ibis import Template
 
 
 def test_simple_substitution():

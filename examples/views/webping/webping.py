@@ -1,13 +1,16 @@
-from pyview import LiveView, LiveViewSocket, is_connected
-from dataclasses import dataclass, field
 import datetime
-from collections import deque
-from .chart import Point
-import time
-import aiohttp
 import ssl
+import time
+from collections import deque
+from dataclasses import dataclass, field
+
+import aiohttp
 import certifi
-from pyview.events import InfoEvent, info, BaseEventHandler
+
+from pyview import LiveView, LiveViewSocket, is_connected
+from pyview.events import BaseEventHandler, InfoEvent, info
+
+from .chart import Point
 
 
 @dataclass

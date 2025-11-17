@@ -1,5 +1,7 @@
 from typing import Any, cast
+
 from itsdangerous import URLSafeSerializer
+
 from pyview.secret import get_secret
 
 

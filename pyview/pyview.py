@@ -1,27 +1,29 @@
-from starlette.applications import Starlette
-from starlette.responses import HTMLResponse
-from starlette.middleware.gzip import GZipMiddleware
-from starlette.routing import Route, WebSocketRoute
-from starlette.requests import Request
 import uuid
-from urllib.parse import parse_qs, urlparse
 from typing import Optional
+from urllib.parse import parse_qs, urlparse
 
-from pyview.live_socket import UnconnectedSocket
-from pyview.csrf import generate_csrf_token
-from pyview.session import serialize_session
+from starlette.applications import Starlette
+from starlette.middleware.gzip import GZipMiddleware
+from starlette.requests import Request
+from starlette.responses import HTMLResponse
+from starlette.routing import Route, WebSocketRoute
+
 from pyview.auth import AuthProviderFactory
-from pyview.meta import PyViewMeta
+from pyview.csrf import generate_csrf_token
 from pyview.instrumentation import InstrumentationProvider, NoOpInstrumentation
-from .ws_handler import LiveSocketHandler
-from .live_view import LiveView
+from pyview.live_socket import UnconnectedSocket
+from pyview.meta import PyViewMeta
+from pyview.session import serialize_session
+
 from .live_routes import LiveViewLookup
+from .live_view import LiveView
 from .template import (
     RootTemplate,
     RootTemplateContext,
     defaultRootTemplate,
     find_associated_css,
 )
+from .ws_handler import LiveSocketHandler
 
 
 class PyView(Starlette):

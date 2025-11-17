@@ -1,8 +1,10 @@
-from pyview import LiveView, LiveViewSocket
-from pyview.events import event, BaseEventHandler
 from dataclasses import dataclass, field
-from .tasks import TaskRepository, TaskList
+
+from pyview import LiveView, LiveViewSocket
+from pyview.events import BaseEventHandler, event
 from pyview.vendor.ibis import filters
+
+from .tasks import TaskList, TaskRepository
 
 
 @filters.register

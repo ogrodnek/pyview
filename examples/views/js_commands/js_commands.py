@@ -1,6 +1,6 @@
-from pyview import LiveView, LiveViewSocket
-from pyview.live_socket import ConnectedLiveViewSocket
 from typing import TypedDict
+
+from pyview import LiveView, LiveViewSocket
 
 
 class JsCommandsLiveViewContext(TypedDict):

@@ -1,6 +1,7 @@
-from pyview import LiveView, LiveViewSocket, ConnectedLiveViewSocket, is_connected
-from typing import TypedDict
 import random
+from typing import TypedDict
+
+from pyview import ConnectedLiveViewSocket, LiveView, LiveViewSocket, is_connected
 
 
 class CheckboxManager:

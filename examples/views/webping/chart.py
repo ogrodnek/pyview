@@ -1,6 +1,8 @@
 from dataclasses import dataclass
-from pyview.vendor.ibis import filters
+
 from markupsafe import Markup
+
+from pyview.vendor.ibis import filters
 
 
 @dataclass

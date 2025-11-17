@@ -1,11 +1,5 @@
-from . import filters
-from . import nodes
-from . import loaders
-from . import errors
-from . import compiler
-
+from . import compiler, errors, filters, loaders, nodes
 from .template import Template
-
 
 # Library version.
 __version__ = "3.2.1"

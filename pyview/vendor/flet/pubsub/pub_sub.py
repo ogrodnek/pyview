@@ -3,19 +3,19 @@
 import asyncio
 import logging
 import threading
-from typing import Any, Callable, Dict, Iterable
+from typing import Any, Callable, Iterable
 
 
 class PubSubHub:
     def __init__(self):
         self.__lock = threading.Lock()
         self.__async_lock = asyncio.Lock()
-        self.__subscribers: Dict[str, Callable] = {}  # key: session_id, value: handler
-        self.__topic_subscribers: Dict[
-            str, Dict[str, Callable]
+        self.__subscribers: dict[str, Callable] = {}  # key: session_id, value: handler
+        self.__topic_subscribers: dict[
+            str, dict[str, Callable]
         ] = {}  # key: topic, value: dict[session_id, handler]
-        self.__subscriber_topics: Dict[
-            str, Dict[str, Callable]
+        self.__subscriber_topics: dict[
+            str, dict[str, Callable]
         ] = {}  # key: session_id, value: dict[topic, handler]
 
     def send_all(self, message: Any):

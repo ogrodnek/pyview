@@ -1,6 +1,7 @@
-from starlette.websockets import WebSocketDisconnect
-from starlette.types import Message
 import json
+
+from starlette.types import Message
+from starlette.websockets import WebSocketDisconnect
 
 
 def parse_message(message: Message) -> tuple[str, str, str, str, dict]:

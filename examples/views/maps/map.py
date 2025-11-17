@@ -1,9 +1,11 @@
-from pyview import LiveView, LiveViewSocket, ConnectedLiveViewSocket
-from dataclasses import dataclass
-from .parks import national_parks
-from pyview.vendor.ibis import filters
-from typing import Any
 import json
+from dataclasses import dataclass
+from typing import Any
+
+from pyview import ConnectedLiveViewSocket, LiveView, LiveViewSocket
+from pyview.vendor.ibis import filters
+
+from .parks import national_parks
 
 
 @filters.register

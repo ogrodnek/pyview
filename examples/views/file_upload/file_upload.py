@@ -1,9 +1,11 @@
+import math
+from dataclasses import dataclass, field
+
 from pyview import LiveView, LiveViewSocket
 from pyview.uploads import UploadConfig, UploadConstraints
-from dataclasses import dataclass, field
 from pyview.vendor.ibis import filters
-from .file_repository import FileRepository, FileEntry
-import math
+
+from .file_repository import FileEntry, FileRepository
 
 
 @filters.register

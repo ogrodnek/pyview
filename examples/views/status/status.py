@@ -1,10 +1,10 @@
 import os
+from dataclasses import dataclass
+
 import psutil
 
 from pyview import LiveView, LiveViewSocket, is_connected
 from pyview.events import InfoEvent
-from dataclasses import dataclass
-
 
 PROCESS = None
 

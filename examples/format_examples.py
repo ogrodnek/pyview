@@ -1,6 +1,7 @@
 from dataclasses import dataclass
+from typing import Iterator, Optional
+
 from pyview import LiveView
-from typing import Optional, Iterator
 
 
 @dataclass

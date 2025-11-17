@@ -1,7 +1,7 @@
 import os
 
-from .template import Template
 from .errors import TemplateLoadError
+from .template import Template
 
 
 # Loads templates from the file system. Assumes files are utf-8 encoded. Compiled templates are

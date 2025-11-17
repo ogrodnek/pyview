@@ -1,6 +1,6 @@
 import datetime
-from . import errors
 
+from . import errors
 
 # User-configurable functions and variables available in all contexts.
 builtins = {

@@ -1,30 +1,31 @@
+import os
+
+from markupsafe import Markup
 from starlette.responses import HTMLResponse
-from starlette.staticfiles import StaticFiles
 from starlette.routing import Route
+from starlette.staticfiles import StaticFiles
+
 from pyview import PyView, defaultRootTemplate
 from pyview.vendor import ibis
 from pyview.vendor.ibis.loaders import FileReloader
-from markupsafe import Markup
-from .format_examples import ExampleEntry, format_examples
-import os
 
+from .format_examples import ExampleEntry, format_examples
 from .views import (
     CountLiveView,
     CountLiveViewPubSub,
-    VolumeLiveView,
     FifaAudienceLiveView,
-    StatusLiveView,
-    PodcastLiveView,
-    PlantsLiveView,
-    RegistrationLiveView,
-    JsCommandsLiveView,
-    PingLiveView,
-    CheckboxLiveView,
-    PresenceLiveView,
-    MapLiveView,
     FileUploadDemoLiveView,
-    KanbanLiveView,
     IncludesLiveView,
+    JsCommandsLiveView,
+    KanbanLiveView,
+    MapLiveView,
+    PingLiveView,
+    PlantsLiveView,
+    PodcastLiveView,
+    PresenceLiveView,
+    RegistrationLiveView,
+    StatusLiveView,
+    VolumeLiveView,
 )
 
 app = PyView()

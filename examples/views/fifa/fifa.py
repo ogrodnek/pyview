@@ -1,6 +1,8 @@
-from pyview import LiveView, LiveViewSocket, ConnectedLiveViewSocket
 from typing import TypedDict
-from .data import FifaAudience, list_items, Paging
+
+from pyview import ConnectedLiveViewSocket, LiveView, LiveViewSocket
+
+from .data import FifaAudience, Paging, list_items
 
 
 class FifaContext(TypedDict):

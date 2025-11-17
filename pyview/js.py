@@ -1,8 +1,9 @@
 import json
-from typing import Any, Optional
-from pyview.vendor.ibis import filters
-from pyview.template.context_processor import context_processor
 from dataclasses import dataclass
+from typing import Any, Optional
+
+from pyview.template.context_processor import context_processor
+from pyview.vendor.ibis import filters
 
 
 @context_processor

@@ -1,5 +1,5 @@
-from typing import Callable, TYPE_CHECKING
 import logging
+from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
     from pyview.live_view import InfoEvent

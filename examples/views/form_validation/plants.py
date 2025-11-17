@@ -1,8 +1,10 @@
-from pyview import LiveView, LiveViewSocket
 from dataclasses import dataclass, field
-from .data import plants, Plant
 from datetime import datetime
-from pyview.changesets import change_set, ChangeSet
+
+from pyview import LiveView, LiveViewSocket
+from pyview.changesets import ChangeSet, change_set
+
+from .data import Plant, plants
 
 
 @dataclass

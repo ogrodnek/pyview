@@ -1,5 +1,6 @@
-from pyview import LiveView, LiveViewSocket
 from typing import TypedDict
+
+from pyview import LiveView, LiveViewSocket
 
 
 class CountContext(TypedDict):

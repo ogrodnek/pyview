@@ -1,16 +1,18 @@
-from typing import Optional
 import json
 import logging
-from starlette.websockets import WebSocket, WebSocketDisconnect
-from urllib.parse import urlparse, parse_qs
-from pyview.live_socket import ConnectedLiveViewSocket, LiveViewSocket
-from pyview.live_routes import LiveViewLookup
-from pyview.csrf import validate_csrf_token
-from pyview.session import deserialize_session
-from pyview.auth import AuthProviderFactory
-from pyview.phx_message import parse_message
-from pyview.instrumentation import InstrumentationProvider
+from typing import Optional
+from urllib.parse import parse_qs, urlparse
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from starlette.websockets import WebSocket, WebSocketDisconnect
+
+from pyview.auth import AuthProviderFactory
+from pyview.csrf import validate_csrf_token
+from pyview.instrumentation import InstrumentationProvider
+from pyview.live_routes import LiveViewLookup
+from pyview.live_socket import ConnectedLiveViewSocket, LiveViewSocket
+from pyview.phx_message import parse_message
+from pyview.session import deserialize_session
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +23,7 @@ class AuthException(Exception):
 
 class LiveSocketMetrics:
     """Container for LiveSocket instrumentation metrics."""
-    
+
     def __init__(self, instrumentation: InstrumentationProvider):
         self.active_connections = instrumentation.create_updown_counter(
             "pyview.websocket.active_connections",
@@ -68,7 +70,7 @@ class LiveSocketHandler:
 
     async def handle(self, websocket: WebSocket):
         await self.manager.connect(websocket)
-        
+
         # Track active connections
         self.metrics.active_connections.add(1)
         self.sessions += 1
@@ -96,7 +98,7 @@ class LiveSocketHandler:
                 # Track mount
                 view_name = lv.__class__.__name__
                 self.metrics.mounts.add(1, {"view": view_name})
-                
+
                 await lv.mount(socket, session)
 
                 # Parse query parameters and merge with path parameters
@@ -164,12 +166,12 @@ class LiveSocketHandler:
                 event_name = payload["event"]
                 view_name = socket.liveview.__class__.__name__
                 self.metrics.events_processed.add(1, {"event": event_name, "view": view_name})
-                
+
                 # Time event processing
-                with self.instrumentation.time_histogram("pyview.events.duration", 
+                with self.instrumentation.time_histogram("pyview.events.duration",
                                                          {"event": event_name, "view": view_name}):
                     await socket.liveview.handle_event(event_name, value, socket)
-                
+
                 # Time rendering
                 with self.instrumentation.time_histogram("pyview.render.duration", {"view": view_name}):
                     rendered = await _render(socket)

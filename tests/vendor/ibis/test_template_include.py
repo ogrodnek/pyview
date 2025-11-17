@@ -1,7 +1,9 @@
-from pyview.vendor.ibis import Template
-import pyview.vendor.ibis as ibis
-from pyview.vendor.ibis.loaders import DictLoader
 import pytest
+
+import pyview.vendor.ibis as ibis
+from pyview.vendor.ibis import Template
+from pyview.vendor.ibis.loaders import DictLoader
+
 
 @pytest.fixture
 def template_loader():

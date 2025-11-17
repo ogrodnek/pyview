@@ -1,6 +1,7 @@
-from typing import Optional
 import inspect
 import os
+from typing import Optional
+
 from markupsafe import Markup
 
 
@@ -18,7 +19,7 @@ def find_associated_file(o: object, extension: str) -> Optional[str]:
 def find_associated_css(o: object) -> list[Markup]:
     css_file = find_associated_file(o, ".css")
     if css_file:
-        with open(css_file, "r") as css:
+        with open(css_file) as css:
             return [Markup(f"<style>{css.read()}</style>")]
 
     return []

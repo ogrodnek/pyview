@@ -1,8 +1,9 @@
-from pyview import LiveView, LiveViewSocket
-from .data import podcasts, Podcast
-
 from dataclasses import dataclass
 from typing import Optional
+
+from pyview import LiveView, LiveViewSocket
+
+from .data import Podcast, podcasts
 
 
 @dataclass

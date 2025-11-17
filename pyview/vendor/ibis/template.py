@@ -1,6 +1,7 @@
 from pyview.vendor import ibis
+
 from .context import Context
-from .nodes import ExtendsNode, BlockNode
+from .nodes import BlockNode, ExtendsNode
 
 
 # A Template object is initialized with a template string containing template markup and a
@@ -42,7 +43,7 @@ class Template:
                 parent_template = ibis.loader(self.root_node.children[0].parent_name)
                 return parent_template._render(context)
             else:
-                msg = f"No template loader has been specified. A template loader is required "
+                msg = "No template loader has been specified. A template loader is required "
                 msg += f"by the 'extends' tag in template '{self.template_id}'."
                 raise ibis.errors.TemplateLoadError(msg)
         else:

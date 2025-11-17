@@ -1,7 +1,8 @@
-from typing import TypeVar, Any, Generic, Optional
-from pydantic import BaseModel, ValidationError
 from dataclasses import dataclass
 from types import SimpleNamespace
+from typing import Any, Generic, Optional, TypeVar
+
+from pydantic import BaseModel, ValidationError
 
 Base = TypeVar("Base", bound=BaseModel)
 

@@ -1,4 +1,5 @@
 from typing import Callable, Optional, TypedDict
+
 from markupsafe import Markup
 
 

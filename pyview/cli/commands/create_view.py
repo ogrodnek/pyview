@@ -1,7 +1,8 @@
-import click
-from pathlib import Path
 import tomllib
+from pathlib import Path
 from typing import Optional
+
+import click
 
 
 def snake_case(name: str) -> str:

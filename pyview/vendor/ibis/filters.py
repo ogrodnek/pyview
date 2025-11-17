@@ -1,14 +1,14 @@
-import re
-import pprint
 import html
+import pprint
 import random
+import re
 
 from . import context
 
 try:
     import pygments
-    import pygments.lexers
     import pygments.formatters
+    import pygments.lexers
 except ImportError:
     pygments = None
 

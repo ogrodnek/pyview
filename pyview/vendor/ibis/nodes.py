@@ -1,16 +1,16 @@
 import ast
+import collections
+import itertools
 import operator
 import re
-import itertools
-import collections
-from pyview.vendor import ibis
 from typing import Any, Callable
 
-from . import utils
-from . import filters
-from . import errors
-from .tree import PartsTree
 from markupsafe import Markup, escape
+
+from pyview.vendor import ibis
+
+from . import errors, filters, utils
+from .tree import PartsTree
 
 # Dictionary of registered keywords for instruction tags.
 instruction_keywords = {}
@@ -308,7 +308,7 @@ class ForNode(Node):
     def process_token(self, token):
         match = self.regex.match(token.text)
         if match is None:
-            msg = f"Malformed 'for' tag."
+            msg = "Malformed 'for' tag."
             raise errors.TemplateSyntaxError(msg, token)
         self.loopvars = [var.strip() for var in match.group(1).split(",")]
         self.expr = Expression(match.group(2), token)
@@ -327,9 +327,9 @@ class ForNode(Node):
                 context.push()
                 if unpack:
                     try:
-                        unpacked = dict(zip(self.loopvars, item))
+                        unpacked = dict(zip(self.loopvars, item, strict=False))
                     except Exception as err:
-                        msg = f"Unpacking error."
+                        msg = "Unpacking error."
                         raise errors.TemplateRenderingError(msg, self.token) from err
                     else:
                         context.update(unpacked)
@@ -484,7 +484,7 @@ class IfNode(Node):
             else:
                 result = operator.truth(cond.lhs.eval(context))
         except Exception as err:
-            msg = f"An exception was raised while evaluating the condition in the "
+            msg = "An exception was raised while evaluating the condition in the "
             msg += f"'{self.tag}' tag."
             raise errors.TemplateRenderingError(msg, self.token) from err
         if cond.negated:
@@ -577,14 +577,14 @@ class CycleNode(Node):
         try:
             tag, arg = token.text.split(None, 1)
         except:
-            msg = f"Malformed 'cycle' tag."
+            msg = "Malformed 'cycle' tag."
             raise errors.TemplateSyntaxError(msg, token) from None
         self.expr = Expression(arg, token)
 
     def wrender(self, context):
         # We store our state info on the context object to avoid a threading mess if
         # the template is being simultaneously rendered by multiple threads.
-        if not self in context.stash:
+        if self not in context.stash:
             items = self.expr.eval(context)
             if not hasattr(items, "__iter__"):
                 items = ""
@@ -637,21 +637,21 @@ class IncludeNode(Node):
                 visitor(context, template.root_node)
                 context.pop()
             else:
-                msg = f"No template loader has been specified. "
-                msg += f"A template loader is required by the 'include' tag in "
+                msg = "No template loader has been specified. "
+                msg += "A template loader is required by the 'include' tag in "
                 msg += f"template '{self.token.template_id}', line {self.token.line_number}."
                 raise errors.TemplateLoadError(msg)
         else:
-            msg = f"Invalid argument for the 'include' tag. "
+            msg = "Invalid argument for the 'include' tag. "
             msg += f"The variable '{self.template_arg}' should evaluate to a string. "
             msg += f"This variable has the value: {repr(template_name)}."
             raise errors.TemplateRenderingError(msg, self.token)
-        
+
     def wrender(self, context):
         output = []
         self.visit_node(context, lambda ctx, node: output.append(node.render(ctx)))
         return "".join(output)
-    
+
     def tree_parts(self, context) -> PartsTree:
         output = []
         def visitor(ctx, node):

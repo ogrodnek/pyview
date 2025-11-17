@@ -1,6 +1,6 @@
-from dataclasses import dataclass, field
 import random
 import uuid
+from dataclasses import dataclass, field
 from typing import Literal, Optional
 
 TaskStatus = Literal["Backlog", "In Progress", "Done"]

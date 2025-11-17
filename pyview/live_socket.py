@@ -1,36 +1,39 @@
 from __future__ import annotations
-from starlette.websockets import WebSocket
+
+import datetime
 import json
 import logging
+import uuid
 from typing import (
-    Any,
-    TypeVar,
-    Generic,
     TYPE_CHECKING,
+    Any,
+    Callable,
+    Generic,
     Optional,
-    Union,
     TypeAlias,
     TypeGuard,
-    Callable,
+    TypeVar,
+    Union,
 )
 from urllib.parse import urlencode
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
 from apscheduler.jobstores.base import JobLookupError
-from pyview.vendor.flet.pubsub import PubSubHub, PubSub
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from starlette.websockets import WebSocket
+
+from pyview.async_stream_runner import AsyncStreamRunner
 from pyview.events import InfoEvent
-from pyview.uploads import UploadConstraints, UploadConfig, UploadManager
 from pyview.meta import PyViewMeta
 from pyview.template.render_diff import calc_diff
-import datetime
-import uuid
-from pyview.async_stream_runner import AsyncStreamRunner
+from pyview.uploads import UploadConfig, UploadConstraints, UploadManager
+from pyview.vendor.flet.pubsub import PubSub, PubSubHub
 
 logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
-    from .live_view import LiveView
     from .instrumentation import InstrumentationProvider
+    from .live_view import LiveView
 
 
 pub_sub_hub = PubSubHub()
@@ -38,7 +41,7 @@ pub_sub_hub = PubSubHub()
 T = TypeVar("T")
 
 
-def is_connected(socket: LiveViewSocket[T]) -> TypeGuard["ConnectedLiveViewSocket[T]"]:
+def is_connected(socket: LiveViewSocket[T]) -> TypeGuard[ConnectedLiveViewSocket[T]]:
     return socket.connected
 
 
@@ -79,7 +82,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         topic: str,
         liveview: LiveView,
         scheduler: AsyncIOScheduler,
-        instrumentation: "InstrumentationProvider",
+        instrumentation: InstrumentationProvider,
     ):
         self.websocket = websocket
         self.topic = topic

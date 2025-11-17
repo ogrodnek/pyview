@@ -1,9 +1,11 @@
-from pyview import LiveView, LiveViewSocket, ConnectedLiveViewSocket, is_connected
-from pyview.events import InfoEvent
-from typing import Optional
-from .avatars import Avatar, UserRepository
-from datetime import datetime
 from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Optional
+
+from pyview import ConnectedLiveViewSocket, LiveView, LiveViewSocket, is_connected
+from pyview.events import InfoEvent
+
+from .avatars import Avatar, UserRepository
 
 USER_REPO = UserRepository()
 

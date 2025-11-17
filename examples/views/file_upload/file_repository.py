@@ -1,7 +1,8 @@
-import collections
 import base64
-from PIL import Image
+import collections
 from io import BytesIO
+
+from PIL import Image
 
 
 class FileEntry:

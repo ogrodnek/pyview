@@ -1,10 +1,14 @@
+import sys
 import typing
 from dataclasses import dataclass
+
+from starlette.authentication import has_required_scope
+from starlette.authentication import requires as starlette_requires
 from starlette.websockets import WebSocket
-from starlette.authentication import requires as starlette_requires, has_required_scope
-from .provider import AuthProvider, AuthProviderFactory
+
 from pyview import LiveView
-import sys
+
+from .provider import AuthProvider, AuthProviderFactory
 
 if sys.version_info >= (3, 10):  # pragma: no cover
     from typing import ParamSpec

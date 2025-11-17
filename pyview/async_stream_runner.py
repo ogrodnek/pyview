@@ -1,7 +1,8 @@
 import asyncio
-import uuid
 import logging
+import uuid
 from typing import Any, AsyncGenerator, Callable, Optional
+
 from pyview.events.info_event import InfoEvent, InfoEventScheduler
 
 

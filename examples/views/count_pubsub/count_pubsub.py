@@ -1,5 +1,6 @@
-from pyview import LiveView, LiveViewSocket, is_connected, ConnectedLiveViewSocket
 from dataclasses import dataclass
+
+from pyview import ConnectedLiveViewSocket, LiveView, LiveViewSocket, is_connected
 
 
 @dataclass

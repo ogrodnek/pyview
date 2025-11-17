@@ -1,6 +1,8 @@
-from pyview.live_view import LiveView
-from typing import Callable, Any
+from typing import Any, Callable
+
 from starlette.routing import compile_path
+
+from pyview.live_view import LiveView
 
 
 class LiveViewLookup:
