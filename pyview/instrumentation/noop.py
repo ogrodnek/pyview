@@ -63,7 +63,7 @@ class NoOpSpan(Span):
 class NoOpInstrumentation(InstrumentationProvider):
     """
     Default no-operation instrumentation provider.
-    
+
     This implementation does nothing and has zero performance overhead.
     It's used as the default when no instrumentation is configured.
     """
