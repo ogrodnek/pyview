@@ -24,7 +24,5 @@ def test_with_statics_and_if():
     a = Template("{{greeting}} {% if display %}World{% endif %}")
     d = {"greeting": "Hello", "display": True}
 
-    assert a.tree_parts(d) == PartsTree(
-        statics=["", " ", ""], dynamics=["Hello", "World"]
-    )
+    assert a.tree_parts(d) == PartsTree(statics=["", " ", ""], dynamics=["Hello", "World"])
     assert a.render(d) == "Hello World"

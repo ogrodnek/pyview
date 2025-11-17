@@ -1,8 +1,10 @@
-from pyview import LiveView, LiveViewSocket
 from dataclasses import dataclass, field
-from .data import plants, Plant
 from datetime import datetime
-from pyview.changesets import change_set, ChangeSet
+
+from pyview import LiveView, LiveViewSocket
+from pyview.changesets import ChangeSet, change_set
+
+from .data import Plant, plants
 
 
 @dataclass
@@ -27,9 +29,7 @@ class PlantsLiveView(LiveView[PlantsContext]):
 
     async def handle_event(self, event, payload, socket: LiveViewSocket[PlantsContext]):
         if event == "water":
-            plant = next(
-                (p for p in socket.context.plants if p.id == payload["id"]), None
-            )
+            plant = next((p for p in socket.context.plants if p.id == payload["id"]), None)
             if plant:
                 print(f"Watering {plant.name}...")
                 plant.last_watered = datetime.now()

@@ -1,7 +1,8 @@
-import collections
 import base64
-from PIL import Image
+import collections
 from io import BytesIO
+
+from PIL import Image
 
 
 class FileEntry:
@@ -27,6 +28,7 @@ class FileRepository:
     """
     A simple repository to store file entries thumbnails as base64 strings for demo purposes.
     """
+
     def __init__(self):
         self.all_files = collections.deque(maxlen=10)
 

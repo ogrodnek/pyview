@@ -1,5 +1,6 @@
-from pyview import LiveView, LiveViewSocket, is_connected, ConnectedLiveViewSocket
 from dataclasses import dataclass
+
+from pyview import ConnectedLiveViewSocket, LiveView, LiveViewSocket, is_connected
 
 
 @dataclass
@@ -26,9 +27,7 @@ class CountLiveViewPubSub(LiveView[Count]):
         if is_connected(socket):
             await socket.subscribe("count")
 
-    async def handle_event(
-        self, event, payload, socket: ConnectedLiveViewSocket[Count]
-    ):
+    async def handle_event(self, event, payload, socket: ConnectedLiveViewSocket[Count]):
         if event == "decrement":
             socket.context.decrement()
         if event == "increment":

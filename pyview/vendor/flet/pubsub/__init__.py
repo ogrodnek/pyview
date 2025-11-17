@@ -1,1 +1,3 @@
-from .pub_sub import PubSubHub, PubSub
+from .pub_sub import PubSub, PubSubHub
+
+__all__ = ["PubSub", "PubSubHub"]

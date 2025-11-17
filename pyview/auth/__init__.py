@@ -1,2 +1,4 @@
+from .provider import AllowAllAuthProvider, AuthProvider, AuthProviderFactory
 from .required import requires
-from .provider import AuthProvider, AllowAllAuthProvider, AuthProviderFactory
+
+__all__ = ["AllowAllAuthProvider", "AuthProvider", "AuthProviderFactory", "requires"]

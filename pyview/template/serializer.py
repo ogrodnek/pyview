@@ -1,8 +1,5 @@
-from typing import Any, Union, Protocol, Optional
 from dataclasses import fields, is_dataclass
-from pydantic import BaseModel
-
-import inspect
+from typing import Any
 
 
 def serialize(assigns: Any) -> dict[str, Any]:

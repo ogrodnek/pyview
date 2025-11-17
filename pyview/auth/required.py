@@ -1,15 +1,14 @@
 import typing
 from dataclasses import dataclass
-from starlette.websockets import WebSocket
-from starlette.authentication import requires as starlette_requires, has_required_scope
-from .provider import AuthProvider, AuthProviderFactory
-from pyview import LiveView
-import sys
+from typing import ParamSpec
 
-if sys.version_info >= (3, 10):  # pragma: no cover
-    from typing import ParamSpec
-else:  # pragma: no cover
-    from typing_extensions import ParamSpec
+from starlette.authentication import has_required_scope
+from starlette.authentication import requires as starlette_requires
+from starlette.websockets import WebSocket
+
+from pyview import LiveView
+
+from .provider import AuthProvider, AuthProviderFactory
 
 _P = ParamSpec("_P")
 
@@ -20,9 +19,7 @@ class RequiredScopeAuthProvider(AuthProvider):
     status_code: int = 403
     redirect: typing.Optional[str] = None
 
-    def wrap(
-        self, func: typing.Callable[_P, typing.Any]
-    ) -> typing.Callable[_P, typing.Any]:
+    def wrap(self, func: typing.Callable[_P, typing.Any]) -> typing.Callable[_P, typing.Any]:
         return starlette_requires(self.scopes, self.status_code, self.redirect)(func)
 
     async def has_required_auth(self, websocket: WebSocket) -> bool:

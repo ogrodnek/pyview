@@ -1,6 +1,8 @@
-from starlette.websockets import WebSocketDisconnect
-from starlette.types import Message
 import json
+import struct
+
+from starlette.types import Message
+from starlette.websockets import WebSocketDisconnect
 
 
 def parse_message(message: Message) -> tuple[str, str, str, str, dict]:
@@ -19,15 +21,12 @@ def parse_message(message: Message) -> tuple[str, str, str, str, dict]:
     raise WebSocketDisconnect(message["code"])
 
 
-import struct
-
-
 class BinaryUploadSerDe:
     def deserialize(self, encoded_data: bytes) -> tuple[str, str, str, str, bytes]:
         offset = 0
 
         # Read the kind (1 byte)
-        kind = struct.unpack_from("B", encoded_data, offset)[0]
+        _kind = struct.unpack_from("B", encoded_data, offset)[0]
         offset += 1
 
         # Read lengths (4 bytes total, 1 byte each)

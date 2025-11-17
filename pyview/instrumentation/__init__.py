@@ -1,12 +1,12 @@
 """PyView instrumentation interfaces and implementations."""
 
 from .interfaces import (
-    InstrumentationProvider,
     Counter,
-    UpDownCounter,
     Gauge,
     Histogram,
+    InstrumentationProvider,
     Span,
+    UpDownCounter,
 )
 from .noop import NoOpInstrumentation
 

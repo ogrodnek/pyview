@@ -1,6 +1,8 @@
-from pyview import LiveView, LiveViewSocket, ConnectedLiveViewSocket
 from typing import TypedDict
-from .data import FifaAudience, list_items, Paging
+
+from pyview import ConnectedLiveViewSocket, LiveView, LiveViewSocket
+
+from .data import FifaAudience, Paging, list_items
 
 
 class FifaContext(TypedDict):
@@ -17,13 +19,9 @@ class FifaAudienceLiveView(LiveView[FifaContext]):
 
     async def mount(self, socket: LiveViewSocket[FifaContext], session):
         paging = Paging(1, 10)
-        socket.context = FifaContext(
-            {"audiences": list_items(paging), "paging": paging}
-        )
+        socket.context = FifaContext({"audiences": list_items(paging), "paging": paging})
 
-    async def handle_event(
-        self, event, payload, socket: ConnectedLiveViewSocket[FifaContext]
-    ):
+    async def handle_event(self, event, payload, socket: ConnectedLiveViewSocket[FifaContext]):
         paging = socket.context["paging"]
         paging.perPage = int(payload["perPage"][0])
         paging.page = 1
@@ -31,9 +29,7 @@ class FifaAudienceLiveView(LiveView[FifaContext]):
 
         socket.context["audiences"] = audiences
 
-        await socket.push_patch(
-            "/fifa", {"page": paging.page, "perPage": paging.perPage}
-        )
+        await socket.push_patch("/fifa", {"page": paging.page, "perPage": paging.perPage})
 
     async def handle_params(self, url, params, socket: LiveViewSocket[FifaContext]):
         paging = socket.context["paging"]

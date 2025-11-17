@@ -1,5 +1,4 @@
 import pytest
-from typing import Any
 from starlette.routing import compile_path
 
 from pyview.live_routes import LiveViewLookup

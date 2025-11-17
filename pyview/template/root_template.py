@@ -1,4 +1,5 @@
 from typing import Callable, Optional, TypedDict
+
 from markupsafe import Markup
 
 
@@ -30,18 +31,19 @@ def _defaultRootTemplate(
     context: RootTemplateContext, css: Markup, contentWrapper: ContentWrapper
 ) -> str:
     suffix = " | LiveView"
-    render_title = (context["title"] + suffix) if context.get("title", None) is not None else "LiveView"  # type: ignore
+    title = context.get("title")
+    render_title = (title + suffix) if title is not None else "LiveView"
     main_content = contentWrapper(
         context,
         Markup(
             f"""
       <div
         data-phx-main="true"
-        data-phx-session="{context['session']}"
+        data-phx-session="{context["session"]}"
         data-phx-static=""
-        id="phx-{context['id']}"
+        id="phx-{context["id"]}"
         >
-        {context['content']}
+        {context["content"]}
     </div>"""
         ),
     )
@@ -55,7 +57,7 @@ def _defaultRootTemplate(
 <html lang="en">
     <head>
       <title data-suffix="{suffix}">{render_title}</title>
-      <meta name="csrf-token" content="{context['csrf_token']}" />
+      <meta name="csrf-token" content="{context["csrf_token"]}" />
       <meta charset="utf-8">
       <meta http-equiv="X-UA-Compatible" content="IE=edge">
       <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">

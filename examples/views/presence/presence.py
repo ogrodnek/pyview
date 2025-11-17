@@ -1,9 +1,11 @@
-from pyview import LiveView, LiveViewSocket, ConnectedLiveViewSocket, is_connected
-from pyview.events import InfoEvent
-from typing import Optional
-from .avatars import Avatar, UserRepository
-from datetime import datetime
 from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Optional
+
+from pyview import ConnectedLiveViewSocket, LiveView, LiveViewSocket, is_connected
+from pyview.events import InfoEvent
+
+from .avatars import Avatar, UserRepository
 
 USER_REPO = UserRepository()
 
@@ -40,9 +42,7 @@ class PresenceLiveView(LiveView[PresenceContext]):
             await socket.broadcast("presence", {"user": user, "action": "joined"})
             await socket.subscribe("presence")
 
-    async def handle_info(
-        self, event, socket: ConnectedLiveViewSocket[PresenceContext]
-    ):
+    async def handle_info(self, event, socket: ConnectedLiveViewSocket[PresenceContext]):
         if event.name == "presence":
             socket.context.message = Message(
                 user=event.payload["user"], action=event.payload["action"]
@@ -56,6 +56,4 @@ class PresenceLiveView(LiveView[PresenceContext]):
     async def disconnect(self, socket: ConnectedLiveViewSocket[PresenceContext]):
         USER_REPO.unregister_avatar(socket.context.current_user)
 
-        await socket.broadcast(
-            "presence", {"user": socket.context.current_user, "action": "left"}
-        )
+        await socket.broadcast("presence", {"user": socket.context.current_user, "action": "left"})

@@ -1,36 +1,40 @@
 from __future__ import annotations
-from starlette.websockets import WebSocket
+
+import datetime
 import json
 import logging
+import uuid
+from contextlib import suppress
 from typing import (
-    Any,
-    TypeVar,
-    Generic,
     TYPE_CHECKING,
+    Any,
+    Callable,
+    Generic,
     Optional,
-    Union,
     TypeAlias,
     TypeGuard,
-    Callable,
+    TypeVar,
+    Union,
 )
 from urllib.parse import urlencode
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
 from apscheduler.jobstores.base import JobLookupError
-from pyview.vendor.flet.pubsub import PubSubHub, PubSub
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from starlette.websockets import WebSocket
+
+from pyview.async_stream_runner import AsyncStreamRunner
 from pyview.events import InfoEvent
-from pyview.uploads import UploadConstraints, UploadConfig, UploadManager
 from pyview.meta import PyViewMeta
 from pyview.template.render_diff import calc_diff
-import datetime
-import uuid
-from pyview.async_stream_runner import AsyncStreamRunner
+from pyview.uploads import UploadConfig, UploadConstraints, UploadManager
+from pyview.vendor.flet.pubsub import PubSub, PubSubHub
 
 logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
-    from .live_view import LiveView
     from .instrumentation import InstrumentationProvider
+    from .live_view import LiveView
 
 
 pub_sub_hub = PubSubHub()
@@ -38,7 +42,7 @@ pub_sub_hub = PubSubHub()
 T = TypeVar("T")
 
 
-def is_connected(socket: LiveViewSocket[T]) -> TypeGuard["ConnectedLiveViewSocket[T]"]:
+def is_connected(socket: LiveViewSocket[T]) -> TypeGuard[ConnectedLiveViewSocket[T]]:
     return socket.connected
 
 
@@ -79,7 +83,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         topic: str,
         liveview: LiveView,
         scheduler: AsyncIOScheduler,
-        instrumentation: "InstrumentationProvider",
+        instrumentation: InstrumentationProvider,
     ):
         self.websocket = websocket
         self.topic = topic
@@ -152,11 +156,12 @@ class ConnectedLiveViewSocket(Generic[T]):
                 try:
                     self.scheduler.remove_job(id)
                 except Exception:
-                    logger.warning(
-                        "Failed to remove scheduled job %s", id, exc_info=True
-                    )
+                    logger.warning("Failed to remove scheduled job %s", id, exc_info=True)
 
-    async def push_patch(self, path: str, params: dict[str, Any] = {}):
+    async def push_patch(self, path: str, params: Optional[dict[str, Any]] = None):
+        if params is None:
+            params = {}
+
         # or "replace"
         kind = "push"
 
@@ -176,21 +181,25 @@ class ConnectedLiveViewSocket(Generic[T]):
         ]
 
         # TODO another way to marshall this
-        for k in params:
-            params[k] = [params[k]]
+        # Create a copy to avoid mutating the caller's dict
+        params_for_handler = {k: [v] for k, v in params.items()}
 
-        await self.liveview.handle_params(to, params, self)
+        await self.liveview.handle_params(to, params_for_handler, self)
         try:
             await self.websocket.send_text(json.dumps(message))
         except Exception:
             logger.warning("Error sending patch message", exc_info=True)
 
-    async def push_navigate(self, path: str, params: dict[str, Any] = {}):
+    async def push_navigate(self, path: str, params: Optional[dict[str, Any]] = None):
         """Navigate to a different LiveView without full page reload"""
+        if params is None:
+            params = {}
         await self._navigate(path, params, kind="push")
 
-    async def replace_navigate(self, path: str, params: dict[str, Any] = {}):
+    async def replace_navigate(self, path: str, params: Optional[dict[str, Any]] = None):
         """Navigate to a different LiveView, replacing current history entry"""
+        if params is None:
+            params = {}
         await self._navigate(path, params, kind="replace")
 
     async def _navigate(self, path: str, params: dict[str, Any], kind: str):
@@ -215,8 +224,10 @@ class ConnectedLiveViewSocket(Generic[T]):
         except Exception:
             logger.warning("Error sending navigation message", exc_info=True)
 
-    async def redirect(self, path: str, params: dict[str, Any] = {}):
+    async def redirect(self, path: str, params: Optional[dict[str, Any]] = None):
         """Redirect to a new location with full page reload"""
+        if params is None:
+            params = {}
         to = path
         if params:
             to = to + "?" + urlencode(params)
@@ -253,21 +264,15 @@ class ConnectedLiveViewSocket(Generic[T]):
     async def close(self):
         self.connected = False
         for id in list(self.scheduled_jobs):
-            try:
+            with suppress(JobLookupError):
                 self.scheduler.remove_job(id)
-            except JobLookupError:
-                pass
         await self.pub_sub.unsubscribe_all_async()
 
-        try:
+        with suppress(Exception):
             self.upload_manager.close()
-        except Exception:
-            pass
 
-        try:
+        with suppress(Exception):
             await self.liveview.disconnect(self)
-        except Exception:
-            pass
 
 
 LiveViewSocket: TypeAlias = Union[ConnectedLiveViewSocket[T], UnconnectedSocket[T]]

@@ -1,13 +1,16 @@
-from pyview import LiveView, LiveViewSocket, is_connected
-from dataclasses import dataclass, field
 import datetime
-from collections import deque
-from .chart import Point
-import time
-import aiohttp
 import ssl
+import time
+from collections import deque
+from dataclasses import dataclass, field
+
+import aiohttp
 import certifi
-from pyview.events import InfoEvent, info, BaseEventHandler
+
+from pyview import LiveView, LiveViewSocket, is_connected
+from pyview.events import BaseEventHandler, InfoEvent, info
+
+from .chart import Point
 
 
 @dataclass
@@ -65,14 +68,14 @@ class PingLiveView(BaseEventHandler, LiveView[PingContext]):
     async def ping(self, site: PingSite):
         start = time.time_ns()
         connector = aiohttp.TCPConnector(ssl=ssl_context)
-        async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
-            async with session.head(site.url) as response:
-                status = response.status
-                diff = (time.time_ns() - start) / 1_000_000
-                site.responses.append(
-                    PingResponse(status, diff, datetime.datetime.now())
-                )
-                site.status = "OK" if status == 200 else "Error"
+        async with (
+            aiohttp.ClientSession(timeout=timeout, connector=connector) as session,
+            session.head(site.url) as response,
+        ):
+            status = response.status
+            diff = (time.time_ns() - start) / 1_000_000
+            site.responses.append(PingResponse(status, diff, datetime.datetime.now()))
+            site.status = "OK" if status == 200 else "Error"
 
     @info("ping")
     async def handle_ping(self, event, socket: LiveViewSocket[PingContext]):

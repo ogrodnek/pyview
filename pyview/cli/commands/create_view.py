@@ -1,7 +1,8 @@
-import click
-from pathlib import Path
 import tomllib
+from pathlib import Path
 from typing import Optional
+
+import click
 
 
 def snake_case(name: str) -> str:
@@ -50,7 +51,7 @@ def generate_html_file(name: str) -> str:
     css_class = kebab_case(name)
     return f'''<div class="{css_class}-container">
     <h1>{pascal_case(name)}</h1>
-    
+
     <div class="content">
         <!-- Add your content here -->
     </div>

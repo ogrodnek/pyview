@@ -1,10 +1,12 @@
-from pyview.vendor.ibis import Template
-from typing import Any, Union, Protocol, Optional, ClassVar
-from dataclasses import asdict, Field
-from .serializer import serialize
 import os.path
-from pyview.template.context_processor import apply_context_processors
+from dataclasses import Field, asdict
+from typing import Any, ClassVar, Optional, Protocol, Union
+
 from pyview.meta import PyViewMeta
+from pyview.template.context_processor import apply_context_processors
+from pyview.vendor.ibis import Template
+
+from .serializer import serialize
 
 
 class DataclassInstance(Protocol):
@@ -77,7 +79,7 @@ def template_file(filename: str) -> Optional[LiveTemplate]:
         if cached_mtime == mtime:
             return cached_template
 
-    with open(filename, "r") as f:
+    with open(filename) as f:
         t = LiveTemplate(Template(f.read(), template_id=filename))
         _cache[filename] = (mtime, t)
         return t

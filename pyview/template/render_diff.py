@@ -6,11 +6,7 @@ def calc_diff(old_tree: dict[str, Any], new_tree: dict[str, Any]) -> dict[str, A
     for key in new_tree:
         if key not in old_tree:
             diff[key] = new_tree[key]
-        elif (
-            isinstance(new_tree[key], dict)
-            and "s" in new_tree[key]
-            and "d" in new_tree[key]
-        ):
+        elif isinstance(new_tree[key], dict) and "s" in new_tree[key] and "d" in new_tree[key]:
             if isinstance(old_tree[key], str):
                 diff[key] = new_tree[key]
                 continue

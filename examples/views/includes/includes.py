@@ -1,6 +1,7 @@
-from pyview import LiveView
-from dataclasses import dataclass, field
 import random
+from dataclasses import dataclass, field
+
+from pyview import LiveView
 
 
 @dataclass

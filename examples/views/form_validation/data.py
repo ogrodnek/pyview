@@ -1,8 +1,8 @@
-from pydantic import BaseModel, Field
-
 import datetime
-import uuid
 import random
+import uuid
+
+from pydantic import BaseModel, Field
 
 
 class Plant(BaseModel):
@@ -13,9 +13,7 @@ class Plant(BaseModel):
 
     @property
     def needs_watering(self) -> bool:
-        return (
-            datetime.datetime.now() - self.last_watered
-        ).days >= self.watering_schedule_days
+        return (datetime.datetime.now() - self.last_watered).days >= self.watering_schedule_days
 
 
 PLANTS = None
@@ -33,12 +31,8 @@ def _plants() -> list[Plant]:
         Plant(name="Aloe", watering_schedule_days=7, last_watered=_random_date()),
         Plant(name="Cactus", watering_schedule_days=14, last_watered=_random_date()),
         Plant(name="Fern", watering_schedule_days=7, last_watered=_random_date()),
-        Plant(
-            name="Snake Plant", watering_schedule_days=14, last_watered=_random_date()
-        ),
-        Plant(
-            name="Spider Plant", watering_schedule_days=7, last_watered=_random_date()
-        ),
+        Plant(name="Snake Plant", watering_schedule_days=14, last_watered=_random_date()),
+        Plant(name="Spider Plant", watering_schedule_days=7, last_watered=_random_date()),
         Plant(name="Succulent", watering_schedule_days=14, last_watered=_random_date()),
     ]
 

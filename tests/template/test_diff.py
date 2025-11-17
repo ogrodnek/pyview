@@ -1,5 +1,5 @@
-from pyview.vendor.ibis import Template
 from pyview.template.render_diff import calc_diff
+from pyview.vendor.ibis import Template
 
 
 def test_simple_diff_no_changes():

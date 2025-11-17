@@ -22,7 +22,7 @@ national_parks = [
         "latLng": [32.2967, -111.1667],
         "description": "Named for the giant saguaro cactus, it offers desert landscapes and diverse wildlife.",
         "icon": "🌵",
-    },    
+    },
     {
         "name": "Zion National Park",
         "latLng": [37.2982, -113.0263],

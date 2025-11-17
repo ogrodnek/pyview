@@ -1,9 +1,11 @@
+import math
+from dataclasses import dataclass, field
+
 from pyview import LiveView, LiveViewSocket
 from pyview.uploads import UploadConfig, UploadConstraints
-from dataclasses import dataclass, field
 from pyview.vendor.ibis import filters
-from .file_repository import FileRepository, FileEntry
-import math
+
+from .file_repository import FileEntry, FileRepository
 
 
 @filters.register
@@ -44,9 +46,7 @@ class FileUploadDemoLiveView(LiveView[FileUploadDemoContext]):
         socket.context = FileUploadDemoContext(upload_config=config)
         socket.live_title = "File Upload Demo"
 
-    async def handle_event(
-        self, event, payload, socket: LiveViewSocket[FileUploadDemoContext]
-    ):
+    async def handle_event(self, event, payload, socket: LiveViewSocket[FileUploadDemoContext]):
         if event == "cancel":
             cancel_ref = payload["ref"]
             socket.context.upload_config.cancel_entry(cancel_ref)
@@ -58,6 +58,4 @@ class FileUploadDemoLiveView(LiveView[FileUploadDemoContext]):
                     socket.context.file_repository.add_file(
                         upload.entry.name, upload.file.name, upload.entry.type
                     )
-            socket.context.uploaded_files = [
-                f for f in socket.context.file_repository.get_all_files()
-            ]
+            socket.context.uploaded_files = list(socket.context.file_repository.get_all_files())

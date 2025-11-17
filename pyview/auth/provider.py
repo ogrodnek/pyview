@@ -1,16 +1,16 @@
-from typing import Protocol, TypeVar, Callable
+from typing import Callable, Protocol, TypeVar
+
 from starlette.websockets import WebSocket
+
 from pyview import LiveView
 
 _CallableType = TypeVar("_CallableType", bound=Callable)
 
 
 class AuthProvider(Protocol):
-    async def has_required_auth(self, websocket: WebSocket) -> bool:
-        ...
+    async def has_required_auth(self, websocket: WebSocket) -> bool: ...
 
-    def wrap(self, func: _CallableType) -> _CallableType:
-        ...
+    def wrap(self, func: _CallableType) -> _CallableType: ...
 
 
 class AllowAllAuthProvider(AuthProvider):
@@ -28,5 +28,5 @@ class AuthProviderFactory:
 
     @classmethod
     def set(cls, lv: type[LiveView], auth_provider: AuthProvider) -> type[LiveView]:
-        setattr(lv, "__pyview_auth_provider__", auth_provider)
+        setattr(lv, "__pyview_auth_provider__", auth_provider)  # noqa: B010
         return lv

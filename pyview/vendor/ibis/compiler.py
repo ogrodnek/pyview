@@ -1,16 +1,14 @@
-from . import nodes
-from . import errors
-
+from . import errors, nodes
 
 # Token delimiters.
-comment_start = '{#'
-comment_end = '#}'
-print_start = '{{'
-print_end = '}}'
-eprint_start = '{$'
-eprint_end = '$}'
-instruction_start = '{%'
-instruction_end = '%}'
+comment_start = "{#"
+comment_end = "#}"
+print_start = "{{"
+print_end = "}}"
+eprint_start = "{$"
+eprint_end = "$}"
+instruction_start = "{%"
+instruction_end = "%}"
 
 
 # Returns the root node of the compiled node tree.
@@ -20,10 +18,9 @@ def compile(template_string, template_id):
 
 # Tokens come in four different types: TEXT, PRINT, EPRINT, and INSTRUCTION.
 class Token:
-
     def __init__(self, token_type, token_text, template_id, line_number):
         words = token_text.split()
-        self.keyword = words[0] if words else ''
+        self.keyword = words[0] if words else ""
         self.type = token_type
         self.text = token_text
         self.template_id = template_id
@@ -35,7 +32,6 @@ class Token:
 
 # The Lexer takes a template string as input and chops it into a list of Tokens.
 class Lexer:
-
     def __init__(self, template_string, template_id):
         self.template_string = template_string
         self.template_id = template_id
@@ -63,7 +59,7 @@ class Lexer:
         return False
 
     def advance(self):
-        if self.template_string[self.index] == '\n':
+        if self.template_string[self.index] == "\n":
             self.line_number += 1
         self.index += 1
 
@@ -84,7 +80,7 @@ class Lexer:
         start_line_number = self.line_number
         while self.index < len(self.template_string):
             if self.match(eprint_end):
-                text = self.template_string[start_index:self.index].strip()
+                text = self.template_string[start_index : self.index].strip()
                 self.tokens.append(Token("EPRINT", text, self.template_id, start_line_number))
                 self.index += len(eprint_end)
                 return
@@ -98,7 +94,7 @@ class Lexer:
         start_line_number = self.line_number
         while self.index < len(self.template_string):
             if self.match(print_end):
-                text = self.template_string[start_index:self.index].strip()
+                text = self.template_string[start_index : self.index].strip()
                 self.tokens.append(Token("PRINT", text, self.template_id, start_line_number))
                 self.index += len(print_end)
                 return
@@ -112,35 +108,33 @@ class Lexer:
         start_line_number = self.line_number
         while self.index < len(self.template_string):
             if self.match(instruction_end):
-                text = self.template_string[start_index:self.index].strip()
+                text = self.template_string[start_index : self.index].strip()
                 self.tokens.append(Token("INSTRUCTION", text, self.template_id, start_line_number))
                 self.index += len(instruction_end)
                 return
             self.advance()
-        msg = f"Unclosed instruction tag."
+        msg = "Unclosed instruction tag."
         raise errors.TemplateLexingError(msg, self.template_id, start_line_number)
 
     def read_text(self):
         start_index = self.index
         start_line_number = self.line_number
         while self.index < len(self.template_string):
-            if self.match(comment_start):
-                break
-            elif self.match(eprint_start):
-                break
-            elif self.match(print_start):
-                break
-            elif self.match(instruction_start):
+            if (
+                self.match(comment_start)
+                or self.match(eprint_start)
+                or self.match(print_start)
+                or self.match(instruction_start)
+            ):
                 break
             self.advance()
-        text = self.template_string[start_index:self.index]
+        text = self.template_string[start_index : self.index]
         self.tokens.append(Token("TEXT", text, self.template_id, start_line_number))
 
 
 # The Parser takes a template string as input, lexes it into a token stream, then compiles the
 # token stream into a tree of nodes.
 class Parser:
-
     def __init__(self, template_string, template_id):
         self.template_string = template_string
         self.template_id = template_id
@@ -173,8 +167,8 @@ class Parser:
                     stack[-1].exit_scope()
                     stack.pop()
                     expecting.pop()
-            elif token.keyword == '':
-                msg = f"Empty instruction tag."
+            elif token.keyword == "":
+                msg = "Empty instruction tag."
                 raise errors.TemplateSyntaxError(msg, token)
             else:
                 msg = f"Unrecognised instruction tag '{token.keyword}'."
@@ -182,10 +176,9 @@ class Parser:
 
         if expecting:
             token = stack[-1].token
-            msg = f"Unexpected end of template. "
+            msg = "Unexpected end of template. "
             msg += f"Ibis was expecting a closing '{expecting[-1]}' tag to close the "
             msg += f"'{token.keyword}' tag opened in line {token.line_number}."
             raise errors.TemplateSyntaxError(msg, token)
 
         return stack.pop()
-

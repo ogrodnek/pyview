@@ -1,15 +1,17 @@
-from typing import TypeVar, Generic, Optional, Union, Any
-from .live_socket import LiveViewSocket, ConnectedLiveViewSocket
-from pyview.template import (
-    LiveTemplate,
-    template_file,
-    RenderedContent,
-    LiveRender,
-    find_associated_file,
-)
+from typing import Any, Generic, Optional, TypeVar, Union
+from urllib.parse import ParseResult
+
 from pyview.events import InfoEvent
 from pyview.meta import PyViewMeta
-from urllib.parse import ParseResult
+from pyview.template import (
+    LiveRender,
+    LiveTemplate,
+    RenderedContent,
+    find_associated_file,
+    template_file,
+)
+
+from .live_socket import ConnectedLiveViewSocket, LiveViewSocket
 
 T = TypeVar("T")
 

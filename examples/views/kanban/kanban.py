@@ -1,8 +1,10 @@
-from pyview import LiveView, LiveViewSocket
-from pyview.events import event, BaseEventHandler
 from dataclasses import dataclass, field
-from .tasks import TaskRepository, TaskList
+
+from pyview import LiveView, LiveViewSocket
+from pyview.events import BaseEventHandler, event
 from pyview.vendor.ibis import filters
+
+from .tasks import TaskList, TaskRepository
 
 
 @filters.register
@@ -37,9 +39,7 @@ class KanbanLiveView(BaseEventHandler, LiveView[KanbanContext]):
         socket.context = KanbanContext()
 
     @event("task-moved")
-    async def handle_task_moved(
-        self, event, payload, socket: LiveViewSocket[KanbanContext]
-    ):
+    async def handle_task_moved(self, event, payload, socket: LiveViewSocket[KanbanContext]):
         task_id = payload["taskId"]
 
         socket.context.task_repository.move_task(
@@ -47,8 +47,6 @@ class KanbanLiveView(BaseEventHandler, LiveView[KanbanContext]):
         )
 
     @event("add_task")
-    async def handle_add_task(
-        self, event, payload, socket: LiveViewSocket[KanbanContext]
-    ):
+    async def handle_add_task(self, event, payload, socket: LiveViewSocket[KanbanContext]):
         target_list = payload["task_list"]
         socket.context.task_repository.random_task(target_list)
