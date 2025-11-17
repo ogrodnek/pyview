@@ -112,6 +112,9 @@ ignore = [
 [tool.ruff.lint.isort]
 known-first-party = ["pyview"]
 
+[tool.ruff.lint.per-file-ignores]
+"pyview/vendor/**" = ["E722", "F811", "N818"]  # Ignore vendored code issues
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
