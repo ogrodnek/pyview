@@ -36,6 +36,10 @@ jobs:
         run: poetry install --no-interaction --no-root
       - name: Install project
         run: poetry install --no-interaction
+      - name: Run linter
+        run: |
+          poetry run ruff check .
+          poetry run ruff format --check .
       - name: Run tests
         run: poetry run pytest --cov --cov-branch --cov-report=xml
       - name: Upload coverage reports
