@@ -109,6 +109,7 @@ ignore = [
     "N806",   # mixed case variable in function
     "N815",   # mixed case attributes
     "N818",   # exception naming (keep AuthException, not AuthError)
+    "SIM108", # prefer if-else blocks over ternary operators for readability
 ]
 
 [tool.ruff.lint.isort]
