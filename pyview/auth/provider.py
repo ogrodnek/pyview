@@ -30,5 +30,5 @@ class AuthProviderFactory:
 
     @classmethod
     def set(cls, lv: type[LiveView], auth_provider: AuthProvider) -> type[LiveView]:
-        lv.__pyview_auth_provider__ = auth_provider
+        setattr(lv, "__pyview_auth_provider__", auth_provider)  # noqa: B010
         return lv
