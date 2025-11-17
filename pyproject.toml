@@ -101,9 +101,8 @@ select = [
 ]
 ignore = [
     "E501",   # line too long (handled by formatter)
-    "UP006",  # use-pep585-annotation (e.g., List[int] -> list[int])
-    "UP007",  # use-pep604-annotation (e.g., Optional[str] -> str | None)
-    "UP035",  # deprecated-import (e.g., typing.Iterator -> collections.abc.Iterator)
+    "UP007",  # use-pep604-annotation (keep Optional[str] instead of str | None)
+    "UP035",  # deprecated-import (keep typing.Iterator instead of collections.abc.Iterator)
 ]
 
 [tool.ruff.lint.isort]
