@@ -101,7 +101,8 @@ select = [
 ]
 ignore = [
     "E501",   # line too long (handled by formatter)
-    "UP007",  # use-pep604-annotation (keep Optional[str] instead of str | None)
+    "UP007",  # use-pep604-annotation (Union[X, None] -> X | None)
+    "UP045",  # use-pep604-annotation (Optional[X] -> X | None)
     "UP035",  # deprecated-import (keep typing.Iterator instead of collections.abc.Iterator)
     "N802", # mixed case function names
     "N803", # mixed case variable
