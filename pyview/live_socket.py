@@ -159,7 +159,10 @@ class ConnectedLiveViewSocket(Generic[T]):
                         "Failed to remove scheduled job %s", id, exc_info=True
                     )
 
-    async def push_patch(self, path: str, params: dict[str, Any] = {}):
+    async def push_patch(self, path: str, params: Optional[dict[str, Any]] = None):
+        if params is None:
+            params = {}
+
         # or "replace"
         kind = "push"
 
@@ -179,21 +182,25 @@ class ConnectedLiveViewSocket(Generic[T]):
         ]
 
         # TODO another way to marshall this
-        for k in params:
-            params[k] = [params[k]]
+        # Create a copy to avoid mutating the caller's dict
+        params_for_handler = {k: [v] for k, v in params.items()}
 
-        await self.liveview.handle_params(to, params, self)
+        await self.liveview.handle_params(to, params_for_handler, self)
         try:
             await self.websocket.send_text(json.dumps(message))
         except Exception:
             logger.warning("Error sending patch message", exc_info=True)
 
-    async def push_navigate(self, path: str, params: dict[str, Any] = {}):
+    async def push_navigate(self, path: str, params: Optional[dict[str, Any]] = None):
         """Navigate to a different LiveView without full page reload"""
+        if params is None:
+            params = {}
         await self._navigate(path, params, kind="push")
 
-    async def replace_navigate(self, path: str, params: dict[str, Any] = {}):
+    async def replace_navigate(self, path: str, params: Optional[dict[str, Any]] = None):
         """Navigate to a different LiveView, replacing current history entry"""
+        if params is None:
+            params = {}
         await self._navigate(path, params, kind="replace")
 
     async def _navigate(self, path: str, params: dict[str, Any], kind: str):
@@ -218,8 +225,10 @@ class ConnectedLiveViewSocket(Generic[T]):
         except Exception:
             logger.warning("Error sending navigation message", exc_info=True)
 
-    async def redirect(self, path: str, params: dict[str, Any] = {}):
+    async def redirect(self, path: str, params: Optional[dict[str, Any]] = None):
         """Redirect to a new location with full page reload"""
+        if params is None:
+            params = {}
         to = path
         if params:
             to = to + "?" + urlencode(params)
