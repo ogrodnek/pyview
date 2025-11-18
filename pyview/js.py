@@ -7,57 +7,59 @@ from pyview.vendor.ibis import filters
 
 
 @context_processor
-def add_js(meta):
+def add_js(meta) -> dict[str, "JsCommands"]:
     return {"js": JsCommands([])}
 
 
 @filters.register("js.add_class")
-def js_add_class(js: "JsCommands", selector: str, *classes):
+def js_add_class(js: "JsCommands", selector: str, *classes) -> "JsCommands":
     return js.add_class(selector, *classes)
 
 
 @filters.register("js.remove_class")
-def js_remove_class(js: "JsCommands", selector: str, *classes):
+def js_remove_class(js: "JsCommands", selector: str, *classes) -> "JsCommands":
     return js.remove_class(selector, *classes)
 
 
 @filters.register("js.show")
-def js_show(js: "JsCommands", selector: str):
+def js_show(js: "JsCommands", selector: str) -> "JsCommands":
     return js.show(selector)
 
 
 @filters.register("js.hide")
-def js_hide(js: "JsCommands", selector: str):
+def js_hide(js: "JsCommands", selector: str) -> "JsCommands":
     return js.hide(selector)
 
 
 @filters.register("js.toggle")
-def js_toggle(js: "JsCommands", selector: str):
+def js_toggle(js: "JsCommands", selector: str) -> "JsCommands":
     return js.toggle(selector)
 
 
 @filters.register("js.dispatch")
-def js_dispatch(js: "JsCommands", event: str, selector: str):
+def js_dispatch(js: "JsCommands", event: str, selector: str) -> "JsCommands":
     return js.dispatch(event, selector)
 
 
 @filters.register("js.push")
-def js_push(js: "JsCommands", event: str, payload: Optional[dict[str, Any]] = None):
+def js_push(js: "JsCommands", event: str, payload: Optional[dict[str, Any]] = None) -> "JsCommands":
     return js.push(event, payload)
 
 
 @filters.register("js.focus")
-def js_focus(js: "JsCommands", selector: str):
+def js_focus(js: "JsCommands", selector: str) -> "JsCommands":
     return js.focus(selector)
 
 
 @filters.register("js.focus_first")
-def js_focus_first(js: "JsCommands", selector: str):
+def js_focus_first(js: "JsCommands", selector: str) -> "JsCommands":
     return js.focus_first(selector)
 
 
 @filters.register("js.transition")
-def js_transition(js: "JsCommands", selector: str, transition: str, time: int = 200):
+def js_transition(
+    js: "JsCommands", selector: str, transition: str, time: int = 200
+) -> "JsCommands":
     return js.transition(selector, transition, time)
 
 
@@ -111,5 +113,5 @@ class JsCommands:
             )
         )
 
-    def __str__(self):
+    def __str__(self) -> str:
         return json.dumps([(c.cmd, c.opts) for c in self.commands])

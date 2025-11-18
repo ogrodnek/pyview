@@ -15,7 +15,7 @@ def serialize(assigns: Any) -> dict[str, Any]:
     raise TypeError("Assigns must be a dict or have an asdict() method")
 
 
-def isprop(v):
+def isprop(v) -> bool:
     return isinstance(v, property)
 
 
