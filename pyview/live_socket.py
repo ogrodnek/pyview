@@ -16,7 +16,7 @@ from typing import (
     TypeVar,
     Union,
 )
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 from apscheduler.jobstores.base import JobLookupError
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -184,7 +184,9 @@ class ConnectedLiveViewSocket(Generic[T]):
         # Create a copy to avoid mutating the caller's dict
         params_for_handler = {k: [v] for k, v in params.items()}
 
-        await self.liveview.handle_params(to, params_for_handler, self)
+        # Parse string to ParseResult for type consistency
+        parsed_url = urlparse(to)
+        await self.liveview.handle_params(parsed_url, params_for_handler, self)
         try:
             await self.websocket.send_text(json.dumps(message))
         except Exception:

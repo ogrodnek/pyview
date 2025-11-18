@@ -1,4 +1,4 @@
-from typing import Any, Generic, Optional, TypeVar, Union
+from typing import Any, Generic, Optional, TypeVar
 from urllib.parse import ParseResult
 
 from pyview.events import InfoEvent
@@ -16,9 +16,7 @@ from .live_socket import ConnectedLiveViewSocket, LiveViewSocket
 T = TypeVar("T")
 
 Session = dict[str, Any]
-
-# TODO: ideally this would always be a ParseResult, but we need to update push_patch
-URL = Union[ParseResult, str]
+URL = ParseResult
 
 
 class LiveView(Generic[T]):
