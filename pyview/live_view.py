@@ -16,6 +16,7 @@ from .live_socket import ConnectedLiveViewSocket, LiveViewSocket
 T = TypeVar("T")
 
 Session = dict[str, Any]
+URL = ParseResult
 
 
 class LiveView(Generic[T]):
@@ -31,7 +32,7 @@ class LiveView(Generic[T]):
     async def handle_info(self, event: InfoEvent, socket: ConnectedLiveViewSocket[T]):
         pass
 
-    async def handle_params(self, url: ParseResult, params, socket: LiveViewSocket[T]):
+    async def handle_params(self, url: URL, params, socket: LiveViewSocket[T]):
         pass
 
     async def disconnect(self, socket: ConnectedLiveViewSocket[T]):
