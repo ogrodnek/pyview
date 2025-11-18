@@ -57,7 +57,9 @@ def js_focus_first(js: "JsCommands", selector: str) -> "JsCommands":
 
 
 @filters.register("js.transition")
-def js_transition(js: "JsCommands", selector: str, transition: str, time: int = 200) -> "JsCommands":
+def js_transition(
+    js: "JsCommands", selector: str, transition: str, time: int = 200
+) -> "JsCommands":
     return js.transition(selector, transition, time)
 
 
