@@ -70,6 +70,42 @@ count.html:
 </div>
 ```
 
+# Testing
+
+PyView includes built-in testing utilities to make it easy to test your LiveViews.
+
+## Quick Example
+
+```python
+import pytest
+from pyview.testing import TestSocket
+from your_app.count import CountLiveView, CountContext
+
+@pytest.mark.asyncio
+async def test_increment():
+    view = CountLiveView()
+    socket = TestSocket[CountContext](context={"count": 0})
+
+    await view.handle_event("increment", {}, socket)
+
+    assert socket.context["count"] == 1
+```
+
+`TestSocket` is a test double that records all interactions (navigation, pub/sub, scheduled events, etc.) for easy assertions.
+
+## Features
+
+- ✅ No WebSocket or network setup required
+- ✅ Fast, isolated unit tests
+- ✅ Full type hint support for IDE autocomplete
+- ✅ Test all LiveView lifecycle methods (mount, handle_event, handle_info, etc.)
+- ✅ Built-in assertion helpers
+
+## Learn More
+
+- [Complete Testing Guide](docs/testing.md)
+- [Example Tests](examples/tests/)
+
 # Acknowledgements
 
 - Obviously this project wouldn't exist without [Phoenix LiveView](https://github.com/phoenixframework/phoenix_live_view), which is a wonderful paradigm and implementation. Besides using their ideas, we also directly use the LiveView JavaScript code.
