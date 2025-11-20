@@ -32,6 +32,7 @@ from .views import (
 # T-string example is only available on Python 3.14+
 if sys.version_info >= (3, 14):
     from .views.count.count_tstring import CounterTStringLiveView
+    from .views.count.count_auto_dispatch import CounterAutoDispatchLiveView
 
 app = PyView()
 app.mount(
@@ -152,6 +153,7 @@ routes = [
 # Add t-string example on Python 3.14+
 if sys.version_info >= (3, 14):
     routes.append(("/counter_tstring", CounterTStringLiveView))
+    routes.append(("/counter_auto_dispatch", CounterAutoDispatchLiveView))
 
 
 async def get(request):
