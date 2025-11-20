@@ -3,6 +3,7 @@ Pytest configuration for pyview tests.
 """
 
 import sys
+
 import pytest
 
 
@@ -13,10 +14,7 @@ def pytest_collection_modifyitems(config, items):
 
     skip_marker = pytest.mark.skip(reason="T-string tests require Python 3.14+")
     for item in items:
-        if (
-            "test_live_view_template" in item.nodeid
-            or "test_template_view" in item.nodeid
-        ):
+        if "test_live_view_template" in item.nodeid or "test_template_view" in item.nodeid:
             item.add_marker(skip_marker)
 
 
@@ -29,7 +27,4 @@ def pytest_ignore_collect(collection_path, path, config):
         return False
 
     # Skip files that contain t-string literals
-    if collection_path.name in ("test_live_view_template.py", "test_template_view.py"):
-        return True
-
-    return False
+    return collection_path.name in ("test_live_view_template.py", "test_template_view.py")

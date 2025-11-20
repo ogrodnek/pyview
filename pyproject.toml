@@ -89,6 +89,15 @@ asyncio_mode = "auto"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+exclude = [
+    # T-string files require Python 3.14+ syntax
+    "pyview/template/__init__.py",
+    "pyview/template/template_view.py",
+    "pyview/template/live_view_template.py",
+    "examples/views/count/count_tstring.py",
+    "tests/test_live_view_template.py",
+    "tests/test_template_view.py",
+]
 
 [tool.ruff.lint]
 select = [

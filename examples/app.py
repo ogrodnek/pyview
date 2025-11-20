@@ -1,4 +1,5 @@
 import os
+import sys
 
 from markupsafe import Markup
 from starlette.responses import HTMLResponse
@@ -8,10 +9,6 @@ from starlette.staticfiles import StaticFiles
 from pyview import PyView, defaultRootTemplate
 from pyview.vendor import ibis
 from pyview.vendor.ibis.loaders import FileReloader
-from markupsafe import Markup
-from .format_examples import ExampleEntry, format_examples
-import os
-import sys
 
 from .format_examples import ExampleEntry, format_examples
 from .views import (
