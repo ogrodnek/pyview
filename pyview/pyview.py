@@ -33,8 +33,8 @@ class PyView(Starlette):
 
     def __init__(self, *args, instrumentation: Optional[InstrumentationProvider] = None, **kwargs):
         # Extract user's lifespan if provided, then always use our composed lifespan
-        user_lifespan = kwargs.pop('lifespan', None)
-        kwargs['lifespan'] = self._create_lifespan(user_lifespan)
+        user_lifespan = kwargs.pop("lifespan", None)
+        kwargs["lifespan"] = self._create_lifespan(user_lifespan)
 
         super().__init__(*args, **kwargs)
         self.rootTemplate = defaultRootTemplate()
@@ -51,6 +51,7 @@ class PyView(Starlette):
         Args:
             user_lifespan: Optional user-provided lifespan context manager to wrap
         """
+
         @asynccontextmanager
         async def lifespan(app):
             # Startup: Start the scheduler
