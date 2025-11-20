@@ -17,19 +17,19 @@ class SampleView(AutoEventDispatch):
         self.call_log = []
 
     @event
-    async def increment(self, payload, socket):
+    async def increment(self, event, payload, socket):
         """Handler with @event (no args) - uses method name."""
         self.call_log.append(("increment", payload))
         return "increment called"
 
     @event()
-    async def decrement(self, payload, socket):
+    async def decrement(self, event, payload, socket):
         """Handler with @event() - uses method name."""
         self.call_log.append(("decrement", payload))
         return "decrement called"
 
     @event("custom-name")
-    async def custom_handler(self, payload, socket):
+    async def custom_handler(self, event, payload, socket):
         """Handler with explicit name."""
         self.call_log.append(("custom-name", payload))
         return "custom called"
@@ -84,8 +84,8 @@ async def test_method_callable():
     """Test that methods remain directly callable as normal async functions."""
     view = SampleView()
 
-    # Test direct call
-    result = await view.increment({"direct": True}, None)
+    # Test direct call (note: need to pass event parameter)
+    result = await view.increment("increment", {"direct": True}, None)
     assert result == "increment called"
     assert view.call_log[-1] == ("increment", {"direct": True})
 
@@ -137,7 +137,7 @@ class TestEventDecoratorVariants:
 
         class View(AutoEventDispatch):
             @event
-            async def handler(self, payload, socket):
+            async def handler(self, event, payload, socket):
                 return "called"
 
         view = View()
@@ -149,7 +149,7 @@ class TestEventDecoratorVariants:
 
         class View(AutoEventDispatch):
             @event()
-            async def handler(self, payload, socket):
+            async def handler(self, event, payload, socket):
                 return "called"
 
         view = View()
@@ -161,7 +161,7 @@ class TestEventDecoratorVariants:
 
         class View(AutoEventDispatch):
             @event("custom-name")
-            async def handler(self, payload, socket):
+            async def handler(self, event, payload, socket):
                 return "called"
 
         view = View()
@@ -173,7 +173,7 @@ class TestEventDecoratorVariants:
 
         class View(AutoEventDispatch):
             @event("name1", "name2")
-            async def handler(self, payload, socket):
+            async def handler(self, event, payload, socket):
                 return "called"
 
         view = View()
@@ -183,25 +183,3 @@ class TestEventDecoratorVariants:
         handler1 = view._event_handlers["name1"]
         handler2 = view._event_handlers["name2"]
         assert handler1 is handler2  # Same function object
-
-
-@pytest.mark.asyncio
-async def test_backward_compatibility_with_event_param():
-    """Test backward compatibility with handlers that have 'event' parameter."""
-
-    class OldStyleView(AutoEventDispatch):
-        def __init__(self):
-            self.received_event = None
-
-        @event
-        async def old_handler(self, event, payload, socket):
-            """Old-style handler with event parameter."""
-            self.received_event = event
-            return f"old: {event}"
-
-    view = OldStyleView()
-
-    # Should still work with old signature
-    result = await view.handle_event("old_handler", {"test": True}, None)
-    assert result == "old: old_handler"
-    assert view.received_event == "old_handler"

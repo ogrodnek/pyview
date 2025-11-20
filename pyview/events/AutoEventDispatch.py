@@ -1,5 +1,3 @@
-import inspect
-import logging
 from typing import Callable
 
 from .BaseEventHandler import BaseEventHandler
@@ -57,23 +55,20 @@ class AutoEventDispatch(BaseEventHandler):
     """
     Base class that enables automatic event dispatch from function references.
 
-    Methods decorated with @event (with or without explicit names) will:
-    1. Be callable like normal methods
-    2. Stringify to their event name when used in templates: {self.increment}
-    3. Automatically dispatch in handle_event()
+    Methods decorated with @event (with or without explicit names) can be
+    referenced directly in templates, automatically converting to their event name.
 
-    Inherits from BaseEventHandler and extends it to:
-    - Wrap methods with descriptors for template stringification
-    - Support cleaner handler signatures without the 'event' parameter
+    Inherits from BaseEventHandler and extends it by wrapping decorated methods
+    with descriptors for template stringification.
 
     Usage:
         class MyView(AutoEventDispatch, TemplateView, LiveView):
             @event  # or @event()
-            async def increment(self, payload, socket):
+            async def increment(self, event, payload, socket):
                 socket.context["count"] += 1
 
             @event("custom-name")
-            async def some_handler(self, payload, socket):
+            async def some_handler(self, event, payload, socket):
                 pass
 
             def template(self, assigns, meta):
@@ -99,32 +94,3 @@ class AutoEventDispatch(BaseEventHandler):
                             descriptor = EventMethodDescriptor(handler, event_name)
                             setattr(cls, attr_name, descriptor)
                         break
-
-    async def handle_event(self, event: str, payload: dict, socket):
-        """
-        Automatically dispatch events to decorated methods.
-
-        Extends BaseEventHandler to detect the method signature and call it appropriately:
-        - If method has 'event' parameter: handler(event, payload, socket)
-        - If method has no 'event' parameter: handler(payload, socket)
-        """
-        handler = self._event_handlers.get(event)
-
-        if handler:
-            # Inspect the signature to determine if it expects 'event' parameter
-            sig = inspect.signature(handler)
-            params = list(sig.parameters.keys())
-
-            # Remove 'self' from consideration
-            if params and params[0] == "self":
-                params = params[1:]
-
-            # Determine calling convention
-            if len(params) >= 3 and params[0] == "event":
-                # Old signature: (self, event, payload, socket)
-                return await handler(self, event, payload, socket)
-            else:
-                # New signature: (self, payload, socket)
-                return await handler(self, payload, socket)
-        else:
-            logging.warning(f"Unhandled event: {event} {payload}")

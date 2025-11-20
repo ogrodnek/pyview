@@ -18,7 +18,7 @@ class CounterAutoDispatchLiveView(AutoEventDispatch, TemplateView, LiveView[Coun
     This example demonstrates the new AutoEventDispatch feature which allows you to:
     1. Use @event without explicit names (method name becomes event name)
     2. Reference methods directly in templates: phx-click={self.increment}
-    3. Cleaner handler signatures without the 'event' parameter
+    3. No string duplication - method name IS the event name
 
     Compare this to count_tstring.py to see the differences!
     """
@@ -28,19 +28,19 @@ class CounterAutoDispatchLiveView(AutoEventDispatch, TemplateView, LiveView[Coun
 
     # Notice: @event without arguments - uses method name "increment"
     @event
-    async def increment(self, payload, socket: LiveViewSocket[CountContext]):
-        """Increment the counter. Notice the cleaner signature (no 'event' param)."""
+    async def increment(self, event, payload, socket: LiveViewSocket[CountContext]):
+        """Increment the counter."""
         socket.context["count"] += 1
 
     # You can also use @event() with parentheses
     @event()
-    async def decrement(self, payload, socket: LiveViewSocket[CountContext]):
+    async def decrement(self, event, payload, socket: LiveViewSocket[CountContext]):
         """Decrement the counter."""
         socket.context["count"] -= 1
 
     # Or use a custom event name if you prefer
     @event("reset-counter")
-    async def reset(self, payload, socket: LiveViewSocket[CountContext]):
+    async def reset(self, event, payload, socket: LiveViewSocket[CountContext]):
         """Reset counter to zero."""
         socket.context["count"] = 0
 
@@ -100,7 +100,7 @@ class CounterAutoDispatchLiveView(AutoEventDispatch, TemplateView, LiveView[Coun
                 <li>• Methods decorated with <code class="bg-blue-100 px-1 rounded">@event</code> auto-register</li>
                 <li>• Reference methods directly: <code class="bg-blue-100 px-1 rounded">{{'{self.increment}'}}</code></li>
                 <li>• Method name becomes event name automatically</li>
-                <li>• Cleaner signatures: no 'event' parameter needed</li>
+                <li>• No string duplication - single source of truth</li>
             </ul>
         </div>
     </div>
