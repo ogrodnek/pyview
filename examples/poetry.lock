@@ -1319,7 +1319,7 @@ dev = ["argcomplete", "attrs (>=19.2)", "hypothesis (>=3.56)", "mock", "requests
 
 [[package]]
 name = "pyview-web"
-version = "0.6.0"
+version = "0.7.0"
 description = "LiveView in Python"
 optional = false
 python-versions = ">=3.11,<3.15"
@@ -1332,9 +1332,8 @@ APScheduler = "^3.11.0"
 click = "^8.1.7"
 itsdangerous = "^2.2.0"
 markupsafe = "^3.0.2"
-pydantic = " 2.12.0a1"
+pydantic = "^2.11"
 starlette = "^0.50.0"
-uvicorn = "^0.38.0"
 wsproto = "^1.3.0"
 
 [package.source]
@@ -1612,4 +1611,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.15"
-content-hash = "4b34563a6d9c9b902722ca993db7fb29383bb59be77b68c1e06e2d38b39f1ba6"
+content-hash = "8a47a01781b22bf6d090ca59bdc6599ad0e8829f5c17412ed883ea2cf654b2cc"

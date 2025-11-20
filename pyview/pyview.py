@@ -1,4 +1,5 @@
 import uuid
+from contextlib import asynccontextmanager
 from typing import Optional
 from urllib.parse import parse_qs, urlparse
 
@@ -31,6 +32,10 @@ class PyView(Starlette):
     instrumentation: InstrumentationProvider
 
     def __init__(self, *args, instrumentation: Optional[InstrumentationProvider] = None, **kwargs):
+        # Extract user's lifespan if provided, then always use our composed lifespan
+        user_lifespan = kwargs.pop('lifespan', None)
+        kwargs['lifespan'] = self._create_lifespan(user_lifespan)
+
         super().__init__(*args, **kwargs)
         self.rootTemplate = defaultRootTemplate()
         self.instrumentation = instrumentation or NoOpInstrumentation()
@@ -39,6 +44,29 @@ class PyView(Starlette):
 
         self.routes.append(WebSocketRoute("/live/websocket", self.live_handler.handle))
         self.add_middleware(GZipMiddleware)
+
+    def _create_lifespan(self, user_lifespan=None):
+        """Create the lifespan context manager for proper startup/shutdown.
+
+        Args:
+            user_lifespan: Optional user-provided lifespan context manager to wrap
+        """
+        @asynccontextmanager
+        async def lifespan(app):
+            # Startup: Start the scheduler
+            app.live_handler.start_scheduler()
+
+            # Run user's lifespan if they provided one
+            if user_lifespan:
+                async with user_lifespan(app):
+                    yield
+            else:
+                yield
+
+            # Shutdown: Stop the scheduler
+            await app.live_handler.shutdown_scheduler()
+
+        return lifespan
 
     def add_live_view(self, path: str, view: type[LiveView]):
         async def lv(request: Request):
