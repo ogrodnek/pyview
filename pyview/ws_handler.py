@@ -54,7 +54,19 @@ class LiveSocketHandler:
         self.manager = ConnectionManager()
         self.sessions = 0
         self.scheduler = AsyncIOScheduler()
-        self.scheduler.start()
+        self._scheduler_started = False
+
+    def start_scheduler(self):
+        """Start the scheduler. Called during app startup in async context."""
+        if not self._scheduler_started:
+            self.scheduler.start()
+            self._scheduler_started = True
+
+    async def shutdown_scheduler(self):
+        """Shutdown the scheduler. Called during app shutdown."""
+        if self._scheduler_started:
+            self.scheduler.shutdown(wait=False)
+            self._scheduler_started = False
 
     async def check_auth(self, websocket: WebSocket, lv):
         if not await AuthProviderFactory.get(lv).has_required_auth(websocket):
