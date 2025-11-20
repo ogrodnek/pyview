@@ -1,10 +1,10 @@
+from string.templatelib import Template
 from typing import TypedDict
 
 from pyview.events import AutoEventDispatch, event
 from pyview.live_view import LiveView, LiveViewSocket
 from pyview.meta import PyViewMeta
 from pyview.template.template_view import TemplateView
-from string.templatelib import Template
 
 
 class CountContext(TypedDict):

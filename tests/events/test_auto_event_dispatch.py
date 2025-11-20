@@ -170,6 +170,7 @@ class TestEventDecoratorVariants:
 
     def test_event_with_multiple_names(self):
         """Test @event('name1', 'name2') with multiple names."""
+        from pyview.events.AutoEventDispatch import EventMethodDescriptor
 
         class View(AutoEventDispatch):
             @event("name1", "name2")
@@ -182,6 +183,8 @@ class TestEventDecoratorVariants:
         # Both should wrap the same underlying function
         desc1 = view._event_handlers["name1"]
         desc2 = view._event_handlers["name2"]
+        assert isinstance(desc1, EventMethodDescriptor)
+        assert isinstance(desc2, EventMethodDescriptor)
         assert desc1.func == desc2.func
 
 

@@ -1,6 +1,6 @@
 import inspect
 import logging
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
     from pyview.live_view import InfoEvent
@@ -80,8 +80,8 @@ class AutoEventDispatch:
                 '''
     """
 
-    _event_handlers: dict[str, Callable] = {}
-    _info_handlers: dict[str, Callable] = {}
+    _event_handlers: dict[str, Any] = {}
+    _info_handlers: dict[str, Any] = {}
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -92,13 +92,13 @@ class AutoEventDispatch:
 
         for attr_name in dir(cls):
             if not attr_name.startswith("_"):
-                attr = getattr(cls, attr_name)
+                attr: Any = getattr(cls, attr_name)
 
                 # Handle @event decorated methods
                 if hasattr(attr, "_event_names"):
                     for event_name in attr._event_names:
                         # Wrap with descriptor if not already wrapped
-                        original_func = attr
+                        original_func: Any = attr
                         if isinstance(attr, EventMethodDescriptor):
                             original_func = attr.func
 
@@ -106,8 +106,8 @@ class AutoEventDispatch:
                         setattr(cls, attr_name, descriptor)
                         cls._event_handlers[event_name] = descriptor
 
-                # Handle @info decorated methods
-                if hasattr(attr, "_info_names"):
+                # Handle @info decorated methods (no descriptor wrapping needed)
+                if hasattr(attr, "_info_names") and not isinstance(attr, EventMethodDescriptor):
                     for info_name in attr._info_names:
                         cls._info_handlers[info_name] = attr
 
