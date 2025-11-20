@@ -1,9 +1,8 @@
 import inspect
 import logging
-from typing import TYPE_CHECKING, Any, Callable
+from typing import Callable
 
-if TYPE_CHECKING:
-    from pyview.live_view import InfoEvent
+from .BaseEventHandler import BaseEventHandler
 
 
 class BoundEventMethod:
@@ -54,7 +53,7 @@ class EventMethodDescriptor:
             self.event_name = name
 
 
-class AutoEventDispatch:
+class AutoEventDispatch(BaseEventHandler):
     """
     Base class that enables automatic event dispatch from function references.
 
@@ -62,6 +61,10 @@ class AutoEventDispatch:
     1. Be callable like normal methods
     2. Stringify to their event name when used in templates: {self.increment}
     3. Automatically dispatch in handle_event()
+
+    Inherits from BaseEventHandler and extends it to:
+    - Wrap methods with descriptors for template stringification
+    - Support cleaner handler signatures without the 'event' parameter
 
     Usage:
         class MyView(AutoEventDispatch, TemplateView, LiveView):
@@ -80,53 +83,36 @@ class AutoEventDispatch:
                 '''
     """
 
-    _event_handlers: dict[str, Any] = {}
-    _info_handlers: dict[str, Any] = {}
-
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
 
-        # Find all decorated methods and register them
-        cls._event_handlers = {}
-        cls._info_handlers = {}
-
-        for attr_name in dir(cls):
-            if not attr_name.startswith("_"):
-                attr: Any = getattr(cls, attr_name)
-
-                # Handle @event decorated methods
-                if hasattr(attr, "_event_names"):
-                    for event_name in attr._event_names:
+        # BaseEventHandler already populated _event_handlers with raw functions
+        # Now we wrap them with descriptors for template stringification
+        for event_name, handler in list(cls._event_handlers.items()):
+            # Find which attribute this handler came from
+            for attr_name in dir(cls):
+                if not attr_name.startswith("_"):
+                    attr = getattr(cls, attr_name, None)
+                    if attr is handler or (isinstance(attr, EventMethodDescriptor) and attr.func is handler):
                         # Wrap with descriptor if not already wrapped
-                        original_func: Any = attr
-                        if isinstance(attr, EventMethodDescriptor):
-                            original_func = attr.func
-
-                        descriptor = EventMethodDescriptor(original_func, event_name)
-                        setattr(cls, attr_name, descriptor)
-                        cls._event_handlers[event_name] = descriptor
-
-                # Handle @info decorated methods (no descriptor wrapping needed)
-                if hasattr(attr, "_info_names") and not isinstance(attr, EventMethodDescriptor):
-                    for info_name in attr._info_names:
-                        cls._info_handlers[info_name] = attr
+                        if not isinstance(attr, EventMethodDescriptor):
+                            descriptor = EventMethodDescriptor(handler, event_name)
+                            setattr(cls, attr_name, descriptor)
+                        break
 
     async def handle_event(self, event: str, payload: dict, socket):
         """
         Automatically dispatch events to decorated methods.
 
-        Detects the method signature and calls it appropriately:
+        Extends BaseEventHandler to detect the method signature and call it appropriately:
         - If method has 'event' parameter: handler(event, payload, socket)
         - If method has no 'event' parameter: handler(payload, socket)
         """
-        descriptor = self._event_handlers.get(event)
+        handler = self._event_handlers.get(event)
 
-        if descriptor:
-            # Get the original function to inspect its signature
-            func = descriptor.func if isinstance(descriptor, EventMethodDescriptor) else descriptor
-
+        if handler:
             # Inspect the signature to determine if it expects 'event' parameter
-            sig = inspect.signature(func)
+            sig = inspect.signature(handler)
             params = list(sig.parameters.keys())
 
             # Remove 'self' from consideration
@@ -136,18 +122,9 @@ class AutoEventDispatch:
             # Determine calling convention
             if len(params) >= 3 and params[0] == "event":
                 # Old signature: (self, event, payload, socket)
-                return await func(self, event, payload, socket)
+                return await handler(self, event, payload, socket)
             else:
                 # New signature: (self, payload, socket)
-                return await func(self, payload, socket)
+                return await handler(self, payload, socket)
         else:
             logging.warning(f"Unhandled event: {event} {payload}")
-
-    async def handle_info(self, event: "InfoEvent", socket):
-        """Handle info events (same as BaseEventHandler)."""
-        handler = self._info_handlers.get(event.name)
-
-        if handler:
-            return await handler(self, event, socket)
-        else:
-            logging.warning(f"Unhandled info: {event.name} {event}")
