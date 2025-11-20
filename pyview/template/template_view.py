@@ -35,7 +35,7 @@ class TStringRenderedContent:
         """Convert tree back to HTML string (for testing/debugging)."""
         return self._tree_to_html(self._tree_data)
 
-    def _tree_to_html(self, tree: dict[str, Any]) -> str:
+    def _tree_to_html(self, tree: dict[str, Any] | list[Any]) -> str:
         """Convert tree back to HTML (simplified version)."""
         if isinstance(tree, str):
             return tree
