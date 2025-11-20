@@ -53,14 +53,8 @@ class CounterTStringLiveView(TemplateView, LiveView[CountContext]):
         </div>
 
         <div class="flex items-center justify-center space-x-4">
-            <button phx-click="decrement"
-                    class="w-16 h-16 rounded-full bg-white border-2 border-gray-300 text-gray-700 text-2xl font-medium hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-                −
-            </button>
-            <button phx-click="increment"
-                    class="w-16 h-16 rounded-full bg-blue-600 text-white text-2xl font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-                +
-            </button>
+            {self.button("−", "decrement", "secondary")}
+            {self.button("+", "increment", "primary")}
         </div>
 
         <div class="mt-8 text-center">
