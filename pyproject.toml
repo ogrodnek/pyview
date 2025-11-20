@@ -5,7 +5,7 @@ packages = [
   { include = "pyview" },
 ]
 
-version = "0.6.0"
+version = "0.7.0"
 description = "LiveView in Python"
 authors = ["Larry Ogrodnek <ogrodnek@gmail.com>"]
 license = "MIT"
@@ -49,7 +49,7 @@ wsproto = "^1.3.0"
 APScheduler = "^3.11.0"
 markupsafe = "^3.0.2"
 itsdangerous = "^2.2.0"
-pydantic = "^2.9.2"
+pydantic = "^2.11"
 click = "^8.1.7"
 
 [tool.poetry.scripts]
@@ -78,6 +78,9 @@ exclude = [
     "**/vendor",
     "**/node_modules",
     "**/__pycache__",
+    # T-string files require Python 3.14+
+    "tests/test_live_view_template.py",
+    "tests/test_template_view.py",
 ]
 
 [tool.pytest.ini_options]
@@ -86,6 +89,15 @@ asyncio_mode = "auto"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+exclude = [
+    # T-string files require Python 3.14+ syntax
+    "pyview/template/__init__.py",
+    "pyview/template/template_view.py",
+    "pyview/template/live_view_template.py",
+    "examples/views/count/count_tstring.py",
+    "tests/test_live_view_template.py",
+    "tests/test_template_view.py",
+]
 
 [tool.ruff.lint]
 select = [
