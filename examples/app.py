@@ -8,6 +8,10 @@ from starlette.staticfiles import StaticFiles
 from pyview import PyView, defaultRootTemplate
 from pyview.vendor import ibis
 from pyview.vendor.ibis.loaders import FileReloader
+from markupsafe import Markup
+from .format_examples import ExampleEntry, format_examples
+import os
+import sys
 
 from .format_examples import ExampleEntry, format_examples
 from .views import (
@@ -28,7 +32,9 @@ from .views import (
     VolumeLiveView,
 )
 
-from .views.count.count_tstring import CounterTStringLiveView
+# T-string example is only available on Python 3.14+
+if sys.version_info >= (3, 14):
+    from .views.count.count_tstring import CounterTStringLiveView
 
 app = PyView()
 app.mount(
@@ -94,7 +100,8 @@ css = """
 
 def content_wrapper(_context, content: Markup) -> Markup:
     return (
-        Markup("""
+        Markup(
+            """
     <div class="min-h-screen bg-gray-50">
         <nav class="bg-white shadow-sm border-b border-gray-200">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -106,7 +113,8 @@ def content_wrapper(_context, content: Markup) -> Markup:
             </div>
         </nav>
         <div class="py-8">
-    """)
+    """
+        )
         + content
         + Markup("</div></div>")
     )
@@ -142,8 +150,11 @@ routes = [
     ("/file_upload", FileUploadDemoLiveView),
     ("/kanban", KanbanLiveView),
     ("/includes", IncludesLiveView),
-    ("/counter_tstring", CounterTStringLiveView),
 ]
+
+# Add t-string example on Python 3.14+
+if sys.version_info >= (3, 14):
+    routes.append(("/counter_tstring", CounterTStringLiveView))
 
 
 async def get(request):

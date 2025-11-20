@@ -49,7 +49,7 @@ wsproto = "^1.3.0"
 APScheduler = "^3.11.0"
 markupsafe = "^3.0.2"
 itsdangerous = "^2.2.0"
-pydantic = " 2.12.0a1"
+pydantic = "^2.11"
 click = "^8.1.7"
 
 [tool.poetry.scripts]
@@ -78,6 +78,9 @@ exclude = [
     "**/vendor",
     "**/node_modules",
     "**/__pycache__",
+    # T-string files require Python 3.14+
+    "tests/test_live_view_template.py",
+    "tests/test_template_view.py",
 ]
 
 [tool.pytest.ini_options]
