@@ -1,6 +1,7 @@
 from typing import TypedDict
 
 from pyview.live_view import LiveView, LiveViewSocket
+from pyview.events import AutoEventDispatch, event
 from pyview.template.template_view import TemplateView
 from string.templatelib import Template
 from pyview.meta import PyViewMeta
@@ -10,7 +11,7 @@ class CountContext(TypedDict):
     count: int
 
 
-class CounterTStringLiveView(TemplateView, LiveView[CountContext]):
+class CounterTStringLiveView(AutoEventDispatch, TemplateView, LiveView[CountContext]):
     """
     Basic Counter (T-String Version)
 
@@ -21,18 +22,20 @@ class CounterTStringLiveView(TemplateView, LiveView[CountContext]):
     async def mount(self, socket: LiveViewSocket[CountContext], session):
         socket.context = CountContext({"count": 0})
 
-    async def handle_event(self, event, payload, socket: LiveViewSocket[CountContext]):
-        if event == "decrement":
-            socket.context["count"] -= 1
+    @event
+    async def decrement(self, event, payload, socket: LiveViewSocket[CountContext]):
+        socket.context["count"] -= 1
 
-        if event == "increment":
-            socket.context["count"] += 1
+    @event
+    async def increment(self, event, payload, socket: LiveViewSocket[CountContext]):
+        socket.context["count"] += 1
+
 
     async def handle_params(self, url, params, socket: LiveViewSocket[CountContext]):
         if "c" in params:
             socket.context["count"] = int(params["c"][0])
 
-    def button(self, label: str, event: str, style: str = "primary") -> Template:
+    def button(self, label: str, event_ref, style: str = "primary") -> Template:
         """Reusable button component demonstrating t-string composition."""
         base = "w-16 h-16 rounded-full text-2xl font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         if style == "primary":
@@ -40,7 +43,7 @@ class CounterTStringLiveView(TemplateView, LiveView[CountContext]):
         else:
             classes = f"{base} bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400"
 
-        return t"""<button phx-click="{event}" class="{classes}">{label}</button>"""
+        return t"""<button phx-click="{event_ref}" class="{classes}">{label}</button>"""
 
     def template(self, assigns: CountContext, meta: PyViewMeta) -> Template:
         count = assigns["count"]
@@ -53,8 +56,8 @@ class CounterTStringLiveView(TemplateView, LiveView[CountContext]):
         </div>
 
         <div class="flex items-center justify-center space-x-4">
-            {self.button("−", "decrement", "secondary")}
-            {self.button("+", "increment", "primary")}
+            {self.button("−", self.decrement, "secondary")}
+            {self.button("+", self.increment, "primary")}
         </div>
 
         <div class="mt-8 text-center">

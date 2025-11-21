@@ -88,7 +88,9 @@ class AutoEventDispatch(BaseEventHandler):
             for attr_name in dir(cls):
                 if not attr_name.startswith("_"):
                     attr = getattr(cls, attr_name, None)
-                    if attr is handler or (isinstance(attr, EventMethodDescriptor) and attr.func is handler):
+                    if attr is handler or (
+                        isinstance(attr, EventMethodDescriptor) and attr.func is handler
+                    ):
                         # Wrap with descriptor if not already wrapped
                         if not isinstance(attr, EventMethodDescriptor):
                             descriptor = EventMethodDescriptor(handler, event_name)

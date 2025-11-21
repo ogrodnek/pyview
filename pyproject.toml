@@ -94,7 +94,6 @@ exclude = [
     "pyview/template/template_view.py",
     "pyview/template/live_view_template.py",
     "examples/views/count/count_tstring.py",
-    "examples/views/count/count_auto_dispatch.py",
     "tests/test_live_view_template.py",
     "tests/test_template_view.py",
 ]
