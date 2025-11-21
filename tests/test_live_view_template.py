@@ -12,6 +12,7 @@ if sys.version_info < (3, 14):
     pytest.skip("T-string tests require Python 3.14+", allow_module_level=True)
 
 from pyview.template.live_view_template import LiveViewTemplate, LiveComponentPlaceholder
+from pyview.events import AutoEventDispatch, event
 
 
 class MockComponent:
@@ -416,6 +417,54 @@ class TestLiveViewTemplate:
                     {"s": ["Goodbye ", ""], "0": "Alice"}
                 ]
             }
+        }
+        assert result == expected
+
+    def test_invalid_method_reference_warning(self, caplog):
+        """Test that using non-@event methods in templates triggers a warning."""
+
+        class TestView(AutoEventDispatch):
+            @event
+            async def valid_handler(self, event, payload, socket):
+                """This is properly decorated."""
+                pass
+
+            async def invalid_handler(self, event, payload, socket):
+                """This is NOT decorated with @event."""
+                pass
+
+        view = TestView()
+
+        # Test with invalid method reference
+        template = t"<button phx-click={view.invalid_handler}>Click</button>"
+        result = LiveViewTemplate.process(template)
+
+        # Should log a warning about the invalid method reference
+        assert "Method reference 'invalid_handler' in template is not decorated with @event" in caplog.text
+        assert "TestView.invalid_handler" in caplog.text
+
+    def test_valid_method_reference_no_warning(self, caplog):
+        """Test that valid @event methods don't trigger warnings."""
+
+        class TestView(AutoEventDispatch):
+            @event
+            async def valid_handler(self, event, payload, socket):
+                """This is properly decorated."""
+                pass
+
+        view = TestView()
+
+        # Test with valid method reference - should stringify to event name
+        template = t"<button phx-click={view.valid_handler}>Click</button>"
+        result = LiveViewTemplate.process(template)
+
+        # Should NOT log a warning
+        assert "is not decorated with @event" not in caplog.text
+
+        # Should stringify to the event name
+        expected = {
+            "s": ["<button phx-click=", ">Click</button>"],
+            "0": "valid_handler"
         }
         assert result == expected
     

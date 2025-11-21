@@ -5,6 +5,8 @@ Converts Template objects into LiveView's diff tree structure.
 This module requires Python 3.14+ for t-string support.
 """
 
+import inspect
+import logging
 import sys
 from typing import Any, Union
 from dataclasses import dataclass
@@ -17,6 +19,13 @@ if sys.version_info < (3, 14):
     )
 
 from string.templatelib import Template
+
+# Import for checking if a method reference is valid
+try:
+    from pyview.events.AutoEventDispatch import BoundEventMethod
+except ImportError:
+    # If import fails, BoundEventMethod won't be available for checking
+    BoundEventMethod = None
 
 
 @dataclass
@@ -106,6 +115,25 @@ class LiveViewTemplate:
                     parts[key] = str(formatted_value.__html__())
 
                 else:
+                    # Check for invalid method references in templates
+                    if inspect.ismethod(formatted_value):
+                        # This is a method reference
+                        if BoundEventMethod is None or not isinstance(
+                            formatted_value, BoundEventMethod
+                        ):
+                            # It's a method but not an event handler
+                            method_name = formatted_value.__name__
+                            class_name = (
+                                formatted_value.__self__.__class__.__name__
+                                if hasattr(formatted_value, "__self__")
+                                else "Unknown"
+                            )
+                            logging.warning(
+                                f"Method reference '{method_name}' in template is not decorated with @event. "
+                                f"Did you forget to add @event decorator to {class_name}.{method_name}? "
+                                f"Only @event-decorated methods can be used as event handlers in templates."
+                            )
+
                     # Default: convert to string and escape
                     parts[key] = LiveViewTemplate.escape_html(str(formatted_value))
 
