@@ -1,15 +1,35 @@
 import logging
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
     from pyview.live_view import InfoEvent
 
 
 def event(*event_names):
-    """Decorator that marks methods as event handlers."""
+    """
+    Decorator that marks methods as event handlers.
 
-    def decorator(func):
-        func._event_names = event_names
+    Can be used with or without explicit event names:
+        @event                      # Uses method name as event name
+        @event()                    # Uses method name as event name
+        @event("custom-name")       # Uses "custom-name" as event name
+        @event("name1", "name2")    # Handles multiple event names
+
+    When used with AutoEventDispatch, methods without explicit names can be
+    referenced directly in templates: phx-click={self.increment}
+    """
+
+    def decorator(func: Callable) -> Callable:
+        # If no event names provided, use the function name
+        names = event_names if event_names else (func.__name__,)
+        func_any: Any = func
+        func_any._event_names = names
+        return func
+
+    # Handle @event without parentheses (decorator applied directly to function)
+    if len(event_names) == 1 and callable(event_names[0]):
+        func: Any = event_names[0]
+        func._event_names = (func.__name__,)
         return func
 
     return decorator
