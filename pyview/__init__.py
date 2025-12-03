@@ -6,6 +6,7 @@ from pyview.live_socket import (
     is_connected,
 )
 from pyview.live_view import LiveView
+from pyview.playground import playground
 from pyview.pyview import PyView, RootTemplate, RootTemplateContext, defaultRootTemplate
 
 __all__ = [
@@ -19,4 +20,5 @@ __all__ = [
     "is_connected",
     "ConnectedLiveViewSocket",
     "UnconnectedSocket",
+    "playground",
 ]
