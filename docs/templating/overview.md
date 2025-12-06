@@ -56,7 +56,7 @@ class CounterLiveView(TemplateView, LiveView[CountContext]):
 - Full Python syntax and IDE support (autocomplete, type checking)
 - Composable helper methods that return template fragments
 - No separate template files to manage
-- Method references work directly: `phx-click="{self.increment}"`
+- Method references work directly: `phx-click={self.increment}`
 
 See [T-String Templates](t-string-templates.md) for the full guide.
 
