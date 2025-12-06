@@ -16,7 +16,13 @@ class UnconnectedSocket(Generic[T]):
     live_title: Optional[str] = None     # Page title
     connected: bool = False              # Always False
     
-    def allow_upload(self, upload_name: str, constraints: UploadConstraints) -> UploadConfig:
+    def allow_upload(
+        self,
+        upload_name: str,
+        constraints: UploadConstraints,
+        auto_upload: bool = False,
+        progress: Optional[Callable] = None
+    ) -> UploadConfig:
         # File upload configuration
 ```
 
@@ -54,7 +60,13 @@ class ConnectedLiveViewSocket(Generic[T]):
     async def push_event(self, event: str, value: dict[str, Any])  # Send event to client
     
     # File uploads
-    def allow_upload(self, upload_name: str, constraints: UploadConstraints) -> UploadConfig
+    def allow_upload(
+        self,
+        upload_name: str,
+        constraints: UploadConstraints,
+        auto_upload: bool = False,
+        progress: Optional[Callable] = None
+    ) -> UploadConfig
 ```
 
 ## Checking Connection Status

@@ -109,11 +109,11 @@ async def mount(self, socket: LiveViewSocket[Context], session):
 
 ```python
 async def handle_params(self, url, params, socket: LiveViewSocket[Context]):
-    # Handle query parameters: /users?page=2&sort=name
+    # Query parameters come from the URL query string: /users?page=2&sort=name
     page = int(params.get("page", ["1"])[0])
     sort = params.get("sort", ["id"])[0]
-    
-    # Handle path parameters: /users/{user_id}
+
+    # Path parameters come from route placeholders: /users/{user_id}
     user_id = params.get("user_id")
     
     # Update state based on URL
@@ -125,7 +125,7 @@ async def handle_params(self, url, params, socket: LiveViewSocket[Context]):
 ```
 
 **Use for:**
-- Handling URL or path parameters
+- Handling query or path parameters
 - Loading data based on URL
 - Pagination, filtering, sorting
 

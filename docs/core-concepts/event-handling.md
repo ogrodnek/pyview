@@ -92,6 +92,8 @@ class CounterLiveView(BaseEventHandler, LiveView[CounterContext]):
         socket.context["count"] = 0
 ```
 
+> **Note:** Method names are arbitrary when using `@event("name")`. The `handle_` prefix shown here is a convention for readability, not a requirement.
+
 The `BaseEventHandler` will automatically route events to the correct method.
 
 ### AutoEventDispatch

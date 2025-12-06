@@ -66,7 +66,7 @@ All string interpolations are automatically HTML-escaped for security:
 
 ```python
 # If name contains "<script>alert('xss')</script>"
-# It will be rendered as "&lt;script&gt;alert('xss')&lt;/script&gt;"
+# Output will be: "<p>Hello, &lt;script&gt;alert('xss')&lt;/script&gt;</p>"
 return t"<p>Hello, {name}</p>"
 ```
 
