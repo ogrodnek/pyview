@@ -2,7 +2,7 @@
 
 Need to protect your LiveViews? PyView gives you the building blocks:
 
-- **Session access** — Read and write session data in your LiveViews
+- **Session access** — Read session data in your LiveViews
 - **View protection** — The `@requires` decorator checks scopes before mount
 - **Custom auth** — Implement your own logic with `AuthProvider`
 
