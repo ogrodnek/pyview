@@ -213,7 +213,7 @@ aws s3api put-bucket-lifecycle-configuration \
 
 For very large files (>5GB), use the `S3Multipart` uploader. It uploads in chunks, which is more reliable for large files and allows resuming interrupted uploads.
 
-Set `uploader="S3Multipart"` in your presign function and include the upload ID in the response. See the [multipart example](../examples/views/multipart_upload/) for complete implementation.
+Set `uploader="S3Multipart"` in your presign function and include the upload ID in the response.
 
 ---
 
@@ -256,9 +256,4 @@ Check the browser console. Common issues:
 
 ---
 
-## Additional Resources
-
-- [Phoenix LiveView external uploads](https://hexdocs.pm/phoenix_live_view/uploads-external.html)
-- [AWS presigned POST documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/PresignedUrlUploadObject.html)
-
-For simpler uploads that go through your server, see [Direct Uploads](direct.md).
+For uploads that go through your server, see [Direct Uploads](direct.md).
