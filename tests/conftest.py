@@ -27,4 +27,8 @@ def pytest_ignore_collect(collection_path, config):
         return False
 
     # Skip files that contain t-string literals
-    return collection_path.name in ("test_live_view_template.py", "test_template_view.py")
+    return collection_path.name in (
+        "test_live_view_template.py",
+        "test_template_view.py",
+        "test_stream_tstring.py",
+    )
