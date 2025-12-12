@@ -117,3 +117,29 @@ def test_nested_string_to_dict():
     new = {"a": {"b": {"s": [42]}}}
 
     assert calc_diff(old, new) == {"a": {"b": {"s": [42]}}}
+
+
+def test_dict_missing_d_key():
+    """
+    Test when old dict has "s" but not "d" - can happen with conditional template changes.
+    """
+    # Old has statics but no dynamics (malformed or transitional state)
+    old = {"0": {"s": ["<span>", "</span>"]}}
+
+    # New has both statics and dynamics
+    new = {"0": {"s": ["<span>", "</span>"], "d": [["Item1"], ["Item2"]]}}
+
+    # Should return the dynamics since statics match but dynamics changed from "missing" to values
+    assert calc_diff(old, new) == {"0": {"d": [["Item1"], ["Item2"]]}}
+
+
+def test_dict_missing_both_s_and_d():
+    """
+    Test when old dict has neither "s" nor "d" - completely different structure.
+    """
+    old = {"0": {"foo": "bar", "baz": 123}}
+
+    new = {"0": {"s": ["<div>", "</div>"], "d": [["A"]]}}
+
+    # Should return full new structure
+    assert calc_diff(old, new) == {"0": {"s": ["<div>", "</div>"], "d": [["A"]]}}

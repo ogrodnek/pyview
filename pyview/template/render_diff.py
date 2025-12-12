@@ -15,7 +15,7 @@ def calc_diff(old_tree: dict[str, Any], new_tree: dict[str, Any]) -> dict[str, A
             old_static = old_tree[key].get("s", [])
             new_static = new_tree[key]["s"]
 
-            old_dynamic = old_tree[key]["d"]
+            old_dynamic = old_tree[key].get("d", [])
             new_dynamic = new_tree[key]["d"]
 
             if old_static != new_static:
