@@ -26,6 +26,7 @@ from .views import (
     PresenceLiveView,
     RegistrationLiveView,
     StatusLiveView,
+    StreamsDemoLiveView,
     VolumeLiveView,
 )
 
@@ -41,6 +42,7 @@ app.mount(
             ("pyview", "static"),
             ("examples.views.maps", "static"),
             ("examples.views.kanban", "static"),
+            ("examples.views.streams", "static"),
         ]
     ),
     name="static",
@@ -92,6 +94,9 @@ css = """
 <!-- Sortable JS for kanban example -->
 <script src="https://unpkg.com/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="/static/kanban.js"></script>
+
+<!-- Streams demo -->
+<script defer type="text/javascript" src="/static/streams.js"></script>
 """
 
 
@@ -147,6 +152,7 @@ routes = [
     ("/file_upload", FileUploadDemoLiveView),
     ("/kanban", KanbanLiveView),
     ("/includes", IncludesLiveView),
+    ("/streams", StreamsDemoLiveView),
 ]
 
 # Add t-string example on Python 3.14+

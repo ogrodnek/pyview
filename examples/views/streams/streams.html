@@ -1,0 +1,104 @@
+<div class="max-w-6xl mx-auto px-4">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Left Column: Stream Demo -->
+        <div class="space-y-6">
+            <!-- Control Panel -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h1 class="text-2xl font-bold text-gray-900 mb-4">Streams Demo</h1>
+                <p class="text-gray-600 mb-4">
+                    Watch how streams efficiently send only changed items over the websocket.
+                </p>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <button phx-click="append"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        Append
+                    </button>
+                    <button phx-click="prepend"
+                            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                        Prepend
+                    </button>
+                    <button phx-click="insert-middle"
+                            class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                        Insert at 2
+                    </button>
+                    <button phx-click="bulk-add"
+                            class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">
+                        Bulk Add (3)
+                    </button>
+                    <button phx-click="reset"
+                            class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">
+                        Reset
+                    </button>
+                    <button phx-click="clear"
+                            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                        Clear All
+                    </button>
+                </div>
+            </div>
+
+            <!-- Messages Stream Container -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Messages Stream</h2>
+                <div id="messages" phx-update="stream" class="space-y-2 min-h-[200px]">
+                    {% for dom_id, msg in messages %}
+                    <div id="{{ dom_id }}"
+                         class="flex items-center justify-between p-3 rounded-lg border
+                                {% if msg.color == 'blue' %}bg-blue-50 border-blue-200{% endif %}
+                                {% if msg.color == 'green' %}bg-green-50 border-green-200{% endif %}
+                                {% if msg.color == 'purple' %}bg-purple-50 border-purple-200{% endif %}
+                                {% if msg.color == 'red' %}bg-red-50 border-red-200{% endif %}
+                                {% if msg.color == 'orange' %}bg-orange-50 border-orange-200{% endif %}
+                                {% if msg.color == 'teal' %}bg-teal-50 border-teal-200{% endif %}">
+                        <span class="text-gray-800">{{ msg.text }}</span>
+                        <button phx-click="delete"
+                                phx-value-id="{{ dom_id }}"
+                                class="text-gray-400 hover:text-red-500 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Diff Viewer -->
+        <div class="bg-gray-900 rounded-lg shadow-sm border border-gray-700 p-6"
+             id="diff-viewer"
+             phx-hook="DiffViewer">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-100">Websocket Diffs</h2>
+                <button onclick="window.clearDiffs()"
+                        class="text-xs px-2 py-1 bg-gray-700 text-gray-300 rounded hover:bg-gray-600 transition-colors">
+                    Clear
+                </button>
+            </div>
+            <div id="diff-log" class="space-y-3 max-h-[600px] overflow-y-auto font-mono text-sm">
+                <div class="text-gray-500 italic">Waiting for diffs...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Explanation -->
+    <div class="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">How Streams Work</h2>
+        <div class="prose prose-sm text-gray-600">
+            <p>
+                Streams allow efficient rendering of large lists. Instead of re-sending the entire list on each change,
+                only the <strong>operations</strong> (insert, delete, reset) are sent over the websocket.
+            </p>
+            <p class="mt-2">
+                The <code class="text-pink-600">"stream"</code> key in the diff contains:
+                <code class="text-pink-600">[ref, inserts, deletes, reset?]</code>
+            </p>
+            <ul class="mt-2 list-disc list-inside">
+                <li><strong>ref</strong>: Stream name (e.g., "messages")</li>
+                <li><strong>inserts</strong>: Array of <code>[dom_id, position, limit, update_only]</code></li>
+                <li><strong>deletes</strong>: Array of DOM IDs to remove</li>
+                <li><strong>reset</strong>: Boolean flag to clear all items first</li>
+            </ul>
+        </div>
+    </div>
+</div>
