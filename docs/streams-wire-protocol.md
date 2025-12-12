@@ -301,28 +301,47 @@ Wire format:
 }
 ```
 
-### 12. Bulk Operations
+### 12. Combined Operations (Insert + Update + Delete)
 
-Multiple inserts and deletes in one update:
+Multiple operations can happen in a single diff. The stream accumulates all operations during an event handler:
 
+```elixir
+# Server-side (Phoenix)
+socket
+|> stream_insert(:users, %{id: 10, name: "New User"})           # INSERT new item
+|> stream_insert(:users, %{id: 2, name: "Updated User 2"})      # UPDATE existing item
+|> stream_insert(:users, %{id: 11, name: "Another New"}, at: 0) # INSERT at beginning
+|> stream_delete_by_dom_id(:users, "users-5")                   # DELETE item
+|> stream_delete_by_dom_id(:users, "users-7")                   # DELETE another
+```
+
+Wire format (all operations in one diff):
 ```json
 {
   "0": {
     "d": [
-      ["users-10", "New User 1"],
-      ["users-11", "New User 2"]
+      ["users-10", "New User"],
+      ["users-2", "Updated User 2"],
+      ["users-11", "Another New"]
     ],
     "stream": [
       "users",
       [
         ["users-10", -1, null, false],
-        ["users-11", -1, null, false]
+        ["users-2", -1, null, false],
+        ["users-11", 0, null, false]
       ],
-      ["users-1", "users-2"]
+      ["users-5", "users-7"]
     ]
   }
 }
 ```
+
+**Key behaviors:**
+- **Inserts array**: Contains ALL items being added or updated (3 items above)
+- **Deletes array**: Contains ALL DOM IDs being removed (2 items above)
+- **Updates don't move**: When `users-2` is "inserted" but already exists in DOM, it updates in place
+- **Position applies to new items**: `users-11` goes to beginning (`at: 0`), others append (`at: -1`)
 
 ## HTML Template Requirements
 
