@@ -10,7 +10,7 @@ from markupsafe import Markup, escape
 from pyview.vendor import ibis
 
 from . import errors, filters, utils
-from .tree import PartsTree
+from .tree import PartsTree, StreamComprehension
 
 # Dictionary of registered keywords for instruction tags.
 instruction_keywords = {}
@@ -375,11 +375,23 @@ class ForNode(Node):
         }
 
     def tree_parts(self, context):
+        # Import here to avoid circular imports
+        from pyview.stream import Stream
+
         output = []
 
         def visitor(node, ctx):
             output.append(node.tree_parts(ctx))
 
+        # Get the collection to check if it's a Stream
+        collection = self.expr.eval(context)
+
+        # Check if this is a Stream
+        if isinstance(collection, Stream):
+            self.visit_nodes(context, visitor)
+            return StreamComprehension(parts=output, stream=collection)
+
+        # Regular collection - use standard visit
         self.visit_nodes(context, visitor)
         return output
 
