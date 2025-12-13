@@ -164,6 +164,7 @@ class LiveSocketHandler:
 
             if event == "event":
                 value = payload["value"]
+                print(f"DEBUG Full payload: {payload}")
 
                 if payload["type"] == "form":
                     print(f"DEBUG Raw form value: {value}")
