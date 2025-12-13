@@ -16,6 +16,12 @@ from .streams import StreamsDemoLiveView
 from .volume import VolumeLiveView
 from .webping import PingLiveView
 
+# T-string component examples require Python 3.14+
+import sys
+
+if sys.version_info >= (3, 14):
+    from .components import StatelessComponentsDemo
+
 __all__ = [
     "CountLiveView",
     "VolumeLiveView",

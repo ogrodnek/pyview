@@ -34,6 +34,7 @@ from .views import (
 if sys.version_info >= (3, 14):
     from .views.count.count_tstring import CounterTStringLiveView
     from .views.streams.streams_tstring import StreamsTStringLiveView
+    from .views.components import StatelessComponentsDemo
 
 app = PyView()
 app.mount(
@@ -156,6 +157,7 @@ routes = [
 if sys.version_info >= (3, 14):
     routes.append(("/counter_tstring", CounterTStringLiveView))
     routes.append(("/streams_tstring", StreamsTStringLiveView))
+    routes.append(("/stateless_components", StatelessComponentsDemo))
 
 
 async def get(request):
