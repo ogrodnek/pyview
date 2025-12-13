@@ -249,46 +249,44 @@ class TestStreamCombinedOperations:
 
 
 class TestStreamWireFormat:
-    """Test wire format generation."""
+    """Test wire format generation.
+
+    Phoenix LiveView 0.18.x format: [{dom_id: at_position}, [delete_ids]]
+    """
 
     def test_basic_insert_wire_format(self):
         stream = Stream([User(id=1, name="Alice")], name="users")
         wire = stream._get_wire_format()
 
         assert wire is not None
-        assert wire[0] == "users"  # ref
-        assert wire[1] == [["users-1", -1, None, False]]  # inserts
-        assert wire[2] == []  # deletes
-        assert len(wire) == 3  # no reset flag
+        assert wire[0] == {"users-1": -1}  # inserts: {dom_id: at}
+        assert wire[1] == []  # deletes
 
     def test_delete_wire_format(self):
         stream = Stream(name="users")
         stream.delete_by_id("users-1")
         wire = stream._get_wire_format()
 
-        assert wire[0] == "users"
-        assert wire[1] == []  # no inserts
-        assert wire[2] == ["users-1"]  # deletes
+        assert wire[0] == {}  # no inserts
+        assert wire[1] == ["users-1"]  # deletes
 
     def test_reset_wire_format(self):
+        """Reset sends inserts for new items (client clears on phx-update=stream)."""
         stream = Stream(name="users")
         stream.reset([User(id=1, name="Alice")])
         wire = stream._get_wire_format()
 
-        assert wire[0] == "users"
-        assert wire[1] == [["users-1", -1, None, False]]
-        assert wire[2] == []
-        assert wire[3] is True  # reset flag
+        assert wire[0] == {"users-1": -1}  # inserts
+        assert wire[1] == []  # deletes
 
     def test_reset_empty_wire_format(self):
+        """Empty reset - client clears container, no new inserts."""
         stream = Stream(name="users")
         stream.reset()
         wire = stream._get_wire_format()
 
-        assert wire[0] == "users"
-        assert wire[1] == []
-        assert wire[2] == []
-        assert wire[3] is True
+        assert wire[0] == {}  # no inserts
+        assert wire[1] == []  # no deletes
 
     def test_combined_operations_wire_format(self):
         stream = Stream(name="users")
@@ -297,18 +295,16 @@ class TestStreamWireFormat:
         stream.delete_by_id("users-5")
         wire = stream._get_wire_format()
 
-        assert wire[0] == "users"
-        assert len(wire[1]) == 2  # two inserts
-        assert wire[1][0] == ["users-10", -1, None, False]
-        assert wire[1][1] == ["users-11", 0, None, False]
-        assert wire[2] == ["users-5"]
+        assert wire[0] == {"users-10": -1, "users-11": 0}  # inserts
+        assert wire[1] == ["users-5"]  # deletes
 
-    def test_insert_with_all_options_wire_format(self):
+    def test_insert_with_position_wire_format(self):
+        """Position (at) is preserved in wire format."""
         stream = Stream(name="users")
-        stream.insert(User(id=1, name="Alice"), at=2, limit=100, update_only=True)
+        stream.insert(User(id=1, name="Alice"), at=2)
         wire = stream._get_wire_format()
 
-        assert wire[1] == [["users-1", 2, 100, True]]
+        assert wire[0] == {"users-1": 2}  # at=2 preserved
 
     def test_no_ops_returns_none(self):
         stream = Stream(name="users")

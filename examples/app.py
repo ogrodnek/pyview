@@ -30,9 +30,10 @@ from .views import (
     VolumeLiveView,
 )
 
-# T-string example is only available on Python 3.14+
+# T-string examples are only available on Python 3.14+
 if sys.version_info >= (3, 14):
     from .views.count.count_tstring import CounterTStringLiveView
+    from .views.streams.streams_tstring import StreamsTStringLiveView
 
 app = PyView()
 app.mount(
@@ -42,7 +43,6 @@ app.mount(
             ("pyview", "static"),
             ("examples.views.maps", "static"),
             ("examples.views.kanban", "static"),
-            ("examples.views.streams", "static"),
         ]
     ),
     name="static",
@@ -94,9 +94,6 @@ css = """
 <!-- Sortable JS for kanban example -->
 <script src="https://unpkg.com/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="/static/kanban.js"></script>
-
-<!-- Streams demo -->
-<script defer type="text/javascript" src="/static/streams.js"></script>
 """
 
 
@@ -155,9 +152,10 @@ routes = [
     ("/streams", StreamsDemoLiveView),
 ]
 
-# Add t-string example on Python 3.14+
+# Add t-string examples on Python 3.14+
 if sys.version_info >= (3, 14):
     routes.append(("/counter_tstring", CounterTStringLiveView))
+    routes.append(("/streams_tstring", StreamsTStringLiveView))
 
 
 async def get(request):

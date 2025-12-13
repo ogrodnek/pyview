@@ -76,8 +76,9 @@ class TestStreamDiffBasics:
         assert "0" in diff
         comp = diff["0"]
         assert "stream" in comp
-        # Should have insert for Bob
-        assert comp["stream"][1] == [["users-2", -1, None, False]]
+        # 0.18.x format: [{dom_id: at}, [deletes]]
+        assert comp["stream"][0] == {"users-2": -1}  # insert for Bob
+        assert comp["stream"][1] == []  # no deletes
         # Should have dynamics for Bob
         assert "d" in comp
 
@@ -100,11 +101,12 @@ class TestStreamDiffBasics:
         assert "0" in diff
         comp = diff["0"]
         assert "stream" in comp
-        # Should have delete
-        assert comp["stream"][2] == ["users-1"]
+        # 0.18.x format: [{dom_id: at}, [deletes]]
+        assert comp["stream"][0] == {}  # no inserts
+        assert comp["stream"][1] == ["users-1"]  # delete
 
     def test_reset_operation_in_diff(self):
-        """Reset operation should appear in diff with reset flag."""
+        """Reset operation sends items as inserts in 0.18.x."""
         template = Template(
             """{% for dom_id, user in users %}<div id="{{ dom_id }}">{{ user.name }}</div>{% endfor %}"""
         )
@@ -122,9 +124,10 @@ class TestStreamDiffBasics:
         assert "0" in diff
         comp = diff["0"]
         assert "stream" in comp
-        # Should have reset flag (4th element is True)
-        assert len(comp["stream"]) == 4
-        assert comp["stream"][3] is True
+        # 0.18.x format: [{dom_id: at}, [deletes]] - no reset flag
+        assert len(comp["stream"]) == 2
+        assert comp["stream"][0] == {"users-10": -1}  # inserts
+        assert comp["stream"][1] == []  # no deletes
 
 
 class TestStreamDiffMultipleRenders:
@@ -148,7 +151,8 @@ class TestStreamDiffMultipleRenders:
         diff1 = calc_diff(tree1, tree2)
 
         assert "0" in diff1
-        assert diff1["0"]["stream"][1][0][0] == "users-1"
+        # 0.18.x format: [{dom_id: at}, [deletes]]
+        assert "users-1" in diff1["0"]["stream"][0]
 
         # Insert second user
         stream.insert(User(id=2, name="Bob"))
@@ -156,9 +160,9 @@ class TestStreamDiffMultipleRenders:
         diff2 = calc_diff(tree2, tree3)
 
         assert "0" in diff2
-        assert diff2["0"]["stream"][1][0][0] == "users-2"
+        assert "users-2" in diff2["0"]["stream"][0]
         # Only Bob should be in this diff, not Alice
-        assert len(diff2["0"]["stream"][1]) == 1
+        assert len(diff2["0"]["stream"][0]) == 1
 
     def test_insert_then_delete_sequence(self):
         """Test insert followed by delete in separate renders."""
@@ -177,8 +181,9 @@ class TestStreamDiffMultipleRenders:
         assert "0" in diff
         comp = diff["0"]
         assert "stream" in comp
-        assert comp["stream"][1] == []  # no inserts
-        assert comp["stream"][2] == ["users-1"]  # delete
+        # 0.18.x format: [{dom_id: at}, [deletes]]
+        assert comp["stream"][0] == {}  # no inserts (empty dict)
+        assert comp["stream"][1] == ["users-1"]  # delete
 
 
 class TestStreamDiffCombinedOps:
@@ -203,10 +208,10 @@ class TestStreamDiffCombinedOps:
         assert "0" in diff
         comp = diff["0"]
         assert "stream" in comp
-        # Insert Bob
-        assert comp["stream"][1] == [["users-2", -1, None, False]]
+        # 0.18.x format: [{dom_id: at}, [deletes]]
+        assert comp["stream"][0] == {"users-2": -1}  # Insert Bob
         # Delete Alice
-        assert comp["stream"][2] == ["users-1"]
+        assert comp["stream"][1] == ["users-1"]
 
 
 class TestStreamDiffEdgeCases:
@@ -232,7 +237,8 @@ class TestStreamDiffEdgeCases:
         assert "0" in diff
         comp = diff["0"]
         assert "stream" in comp
-        assert len(comp["stream"][1]) == 2
+        # 0.18.x format: [{dom_id: at}, [deletes]]
+        assert len(comp["stream"][0]) == 2
         # Should include statics since it's first time with content
         assert "s" in comp
 
@@ -254,9 +260,10 @@ class TestStreamDiffEdgeCases:
         assert "0" in diff
         comp = diff["0"]
         assert "stream" in comp
-        assert comp["stream"][1] == []  # no inserts
-        assert len(comp["stream"]) == 4
-        assert comp["stream"][3] is True  # reset flag
+        # 0.18.x format: [{dom_id: at}, [deletes]] - no reset flag
+        assert comp["stream"][0] == {}  # no inserts (empty dict)
+        assert len(comp["stream"]) == 2
+        assert comp["stream"][1] == []  # no deletes
 
     def test_stream_with_surrounding_content(self):
         """Stream with other dynamic content should diff correctly."""

@@ -14,6 +14,7 @@ class Message:
 class StreamsContext(TypedDict):
     messages: Stream[Message]
     next_id: int
+    update_count: int
 
 
 class StreamsDemoLiveView(LiveView[StreamsContext]):
@@ -21,7 +22,7 @@ class StreamsDemoLiveView(LiveView[StreamsContext]):
     Streams Demo
 
     This example demonstrates Phoenix LiveView streams in PyView.
-    Watch the websocket diff panel to see how only changed items are sent over the wire.
+    Streams efficiently send only changed items over the websocket.
     """
 
     async def mount(self, socket: LiveViewSocket[StreamsContext], session):
@@ -35,6 +36,7 @@ class StreamsDemoLiveView(LiveView[StreamsContext]):
         socket.context = StreamsContext(
             messages=Stream(initial_messages, name="messages"),
             next_id=4,
+            update_count=0,
         )
 
     async def handle_event(self, event, payload, socket: LiveViewSocket[StreamsContext]):
@@ -60,23 +62,16 @@ class StreamsDemoLiveView(LiveView[StreamsContext]):
             if dom_id:
                 ctx["messages"].delete_by_id(dom_id)
 
-        elif event == "delete-first":
-            # Delete first item by constructing the expected dom_id
-            # In a real app you'd track IDs differently
-            ctx["messages"].delete_by_id("messages-1")
-
-        elif event == "reset":
-            # Reset to new items
-            new_messages = [
-                Message(id=100, text="Stream was reset!", color="red"),
-                Message(id=101, text="All previous items cleared", color="orange"),
-            ]
-            ctx["messages"].reset(new_messages)
-            ctx["next_id"] = 102
-
-        elif event == "clear":
-            # Clear all items
-            ctx["messages"].reset()
+        elif event == "update-first":
+            # Update the first message (id=1) with new text
+            # Re-inserting with the same ID updates the existing element in place
+            ctx["update_count"] += 1
+            updated_msg = Message(
+                id=1,
+                text=f"Updated {ctx['update_count']} time(s)!",
+                color="amber"
+            )
+            ctx["messages"].insert(updated_msg)
 
         elif event == "bulk-add":
             # Add multiple items at once

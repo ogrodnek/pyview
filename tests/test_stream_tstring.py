@@ -86,8 +86,10 @@ class TestStreamListLogic:
         result = LiveViewTemplate._process_stream_list(sl)
 
         # Should have stream metadata
+        # 0.18.x format: [{dom_id: at}, [deletes]]
         assert "stream" in result
-        assert result["stream"][0] == "users"
+        assert result["stream"][0] == {"users-1": -1}  # inserts
+        assert result["stream"][1] == []  # no deletes
 
     def test_process_stream_list_with_operations(self, skip_if_no_tstring):
         """_process_stream_list includes all stream operations."""
@@ -105,10 +107,11 @@ class TestStreamListLogic:
 
         result = LiveViewTemplate._process_stream_list(sl)
 
+        # 0.18.x format: [{dom_id: at}, [deletes]]
         stream_meta = result["stream"]
-        assert stream_meta[0] == "users"
-        assert len(stream_meta[1]) == 2  # 2 inserts
-        assert stream_meta[2] == ["users-old"]
+        assert len(stream_meta[0]) == 2  # 2 inserts
+        assert stream_meta[0] == {"users-1": -1, "users-2": 0}
+        assert stream_meta[1] == ["users-old"]  # deletes
 
     def test_process_stream_list_empty_with_delete(self, skip_if_no_tstring):
         """Empty stream with delete operations."""
@@ -121,11 +124,13 @@ class TestStreamListLogic:
         sl = StreamList(items=[], stream=stream)
         result = LiveViewTemplate._process_stream_list(sl)
 
+        # 0.18.x format: [{dom_id: at}, [deletes]]
         assert "stream" in result
-        assert result["stream"][2] == ["users-1"]
+        assert result["stream"][0] == {}  # no inserts
+        assert result["stream"][1] == ["users-1"]  # deletes
 
     def test_process_stream_list_reset(self, skip_if_no_tstring):
-        """Stream reset operation."""
+        """Stream reset operation - sends items as inserts in 0.18.x."""
         from pyview.template.live_view_template import StreamList, LiveViewTemplate
         from pyview.stream import Stream
 
@@ -136,8 +141,10 @@ class TestStreamListLogic:
         sl = StreamList(items=items, stream=stream)
         result = LiveViewTemplate._process_stream_list(sl)
 
-        assert len(result["stream"]) == 4
-        assert result["stream"][3] is True  # reset flag
+        # 0.18.x format: [{dom_id: at}, [deletes]] - no reset flag
+        assert len(result["stream"]) == 2
+        assert result["stream"][0] == {"users-10": -1}  # inserts
+        assert result["stream"][1] == []  # no deletes
 
     def test_process_stream_list_empty_no_ops(self, skip_if_no_tstring):
         """Empty stream with no operations returns empty string."""

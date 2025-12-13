@@ -275,23 +275,18 @@ class Stream(Generic[T]):
 
     def _to_wire_format(self, ops: StreamOps) -> list:
         """
-        Convert operations to Phoenix wire format.
+        Convert operations to Phoenix LiveView 0.18.x wire format.
 
-        Format: [ref, inserts, deletes] or [ref, inserts, deletes, true] for reset
+        Format: [{dom_id: at_position, ...}, [delete_ids]]
 
-        Where inserts is: [[dom_id, at, limit, update_only], ...]
-        And deletes is: [dom_id, ...]
+        The Phoenix JS client expects:
+        - inserts: object mapping dom_id -> at position (0=prepend, -1=append, N=index)
+        - deletes: array of dom_ids to remove
         """
-        inserts = [
-            [ins.dom_id, ins.at, ins.limit, ins.update_only] for ins in ops.inserts
-        ]
+        # Build inserts as object: {dom_id: at_position}
+        inserts = {ins.dom_id: ins.at for ins in ops.inserts}
 
-        result: list[Any] = [ops.ref, inserts, ops.deletes]
-
-        if ops.reset:
-            result.append(True)
-
-        return result
+        return [inserts, ops.deletes]
 
     def _get_wire_format(self) -> list | None:
         """

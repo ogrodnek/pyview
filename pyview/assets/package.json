@@ -3,6 +3,6 @@
     "nprogress": "^0.2.0",
     "phoenix": "^1.7.0-rc.2",
     "phoenix_html": "^3.2.0",
-    "phoenix_live_view": "^0.18.11"
+    "phoenix_live_view": "^0.18.18"
   }
 }
