@@ -376,6 +376,10 @@ class LiveSocketHandler:
 async def _render(socket: ConnectedLiveViewSocket):
     rendered = (await socket.liveview.render(socket.context, socket.meta)).tree()
 
+    # Run pending component lifecycle methods (mount/update)
+    # Components are registered during template rendering, so we process them after
+    await socket.components.run_pending_lifecycle()
+
     if socket.live_title:
         rendered["t"] = socket.live_title
         socket.live_title = None
