@@ -169,6 +169,9 @@ class LiveSocketHandler:
                 if payload["type"] == "form":
                     print(f"DEBUG Raw form value: {value}")
                     value = parse_qs(value)
+                    # LiveView 1.0: _target is at payload level, not in form data
+                    if "_target" in payload:
+                        value["_target"] = [payload["_target"]]
                     print(f"DEBUG Parsed form value: {value}")
                     socket.upload_manager.maybe_process_uploads(value, payload)
 
