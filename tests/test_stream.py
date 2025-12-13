@@ -88,6 +88,7 @@ class TestStreamInsert:
         stream.insert(User(id=1, name="Alice"), at=0)
 
         ops = stream._get_pending_ops()
+        assert ops is not None
         assert ops.inserts[0].at == 0
 
     def test_insert_at_index(self):
@@ -95,6 +96,7 @@ class TestStreamInsert:
         stream.insert(User(id=1, name="Alice"), at=5)
 
         ops = stream._get_pending_ops()
+        assert ops is not None
         assert ops.inserts[0].at == 5
 
     def test_insert_with_limit(self):
@@ -102,6 +104,7 @@ class TestStreamInsert:
         stream.insert({"id": 1, "text": "Hi"}, limit=100)
 
         ops = stream._get_pending_ops()
+        assert ops is not None
         assert ops.inserts[0].limit == 100
 
     def test_insert_with_negative_limit(self):
@@ -109,6 +112,7 @@ class TestStreamInsert:
         stream.insert({"id": 1, "text": "Hi"}, at=0, limit=-50)
 
         ops = stream._get_pending_ops()
+        assert ops is not None
         assert ops.inserts[0].at == 0
         assert ops.inserts[0].limit == -50
 
@@ -117,6 +121,7 @@ class TestStreamInsert:
         stream.insert(User(id=1, name="Alice"), update_only=True)
 
         ops = stream._get_pending_ops()
+        assert ops is not None
         assert ops.inserts[0].update_only is True
 
     def test_insert_returns_dom_id(self):
@@ -131,6 +136,7 @@ class TestStreamInsert:
 
         assert dom_ids == ["users-1", "users-2"]
         ops = stream._get_pending_ops()
+        assert ops is not None
         assert len(ops.inserts) == 2
 
     def test_insert_many_with_position(self):
@@ -139,6 +145,7 @@ class TestStreamInsert:
         stream.insert_many(users, at=0, limit=10)
 
         ops = stream._get_pending_ops()
+        assert ops is not None
         assert all(ins.at == 0 for ins in ops.inserts)
         assert all(ins.limit == 10 for ins in ops.inserts)
 
@@ -153,6 +160,7 @@ class TestStreamDelete:
 
         assert dom_id == "users-1"
         ops = stream._get_pending_ops()
+        assert ops is not None
         assert ops.deletes == ["users-1"]
 
     def test_delete_by_id(self):
@@ -161,6 +169,7 @@ class TestStreamDelete:
 
         assert dom_id == "users-42"
         ops = stream._get_pending_ops()
+        assert ops is not None
         assert ops.deletes == ["users-42"]
 
     def test_multiple_deletes(self):
@@ -170,6 +179,7 @@ class TestStreamDelete:
         stream.delete_by_id("users-3")
 
         ops = stream._get_pending_ops()
+        assert ops is not None
         assert ops.deletes == ["users-1", "users-2", "users-3"]
 
 
@@ -183,6 +193,7 @@ class TestStreamReset:
         stream.reset()
 
         ops = stream._get_pending_ops()
+        assert ops is not None
         assert ops.reset is True
         assert ops.inserts == []
         assert ops.deletes == []
@@ -195,6 +206,7 @@ class TestStreamReset:
         stream.reset(new_users)
 
         ops = stream._get_pending_ops()
+        assert ops is not None
         assert ops.reset is True
         assert len(ops.inserts) == 2
         assert ops.inserts[0].dom_id == "users-10"
@@ -208,6 +220,7 @@ class TestStreamReset:
         stream.reset([User(id=99, name="Only")])
 
         ops = stream._get_pending_ops()
+        assert ops is not None
         assert ops.reset is True
         assert len(ops.inserts) == 1
         assert ops.inserts[0].dom_id == "users-99"
@@ -222,6 +235,7 @@ class TestStreamCombinedOperations:
         stream.delete_by_id("users-old")
 
         ops = stream._get_pending_ops()
+        assert ops is not None
         assert len(ops.inserts) == 1
         assert len(ops.deletes) == 1
 
@@ -232,6 +246,7 @@ class TestStreamCombinedOperations:
         stream.insert(User(id=3, name="Middle"), at=1)
 
         ops = stream._get_pending_ops()
+        assert ops is not None
         assert ops.inserts[0].at == -1
         assert ops.inserts[1].at == 0
         assert ops.inserts[2].at == 1
@@ -244,6 +259,7 @@ class TestStreamCombinedOperations:
         stream.insert(user, at=0)
 
         ops = stream._get_pending_ops()
+        assert ops is not None
         assert "users-1" in ops.deletes
         assert ops.inserts[0].dom_id == "users-1"
         assert ops.inserts[0].at == 0
@@ -268,6 +284,7 @@ class TestStreamWireFormat:
         stream.delete_by_id("users-1")
         wire = stream._get_wire_format()
 
+        assert wire is not None
         assert wire[0] == {}  # no inserts
         assert wire[1] == ["users-1"]  # deletes
 
@@ -277,6 +294,7 @@ class TestStreamWireFormat:
         stream.reset([User(id=1, name="Alice")])
         wire = stream._get_wire_format()
 
+        assert wire is not None
         assert wire[0] == {"users-1": -1}  # inserts
         assert wire[1] == []  # deletes
 
@@ -286,6 +304,7 @@ class TestStreamWireFormat:
         stream.reset()
         wire = stream._get_wire_format()
 
+        assert wire is not None
         assert wire[0] == {}  # no inserts
         assert wire[1] == []  # no deletes
 
@@ -296,6 +315,7 @@ class TestStreamWireFormat:
         stream.delete_by_id("users-5")
         wire = stream._get_wire_format()
 
+        assert wire is not None
         assert wire[0] == {"users-10": -1, "users-11": 0}  # inserts
         assert wire[1] == ["users-5"]  # deletes
 
@@ -305,6 +325,7 @@ class TestStreamWireFormat:
         stream.insert(User(id=1, name="Alice"), at=2)
         wire = stream._get_wire_format()
 
+        assert wire is not None
         assert wire[0] == {"users-1": 2}  # at=2 preserved
 
     def test_no_ops_returns_none(self):

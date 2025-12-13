@@ -115,7 +115,7 @@ class Stream(Generic[T]):
     def _default_dom_id(self, item: T) -> str:
         """Default DOM ID generator - uses item.id or item['id']."""
         if hasattr(item, "id"):
-            return f"{self.name}-{item.id}"
+            return f"{self.name}-{item.id}"  # type: ignore[union-attr]
         if isinstance(item, dict) and "id" in item:
             return f"{self.name}-{item['id']}"
         raise ValueError(

@@ -59,8 +59,8 @@ class TestStreamListLogic:
         users = [User(id=1, name="Alice"), User(id=2, name="Bob")]
         stream = Stream(users, name="users")
 
-        # Use a simple render function (not a t-string)
-        result = stream_for(stream, lambda dom_id, user: f"<div>{user.name}</div>")
+        # Use actual t-string (only runs on Python 3.14+)
+        result = stream_for(stream, lambda dom_id, user: t"<div>{user.name}</div>")
 
         assert isinstance(result, StreamList)
         assert len(result.items) == 2

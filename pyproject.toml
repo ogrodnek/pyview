@@ -80,6 +80,7 @@ exclude = [
     # T-string files require Python 3.14+
     "tests/test_live_view_template.py",
     "tests/test_template_view.py",
+    "tests/test_stream_tstring.py",
 ]
 
 [tool.pytest.ini_options]
@@ -97,6 +98,7 @@ exclude = [
     "examples/views/streams/streams_tstring.py",
     "tests/test_live_view_template.py",
     "tests/test_template_view.py",
+    "tests/test_stream_tstring.py",
 ]
 
 [tool.ruff.lint]
