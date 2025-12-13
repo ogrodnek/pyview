@@ -30,9 +30,11 @@ Usage:
 """
 
 from .base import ComponentMeta, ComponentSocket, LiveComponent
+from .manager import ComponentsManager
 
 __all__ = [
     "LiveComponent",
     "ComponentMeta",
     "ComponentSocket",
+    "ComponentsManager",
 ]
