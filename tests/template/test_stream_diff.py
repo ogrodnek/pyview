@@ -4,7 +4,6 @@ Integration tests for Stream + Diff calculation.
 Tests the full rendering pipeline: template.tree() -> calc_diff()
 """
 
-import pytest
 from dataclasses import dataclass
 
 from pyview.stream import Stream
