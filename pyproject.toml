@@ -69,7 +69,7 @@ docs = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.7,<0.8"]
+requires = ["uv_build>=0.7,<1"]
 build-backend = "uv_build"
 
 [tool.uv]
