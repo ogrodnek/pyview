@@ -33,16 +33,17 @@ def input_tag(
 
 @filters.register
 def error_tag(changeset: ChangeSet, field_name: str) -> Markup:
+    """Show error only if the field has been used (interacted with by user)."""
     error = changeset.errors.get(field_name, "")
-    if error:
+    if error and changeset.used_input(field_name):
         return Markup(
-            """<div class="flex items-center mt-2" phx-feedback-for={field_name}>
+            """<div class="flex items-center mt-2">
                 <svg class="w-4 h-4 text-red-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
                 </svg>
                 <span class="text-sm text-red-600">{error}</span>
             </div>"""
-        ).format(field_name=field_name, error=error)
+        ).format(error=error)
     return Markup("")
 
 
