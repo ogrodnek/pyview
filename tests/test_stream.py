@@ -5,7 +5,7 @@ Unit tests for the Stream class.
 import pytest
 from dataclasses import dataclass
 
-from pyview.stream import Stream, StreamOps, StreamInsert
+from pyview.stream import Stream
 
 
 @dataclass

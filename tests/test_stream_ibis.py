@@ -2,7 +2,6 @@
 Integration tests for Stream + Ibis templates.
 """
 
-import pytest
 from dataclasses import dataclass
 
 from pyview.stream import Stream
