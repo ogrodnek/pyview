@@ -1,11 +1,6 @@
 start:
   PYVIEW_SECRET=`openssl rand -base64 16` poetry run uvicorn examples.app:app --reload
 
-UVICORN := `poetry run which uvicorn`
-
-profile:
-  poetry run scalene -- {{UVICORN}} pyview.main:app
-
 test:
   poetry run pytest -vvvs
 
