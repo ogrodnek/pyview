@@ -25,8 +25,12 @@
                     Bulk Add (3)
                 </button>
                 <button phx-click="update-first"
-                        class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors col-span-2">
+                        class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors">
                     Update First Item
+                </button>
+                <button phx-click="reset"
+                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                    Reset
                 </button>
             </div>
         </div>
@@ -67,11 +71,13 @@
                 </p>
                 <p class="mt-2">
                     The <code class="text-pink-600">"stream"</code> key in the diff contains:
-                    <code class="text-pink-600">[{dom_id: position}, [deletes]]</code>
+                    <code class="text-pink-600">[stream_ref, [[dom_id, at, limit], ...], [deletes], reset?]</code>
                 </p>
                 <ul class="mt-2 list-disc list-inside">
-                    <li><strong>inserts</strong>: Object mapping <code>dom_id</code> to position (-1=append, 0=prepend)</li>
+                    <li><strong>stream_ref</strong>: Stream name/reference</li>
+                    <li><strong>inserts</strong>: Array of [dom_id, at, limit] tuples (-1=append, 0=prepend)</li>
                     <li><strong>deletes</strong>: Array of DOM IDs to remove</li>
+                    <li><strong>reset</strong>: When true, clears all items before applying inserts</li>
                 </ul>
             </div>
         </div>

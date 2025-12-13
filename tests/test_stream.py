@@ -268,7 +268,9 @@ class TestStreamCombinedOperations:
 class TestStreamWireFormat:
     """Test wire format generation.
 
-    Phoenix LiveView 0.18.x format: [{dom_id: at_position}, [delete_ids]]
+    Phoenix LiveView 0.20 format:
+    - Without reset: [stream_ref, [[dom_id, at, limit], ...], [delete_ids]]
+    - With reset: [stream_ref, [[dom_id, at, limit], ...], [delete_ids], true]
     """
 
     def test_basic_insert_wire_format(self):
@@ -276,8 +278,10 @@ class TestStreamWireFormat:
         wire = stream._get_wire_format()
 
         assert wire is not None
-        assert wire[0] == {"users-1": -1}  # inserts: {dom_id: at}
-        assert wire[1] == []  # deletes
+        assert len(wire) == 3  # No reset flag when not resetting
+        assert wire[0] == "users"  # stream ref
+        assert wire[1] == [["users-1", -1, None]]  # inserts: [[dom_id, at, limit]]
+        assert wire[2] == []  # deletes
 
     def test_delete_wire_format(self):
         stream = Stream(name="users")
@@ -285,18 +289,23 @@ class TestStreamWireFormat:
         wire = stream._get_wire_format()
 
         assert wire is not None
-        assert wire[0] == {}  # no inserts
-        assert wire[1] == ["users-1"]  # deletes
+        assert len(wire) == 3  # No reset flag
+        assert wire[0] == "users"  # stream ref
+        assert wire[1] == []  # no inserts
+        assert wire[2] == ["users-1"]  # deletes
 
     def test_reset_wire_format(self):
-        """Reset sends inserts for new items (client clears on phx-update=stream)."""
+        """Reset sends inserts for new items with reset flag true."""
         stream = Stream(name="users")
         stream.reset([User(id=1, name="Alice")])
         wire = stream._get_wire_format()
 
         assert wire is not None
-        assert wire[0] == {"users-1": -1}  # inserts
-        assert wire[1] == []  # deletes
+        assert len(wire) == 4  # Includes reset flag
+        assert wire[0] == "users"  # stream ref
+        assert wire[1] == [["users-1", -1, None]]  # inserts
+        assert wire[2] == []  # deletes
+        assert wire[3] is True  # reset flag
 
     def test_reset_empty_wire_format(self):
         """Empty reset - client clears container, no new inserts."""
@@ -305,8 +314,11 @@ class TestStreamWireFormat:
         wire = stream._get_wire_format()
 
         assert wire is not None
-        assert wire[0] == {}  # no inserts
-        assert wire[1] == []  # no deletes
+        assert len(wire) == 4  # Includes reset flag
+        assert wire[0] == "users"  # stream ref
+        assert wire[1] == []  # no inserts
+        assert wire[2] == []  # no deletes
+        assert wire[3] is True  # reset flag
 
     def test_combined_operations_wire_format(self):
         stream = Stream(name="users")
@@ -316,8 +328,10 @@ class TestStreamWireFormat:
         wire = stream._get_wire_format()
 
         assert wire is not None
-        assert wire[0] == {"users-10": -1, "users-11": 0}  # inserts
-        assert wire[1] == ["users-5"]  # deletes
+        assert len(wire) == 3  # No reset flag
+        assert wire[0] == "users"  # stream ref
+        assert wire[1] == [["users-10", -1, None], ["users-11", 0, None]]  # inserts
+        assert wire[2] == ["users-5"]  # deletes
 
     def test_insert_with_position_wire_format(self):
         """Position (at) is preserved in wire format."""
@@ -326,7 +340,33 @@ class TestStreamWireFormat:
         wire = stream._get_wire_format()
 
         assert wire is not None
-        assert wire[0] == {"users-1": 2}  # at=2 preserved
+        assert wire[0] == "users"  # stream ref
+        assert wire[1] == [["users-1", 2, None]]  # at=2 preserved
+
+    def test_insert_with_limit_wire_format(self):
+        """Limit is included in wire format."""
+        stream = Stream(name="users")
+        stream.insert(User(id=1, name="Alice"), limit=100)
+        wire = stream._get_wire_format()
+
+        assert wire is not None
+        assert wire[1] == [["users-1", -1, 100]]  # limit=100
+
+    def test_insert_with_update_only_wire_format(self):
+        """Update only flag is stored but not in 0.20 wire format."""
+        stream = Stream(name="users")
+        stream.insert(User(id=1, name="Alice"), update_only=True)
+        wire = stream._get_wire_format()
+
+        assert wire is not None
+        # update_only is stored internally but not sent over wire in 0.20
+        assert wire[1] == [["users-1", -1, None]]
+        # Verify it's stored internally
+        stream2 = Stream(name="test")
+        stream2.insert(User(id=1, name="Test"), update_only=True)
+        ops = stream2._get_pending_ops()
+        assert ops is not None
+        assert ops.inserts[0].update_only is True
 
     def test_no_ops_returns_none(self):
         stream = Stream(name="users")

@@ -87,3 +87,12 @@ class StreamsDemoLiveView(LiveView[StreamsContext]):
                 msg.id = ctx["next_id"] + i
             ctx["messages"].insert_many(new_msgs)
             ctx["next_id"] += 3
+
+        elif event == "reset":
+            # Reset the stream - clears all items and replaces with fresh set
+            fresh_msgs = [
+                Message(id=ctx["next_id"], text="Fresh start!", color="green"),
+                Message(id=ctx["next_id"] + 1, text="Stream was reset", color="blue"),
+            ]
+            ctx["messages"].reset(fresh_msgs)
+            ctx["next_id"] += 2

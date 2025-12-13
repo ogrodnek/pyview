@@ -59,6 +59,16 @@ class StreamsTStringLiveView(AutoEventDispatch, TemplateView, LiveView[TasksCont
         if dom_id:
             socket.context["tasks"].delete_by_id(dom_id)
 
+    @event
+    async def reset(self, event, payload, socket: LiveViewSocket[TasksContext]):
+        ctx = socket.context
+        fresh_tasks = [
+            Task(id=ctx["next_id"], text="Fresh start!"),
+            Task(id=ctx["next_id"] + 1, text="Stream was reset"),
+        ]
+        ctx["tasks"].reset(fresh_tasks)
+        ctx["next_id"] += 2
+
     def template(self, assigns: TasksContext, meta: PyViewMeta) -> Template:
         tasks = assigns["tasks"]
 
@@ -77,6 +87,10 @@ class StreamsTStringLiveView(AutoEventDispatch, TemplateView, LiveView[TasksCont
             <button phx-click="prepend"
                     class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
                 Prepend
+            </button>
+            <button phx-click="reset"
+                    class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                Reset
             </button>
         </div>
 

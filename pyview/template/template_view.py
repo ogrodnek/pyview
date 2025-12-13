@@ -43,14 +43,34 @@ class TStringRenderedContent:
         if not isinstance(tree, dict):
             return str(tree)
 
-        # Handle list comprehension format (d key)
+        # Handle comprehension format with "s" and "d" keys
+        # This is the format for loops: {"s": ["<div>", "</div>"], "d": [["value1"], ["value2"]]}
+        if "d" in tree and "s" in tree:
+            statics = tree["s"]
+            dynamics_list = tree["d"]
+            html_items = []
+
+            for dynamics in dynamics_list:
+                # Each dynamics is a list of values to interleave with statics
+                parts = []
+                for i, static in enumerate(statics):
+                    parts.append(static)
+                    if i < len(dynamics):
+                        dyn = dynamics[i]
+                        if isinstance(dyn, dict):
+                            parts.append(self._tree_to_html(dyn))
+                        else:
+                            parts.append(str(dyn))
+                html_items.append("".join(parts))
+
+            return "".join(html_items)
+
+        # Handle "d" without "s" (just a list of items)
         if "d" in tree:
-            # 'd' contains a list of tree structures
             items = tree["d"]
             html_items = []
             for item in items:
                 if isinstance(item, list) and len(item) == 1:
-                    # Handle the format [[item1], [item2], ...]
                     html_items.append(str(item[0]))
                 else:
                     html_items.append(self._tree_to_html(item))
