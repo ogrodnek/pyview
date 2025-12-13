@@ -53,7 +53,10 @@ class ChangeSet(Generic[Base]):
             return None
 
     def apply(self, payload: dict[str, Any]):
-        k = payload["_target"][0]
+        target = payload.get("_target")
+        if not target:
+            return
+        k = target[0]
         self.changes[k] = payload.get(k, [""])[0]
         self.errors = {}
 

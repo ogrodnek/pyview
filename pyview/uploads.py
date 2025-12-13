@@ -342,7 +342,11 @@ class UploadManager:
     def maybe_process_uploads(self, qs: dict[str, Any], payload: dict[str, Any]):
         if "uploads" in payload:
             uploads = payload["uploads"]
-            config_key = qs["_target"][0]
+            target = qs.get("_target")
+            if not target:
+                logger.warning("Upload event missing _target field")
+                return
+            config_key = target[0]
 
             config = self.config_for_name(config_key)
             if config:
