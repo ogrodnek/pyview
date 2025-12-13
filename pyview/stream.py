@@ -273,18 +273,26 @@ class Stream(Generic[T]):
 
     def _to_wire_format(self, ops: StreamOps) -> list:
         """
-        Convert operations to Phoenix LiveView 0.18.x wire format.
+        Convert operations to Phoenix LiveView 0.19+ wire format.
 
-        Format: [{dom_id: at_position, ...}, [delete_ids]]
+        Format: [stream_ref, [[dom_id, at, limit, update_only], ...], [delete_ids], reset]
 
         The Phoenix JS client expects:
-        - inserts: object mapping dom_id -> at position (0=prepend, -1=append, N=index)
+        - stream_ref: the stream name/reference
+        - inserts: array of [dom_id, at, limit, update_only] tuples
+          - dom_id: string identifier for the DOM element
+          - at: position (-1=append, 0=prepend, N=specific index)
+          - limit: max items to keep (positive=remove from start, negative=remove from end, null=no limit)
+          - update_only: boolean, if true only update existing items
         - deletes: array of dom_ids to remove
+        - reset: boolean, if true clear all items before applying inserts
         """
-        # Build inserts as object: {dom_id: at_position}
-        inserts = {ins.dom_id: ins.at for ins in ops.inserts}
+        inserts = [
+            [ins.dom_id, ins.at, ins.limit, ins.update_only]
+            for ins in ops.inserts
+        ]
 
-        return [inserts, ops.deletes]
+        return [ops.ref, inserts, ops.deletes, ops.reset]
 
     def _get_wire_format(self) -> list | None:
         """

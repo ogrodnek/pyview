@@ -137,8 +137,6 @@ stream.delete_by_id("messages-123")
 
 ### Reset
 
-> **Note:** Reset is not yet fully implemented. The API exists but the reset flag is not sent over the wire in the current version.
-
 Clear all items and optionally replace with new ones:
 
 ```python
@@ -160,8 +158,6 @@ stream.insert(updated_msg)  # Updates existing item with id=123
 
 ### Update Only Mode
 
-> **Note:** Update only mode is not yet implemented. The API exists but the flag is not sent over the wire in the current version.
-
 Only update items that already exist (ignore if not present):
 
 ```python
@@ -169,8 +165,6 @@ stream.insert(item, update_only=True)
 ```
 
 ### With Limit
-
-> **Note:** Limit is not yet implemented. The API exists but the limit value is not sent over the wire in the current version.
 
 Limit the number of items (client enforces this):
 
