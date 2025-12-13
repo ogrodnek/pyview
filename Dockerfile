@@ -1,7 +1,7 @@
 FROM python:3.14-alpine AS build
 
 RUN apk add build-base libffi-dev zlib-dev jpeg-dev
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.5 /uv /uvx /bin/
 
 WORKDIR /app
 COPY . .
