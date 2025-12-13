@@ -1,0 +1,79 @@
+<div class="max-w-2xl mx-auto px-4">
+    <div class="space-y-6">
+        <!-- Control Panel -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h1 class="text-2xl font-bold text-gray-900 mb-4">Streams Demo</h1>
+            <p class="text-gray-600 mb-4">
+                Streams efficiently send only changed items over the websocket.
+            </p>
+
+            <div class="grid grid-cols-2 gap-3">
+                <button phx-click="append"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    Append
+                </button>
+                <button phx-click="prepend"
+                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                    Prepend
+                </button>
+                <button phx-click="insert-middle"
+                        class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                    Insert at 2
+                </button>
+                <button phx-click="bulk-add"
+                        class="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">
+                    Bulk Add (3)
+                </button>
+                <button phx-click="update-first"
+                        class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors col-span-2">
+                    Update First Item
+                </button>
+            </div>
+        </div>
+
+        <!-- Messages Stream Container -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Messages Stream</h2>
+            <div id="messages" phx-update="stream" class="space-y-2 min-h-[200px]">
+                {% for dom_id, msg in messages %}
+                <div id="{{ dom_id }}"
+                     phx-stream-ref="{{ messages.name }}"
+                     class="flex items-center justify-between p-3 rounded-lg border
+                            {% if msg.color == 'blue' %}bg-blue-50 border-blue-200{% endif %}
+                            {% if msg.color == 'green' %}bg-green-50 border-green-200{% endif %}
+                            {% if msg.color == 'purple' %}bg-purple-50 border-purple-200{% endif %}
+                            {% if msg.color == 'teal' %}bg-teal-50 border-teal-200{% endif %}
+                            {% if msg.color == 'amber' %}bg-amber-50 border-amber-200{% endif %}">
+                    <span class="text-gray-800">{{ msg.text }}</span>
+                    <button phx-click="delete"
+                            phx-value-id="{{ dom_id }}"
+                            class="text-gray-400 hover:text-red-500 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Explanation -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-3">How Streams Work</h2>
+            <div class="prose prose-sm text-gray-600">
+                <p>
+                    Streams allow efficient rendering of large lists. Instead of re-sending the entire list on each change,
+                    only the <strong>operations</strong> (insert, delete) are sent over the websocket.
+                </p>
+                <p class="mt-2">
+                    The <code class="text-pink-600">"stream"</code> key in the diff contains:
+                    <code class="text-pink-600">[{dom_id: position}, [deletes]]</code>
+                </p>
+                <ul class="mt-2 list-disc list-inside">
+                    <li><strong>inserts</strong>: Object mapping <code>dom_id</code> to position (-1=append, 0=prepend)</li>
+                    <li><strong>deletes</strong>: Array of DOM IDs to remove</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

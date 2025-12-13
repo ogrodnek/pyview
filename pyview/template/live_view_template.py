@@ -6,7 +6,7 @@ This module requires Python 3.14+ for t-string support.
 """
 
 import sys
-from typing import Any, Union
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, Union
 from dataclasses import dataclass
 
 # T-string support requires Python 3.14+
@@ -17,6 +17,55 @@ if sys.version_info < (3, 14):
     )
 
 from string.templatelib import Template
+
+if TYPE_CHECKING:
+    from pyview.stream import Stream
+
+T = TypeVar("T")
+
+
+@dataclass
+class StreamList:
+    """
+    A list wrapper that carries stream metadata for T-string templates.
+
+    This is returned by stream_for() and detected by LiveViewTemplate._process_list()
+    to include the "stream" key in the wire format.
+    """
+
+    items: list[Any]
+    stream: "Stream"
+
+
+def stream_for(
+    stream: "Stream[T]",
+    render_fn: Callable[[str, T], "Template"],
+) -> StreamList:
+    """
+    Render a stream in a T-string template.
+
+    This function iterates over the stream and applies the render function to each item,
+    returning a StreamList that LiveViewTemplate will process to include stream metadata.
+
+    Args:
+        stream: The Stream to render
+        render_fn: A function that takes (dom_id, item) and returns a Template
+
+    Returns:
+        StreamList containing rendered items and stream reference
+
+    Example:
+        def template(self, assigns, meta):
+            return t'''
+            <div id="messages" phx-update="stream">
+                {stream_for(assigns.messages, lambda dom_id, msg:
+                    t'<div id="{dom_id}">{msg.text}</div>'
+                )}
+            </div>
+            '''
+    """
+    items = [render_fn(dom_id, item) for dom_id, item in stream]
+    return StreamList(items=items, stream=stream)
 
 
 @dataclass
@@ -97,6 +146,10 @@ class LiveViewTemplate:
                     # Primitive types
                     parts[key] = str(formatted_value)
 
+                elif isinstance(formatted_value, StreamList):
+                    # Handle stream_for() results
+                    parts[key] = LiveViewTemplate._process_stream_list(formatted_value, socket)
+
                 elif isinstance(formatted_value, list):
                     # Handle list comprehensions
                     parts[key] = LiveViewTemplate._process_list(formatted_value, socket)
@@ -130,6 +183,59 @@ class LiveViewTemplate:
                 processed_items.append([LiveViewTemplate.escape_html(str(item))])
 
         return {"d": processed_items}
+
+    @staticmethod
+    def _process_stream_list(
+        stream_list: StreamList, socket: Any = None
+    ) -> Union[dict[str, Any], str]:
+        """Process a StreamList (from stream_for) including stream metadata."""
+        from pyview.stream import Stream
+
+        stream = stream_list.stream
+        items = stream_list.items
+
+        # Handle empty stream
+        if not items:
+            # Still check for delete/reset operations
+            ops = stream._get_pending_ops()
+            if ops is None:
+                return ""
+            return {"stream": stream._to_wire_format(ops)}
+
+        # Process each item
+        processed_items = []
+        for item in items:
+            if isinstance(item, Template):
+                processed_items.append(LiveViewTemplate.process(item, socket))
+            else:
+                processed_items.append([LiveViewTemplate.escape_html(str(item))])
+
+        result: dict[str, Any] = {"d": processed_items}
+
+        # Extract statics from first item if it has them.
+        # processed_items contains either:
+        #   - dicts with {"s": [...], "0": val, "1": val, ...} for Template items
+        #   - lists of escaped strings for non-Template items
+        if processed_items and isinstance(processed_items[0], dict) and "s" in processed_items[0]:
+            # All Template items share the same statics (the template's static strings),
+            # so we extract "s" from the first item and use it for the entire result.
+            result["s"] = processed_items[0]["s"]
+            # Convert each item to just its dynamic values (excluding "s").
+            # Dict items: extract values sorted by key ("0", "1", ...) to maintain order.
+            # Non-dict items (lists): pass through as-is.
+            result["d"] = [
+                [v for k, v in sorted(item.items()) if k != "s"]
+                if isinstance(item, dict)
+                else item
+                for item in processed_items
+            ]
+
+        # Add stream metadata
+        ops = stream._get_pending_ops()
+        if ops is not None:
+            result["stream"] = stream._to_wire_format(ops)
+
+        return result
 
     @staticmethod
     def escape_html(text: str) -> str:

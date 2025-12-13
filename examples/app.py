@@ -26,12 +26,14 @@ from .views import (
     PresenceLiveView,
     RegistrationLiveView,
     StatusLiveView,
+    StreamsDemoLiveView,
     VolumeLiveView,
 )
 
-# T-string example is only available on Python 3.14+
+# T-string examples are only available on Python 3.14+
 if sys.version_info >= (3, 14):
     from .views.count.count_tstring import CounterTStringLiveView
+    from .views.streams.streams_tstring import StreamsTStringLiveView
 
 app = PyView()
 app.mount(
@@ -147,11 +149,13 @@ routes = [
     ("/file_upload", FileUploadDemoLiveView),
     ("/kanban", KanbanLiveView),
     ("/includes", IncludesLiveView),
+    ("/streams", StreamsDemoLiveView),
 ]
 
-# Add t-string example on Python 3.14+
+# Add t-string examples on Python 3.14+
 if sys.version_info >= (3, 14):
     routes.append(("/counter_tstring", CounterTStringLiveView))
+    routes.append(("/streams_tstring", StreamsTStringLiveView))
 
 
 async def get(request):

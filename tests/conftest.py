@@ -18,7 +18,7 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(skip_marker)
 
 
-def pytest_ignore_collect(collection_path, path, config):
+def pytest_ignore_collect(collection_path, config):
     """
     Prevent pytest from even trying to parse t-string test files on Python < 3.14.
     This happens before AST parsing, so it prevents SyntaxErrors.
@@ -27,4 +27,8 @@ def pytest_ignore_collect(collection_path, path, config):
         return False
 
     # Skip files that contain t-string literals
-    return collection_path.name in ("test_live_view_template.py", "test_template_view.py")
+    return collection_path.name in (
+        "test_live_view_template.py",
+        "test_template_view.py",
+        "test_stream_tstring.py",
+    )

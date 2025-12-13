@@ -8,6 +8,7 @@ from pyview.live_socket import (
 from pyview.live_view import LiveView
 from pyview.playground import playground
 from pyview.pyview import PyView, RootTemplate, RootTemplateContext, defaultRootTemplate
+from pyview.stream import Stream
 
 __all__ = [
     "LiveView",
@@ -21,4 +22,5 @@ __all__ = [
     "ConnectedLiveViewSocket",
     "UnconnectedSocket",
     "playground",
+    "Stream",
 ]

@@ -12,6 +12,7 @@ from .podcasts import PodcastLiveView
 from .presence import PresenceLiveView
 from .registration import RegistrationLiveView
 from .status import StatusLiveView
+from .streams import StreamsDemoLiveView
 from .volume import VolumeLiveView
 from .webping import PingLiveView
 
@@ -32,4 +33,5 @@ __all__ = [
     "FileUploadDemoLiveView",
     "KanbanLiveView",
     "IncludesLiveView",
+    "StreamsDemoLiveView",
 ]
