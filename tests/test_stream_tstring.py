@@ -9,7 +9,6 @@ to simulate the T-string behavior.
 import sys
 import pytest
 from dataclasses import dataclass
-from unittest.mock import MagicMock
 
 # We can't import from live_view_template.py on Python < 3.14 because it has
 # an import guard. So we test the underlying logic with mock objects.
