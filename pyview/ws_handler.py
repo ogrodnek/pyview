@@ -17,6 +17,9 @@ from pyview.session import deserialize_session
 
 logger = logging.getLogger(__name__)
 
+# LiveView wire protocol version - must match the JS client version
+LIVEVIEW_VERSION = "1.0.18"
+
 
 class AuthException(Exception):
     pass
@@ -122,7 +125,7 @@ class LiveSocketHandler:
                     mesageRef,
                     topic,
                     "phx_reply",
-                    {"response": {"rendered": rendered}, "status": "ok"},
+                    {"response": {"rendered": rendered, "liveview_version": LIVEVIEW_VERSION}, "status": "ok"},
                 ]
 
                 await self.manager.send_personal_message(json.dumps(resp), websocket)
@@ -306,7 +309,7 @@ class LiveSocketHandler:
                         mesageRef,
                         topic,
                         "phx_reply",
-                        {"response": {"rendered": rendered}, "status": "ok"},
+                        {"response": {"rendered": rendered, "liveview_version": LIVEVIEW_VERSION}, "status": "ok"},
                     ]
 
                     await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
