@@ -7,15 +7,15 @@ to simulate the T-string behavior.
 """
 
 import sys
-import pytest
 from dataclasses import dataclass
+
+import pytest
 
 # We can't import from live_view_template.py on Python < 3.14 because it has
 # an import guard. So we test the underlying logic with mock objects.
 
 pytestmark = pytest.mark.skipif(
-    sys.version_info < (3, 14),
-    reason="T-string template tests require Python 3.14+"
+    sys.version_info < (3, 14), reason="T-string template tests require Python 3.14+"
 )
 
 
@@ -35,8 +35,8 @@ class TestStreamListLogic:
 
     def test_stream_list_creation(self, skip_if_no_tstring):
         """StreamList can be created with items and stream reference."""
-        from pyview.template.live_view_template import StreamList
         from pyview.stream import Stream
+        from pyview.template.live_view_template import StreamList
 
         stream = Stream(name="users")
         items = ["item1", "item2"]
@@ -48,8 +48,8 @@ class TestStreamListLogic:
 
     def test_stream_for_function(self, skip_if_no_tstring):
         """stream_for() creates StreamList from stream iteration."""
-        from pyview.template.live_view_template import StreamList, stream_for
         from pyview.stream import Stream
+        from pyview.template.live_view_template import StreamList, stream_for
 
         @dataclass
         class User:
@@ -68,8 +68,8 @@ class TestStreamListLogic:
 
     def test_process_stream_list_basic(self, skip_if_no_tstring):
         """_process_stream_list produces correct wire format."""
-        from pyview.template.live_view_template import StreamList, LiveViewTemplate
         from pyview.stream import Stream
+        from pyview.template.live_view_template import LiveViewTemplate, StreamList
 
         @dataclass
         class User:
@@ -92,8 +92,8 @@ class TestStreamListLogic:
 
     def test_process_stream_list_with_operations(self, skip_if_no_tstring):
         """_process_stream_list includes all stream operations."""
-        from pyview.template.live_view_template import StreamList, LiveViewTemplate
         from pyview.stream import Stream
+        from pyview.template.live_view_template import LiveViewTemplate, StreamList
 
         stream = Stream(name="users")
         stream.insert({"id": 1, "name": "Alice"})
@@ -114,8 +114,8 @@ class TestStreamListLogic:
 
     def test_process_stream_list_empty_with_delete(self, skip_if_no_tstring):
         """Empty stream with delete operations."""
-        from pyview.template.live_view_template import StreamList, LiveViewTemplate
         from pyview.stream import Stream
+        from pyview.template.live_view_template import LiveViewTemplate, StreamList
 
         stream = Stream(name="users")
         stream.delete_by_id("users-1")
@@ -130,8 +130,8 @@ class TestStreamListLogic:
 
     def test_process_stream_list_reset(self, skip_if_no_tstring):
         """Stream reset operation - sends items as inserts in 0.18.x."""
-        from pyview.template.live_view_template import StreamList, LiveViewTemplate
         from pyview.stream import Stream
+        from pyview.template.live_view_template import LiveViewTemplate, StreamList
 
         stream = Stream(name="users")
         stream.reset([{"id": 10, "name": "New"}])
@@ -147,8 +147,8 @@ class TestStreamListLogic:
 
     def test_process_stream_list_empty_no_ops(self, skip_if_no_tstring):
         """Empty stream with no operations returns empty string."""
-        from pyview.template.live_view_template import StreamList, LiveViewTemplate
         from pyview.stream import Stream
+        from pyview.template.live_view_template import LiveViewTemplate, StreamList
 
         stream = Stream(name="users")
         sl = StreamList(items=[], stream=stream)

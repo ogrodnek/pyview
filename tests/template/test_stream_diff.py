@@ -311,9 +311,7 @@ class TestStreamDiffPreservesRegularLoops:
 
     def test_regular_loop_no_stream_key(self):
         """Regular list loop should not have stream key in diff."""
-        template = Template(
-            """{% for user in users %}<li>{{ user.name }}</li>{% endfor %}"""
-        )
+        template = Template("""{% for user in users %}<li>{{ user.name }}</li>{% endfor %}""")
 
         users1 = [User(id=1, name="Alice")]
         tree1 = template.tree({"users": users1})

@@ -115,7 +115,7 @@ class Stream(Generic[T]):
     def _default_dom_id(self, item: T) -> str:
         """Default DOM ID generator - uses item.id or item['id']."""
         if hasattr(item, "id"):
-            return f"{self.name}-{getattr(item, 'id')}"
+            return f"{self.name}-{item.id}"
         if isinstance(item, dict) and "id" in item:
             return f"{self.name}-{item['id']}"
         raise ValueError(
@@ -123,9 +123,7 @@ class Stream(Generic[T]):
             f"Item must have an 'id' attribute/key, or provide a dom_id function."
         )
 
-    def _do_insert(
-        self, item: T, at: int, limit: int | None, update_only: bool
-    ) -> str:
+    def _do_insert(self, item: T, at: int, limit: int | None, update_only: bool) -> str:
         """Internal insert implementation."""
         dom_id = self._dom_id_fn(item)
         self._ops.inserts.append(

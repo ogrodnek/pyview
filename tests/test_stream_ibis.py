@@ -54,7 +54,9 @@ class TestStreamIbisBasic:
 
     def test_stream_dynamics_match_inserts(self):
         """Dynamic content matches stream inserts."""
-        template = Template("""{% for dom_id, user in users %}<div id="{{ dom_id }}">{{ user.name }}</div>{% endfor %}""")
+        template = Template(
+            """{% for dom_id, user in users %}<div id="{{ dom_id }}">{{ user.name }}</div>{% endfor %}"""
+        )
 
         users = [User(id=1, name="Alice"), User(id=2, name="Bob")]
         stream = Stream(users, name="users")
@@ -72,7 +74,9 @@ class TestStreamIbisBasic:
 
     def test_stream_with_custom_dom_id(self):
         """Stream with custom dom_id function."""
-        template = Template("""{% for dom_id, msg in messages %}<div id="{{ dom_id }}">{{ msg.text }}</div>{% endfor %}""")
+        template = Template(
+            """{% for dom_id, msg in messages %}<div id="{{ dom_id }}">{{ msg.text }}</div>{% endfor %}"""
+        )
 
         messages = [Message(id=1, text="Hello", author="Alice")]
         stream = Stream(messages, name="messages", dom_id=lambda m: f"msg-{m.id}")
@@ -94,7 +98,9 @@ class TestStreamOperationsInTemplate:
 
     def test_stream_append(self):
         """Append operation (at=-1)."""
-        template = Template("""{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}""")
+        template = Template(
+            """{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}"""
+        )
 
         stream = Stream(name="users")
         stream.insert(User(id=1, name="Alice"))
@@ -108,7 +114,9 @@ class TestStreamOperationsInTemplate:
 
     def test_stream_prepend(self):
         """Prepend operation (at=0)."""
-        template = Template("""{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}""")
+        template = Template(
+            """{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}"""
+        )
 
         stream = Stream(name="users")
         stream.insert(User(id=1, name="Alice"), at=0)
@@ -121,7 +129,9 @@ class TestStreamOperationsInTemplate:
 
     def test_stream_insert_at_index(self):
         """Insert at specific index."""
-        template = Template("""{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}""")
+        template = Template(
+            """{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}"""
+        )
 
         stream = Stream(name="users")
         stream.insert(User(id=1, name="Alice"), at=5)
@@ -134,7 +144,9 @@ class TestStreamOperationsInTemplate:
 
     def test_stream_with_limit(self):
         """Insert with limit - limit stored internally but not in 0.18.x wire format."""
-        template = Template("""{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}""")
+        template = Template(
+            """{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}"""
+        )
 
         stream = Stream(name="users")
         stream.insert(User(id=1, name="Alice"), limit=100)
@@ -148,7 +160,9 @@ class TestStreamOperationsInTemplate:
 
     def test_stream_update_only(self):
         """Insert with update_only - note: not in wire format (client behavior)."""
-        template = Template("""{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}""")
+        template = Template(
+            """{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}"""
+        )
 
         stream = Stream(name="users")
         stream.insert(User(id=1, name="Alice"), update_only=True)
@@ -166,7 +180,9 @@ class TestStreamDeletesAndReset:
 
     def test_stream_with_deletes_only(self):
         """Stream with only delete operations."""
-        template = Template("""{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}""")
+        template = Template(
+            """{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}"""
+        )
 
         stream = Stream(name="users")
         stream.delete_by_id("users-1")
@@ -183,7 +199,9 @@ class TestStreamDeletesAndReset:
 
     def test_stream_reset(self):
         """Stream reset operation - sends items as inserts in 0.18.x."""
-        template = Template("""{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}""")
+        template = Template(
+            """{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}"""
+        )
 
         stream = Stream(name="users")
         stream.reset([User(id=10, name="New")])
@@ -198,7 +216,9 @@ class TestStreamDeletesAndReset:
 
     def test_stream_reset_empty(self):
         """Stream reset to empty - just clears in 0.18.x."""
-        template = Template("""{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}""")
+        template = Template(
+            """{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}"""
+        )
 
         stream = Stream(name="users")
         stream.reset()
@@ -216,7 +236,9 @@ class TestStreamCombinedOperations:
 
     def test_insert_and_delete(self):
         """Combine insert and delete operations."""
-        template = Template("""{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}""")
+        template = Template(
+            """{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}"""
+        )
 
         stream = Stream(name="users")
         stream.insert(User(id=10, name="New User"))
@@ -231,7 +253,9 @@ class TestStreamCombinedOperations:
 
     def test_multiple_operations(self):
         """Multiple inserts and deletes."""
-        template = Template("""{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}""")
+        template = Template(
+            """{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}"""
+        )
 
         stream = Stream(name="users")
         stream.insert(User(id=10, name="Append"))
@@ -253,7 +277,9 @@ class TestStreamEmpty:
 
     def test_empty_stream_no_ops(self):
         """Empty stream with no operations."""
-        template = Template("""{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}""")
+        template = Template(
+            """{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}"""
+        )
 
         stream = Stream(name="users")
 
@@ -264,7 +290,9 @@ class TestStreamEmpty:
 
     def test_empty_stream_with_delete(self):
         """Empty stream but has delete operation."""
-        template = Template("""{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}""")
+        template = Template(
+            """{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}"""
+        )
 
         stream = Stream(name="users")
         stream.delete_by_id("users-1")

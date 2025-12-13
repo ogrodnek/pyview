@@ -49,11 +49,7 @@ def calc_diff(old_tree: dict[str, Any], new_tree: dict[str, Any]) -> dict[str, A
             # Handle stream-only diff (no "s" or "d", just stream operations like delete-only)
             diff[key] = new_tree[key]
 
-        elif (
-            new_tree[key] == ""
-            and isinstance(old_tree[key], dict)
-            and "stream" in old_tree[key]
-        ):
+        elif new_tree[key] == "" and isinstance(old_tree[key], dict) and "stream" in old_tree[key]:
             # Stream went from having items to no pending operations
             # Don't report this as a change - client already has the content
             # This is Phoenix LiveView semantics: stream items persist on client

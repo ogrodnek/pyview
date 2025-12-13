@@ -51,7 +51,6 @@ class StreamComprehension:
 
     def render_parts(self) -> Union[dict[str, Any], str]:
         # Import here to avoid circular imports
-        from pyview.stream import Stream
 
         # Handle empty stream
         if len(self.parts) == 0:

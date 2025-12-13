@@ -1,12 +1,12 @@
 from dataclasses import dataclass
-from typing import TypedDict
 from string.templatelib import Template
+from typing import TypedDict
 
 from pyview import LiveView, LiveViewSocket, Stream
 from pyview.events import AutoEventDispatch, event
-from pyview.template.template_view import TemplateView
-from pyview.template.live_view_template import stream_for
 from pyview.meta import PyViewMeta
+from pyview.template.live_view_template import stream_for
+from pyview.template.template_view import TemplateView
 
 
 @dataclass
@@ -81,7 +81,10 @@ class StreamsTStringLiveView(AutoEventDispatch, TemplateView, LiveView[TasksCont
         </div>
 
         <div id="tasks" phx-update="stream" class="space-y-2 min-h-[100px]">
-            {stream_for(tasks, lambda dom_id, task: t'''
+            {
+            stream_for(
+                tasks,
+                lambda dom_id, task: t'''
                 <div id="{dom_id}" class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                     <span class="text-gray-800">{task.text}</span>
                     <button phx-click="delete" phx-value-id="{dom_id}"
@@ -91,7 +94,9 @@ class StreamsTStringLiveView(AutoEventDispatch, TemplateView, LiveView[TasksCont
                         </svg>
                     </button>
                 </div>
-            ''')}
+            ''',
+            )
+        }
         </div>
     </div>
 </div>"""

@@ -43,17 +43,23 @@ class StreamsDemoLiveView(LiveView[StreamsContext]):
         ctx = socket.context
 
         if event == "append":
-            msg = Message(id=ctx["next_id"], text=f"Appended message #{ctx['next_id']}", color="blue")
+            msg = Message(
+                id=ctx["next_id"], text=f"Appended message #{ctx['next_id']}", color="blue"
+            )
             ctx["messages"].insert(msg, at=-1)
             ctx["next_id"] += 1
 
         elif event == "prepend":
-            msg = Message(id=ctx["next_id"], text=f"Prepended message #{ctx['next_id']}", color="green")
+            msg = Message(
+                id=ctx["next_id"], text=f"Prepended message #{ctx['next_id']}", color="green"
+            )
             ctx["messages"].insert(msg, at=0)
             ctx["next_id"] += 1
 
         elif event == "insert-middle":
-            msg = Message(id=ctx["next_id"], text=f"Inserted at position 2 #{ctx['next_id']}", color="purple")
+            msg = Message(
+                id=ctx["next_id"], text=f"Inserted at position 2 #{ctx['next_id']}", color="purple"
+            )
             ctx["messages"].insert(msg, at=2)
             ctx["next_id"] += 1
 
@@ -67,16 +73,14 @@ class StreamsDemoLiveView(LiveView[StreamsContext]):
             # Re-inserting with the same ID updates the existing element in place
             ctx["update_count"] += 1
             updated_msg = Message(
-                id=1,
-                text=f"Updated {ctx['update_count']} time(s)!",
-                color="amber"
+                id=1, text=f"Updated {ctx['update_count']} time(s)!", color="amber"
             )
             ctx["messages"].insert(updated_msg)
 
         elif event == "bulk-add":
             # Add multiple items at once
             new_msgs = [
-                Message(id=ctx["next_id"], text=f"Bulk item {i+1}", color="teal")
+                Message(id=ctx["next_id"], text=f"Bulk item {i + 1}", color="teal")
                 for i in range(3)
             ]
             for i, msg in enumerate(new_msgs):

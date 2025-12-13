@@ -2,8 +2,9 @@
 Unit tests for the Stream class.
 """
 
-import pytest
 from dataclasses import dataclass
+
+import pytest
 
 from pyview.stream import Stream
 
