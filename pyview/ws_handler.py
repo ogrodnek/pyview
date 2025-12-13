@@ -166,7 +166,9 @@ class LiveSocketHandler:
                 value = payload["value"]
 
                 if payload["type"] == "form":
+                    print(f"DEBUG Raw form value: {value}")
                     value = parse_qs(value)
+                    print(f"DEBUG Parsed form value: {value}")
                     socket.upload_manager.maybe_process_uploads(value, payload)
 
                 # Track event metrics
