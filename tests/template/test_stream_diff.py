@@ -75,11 +75,11 @@ class TestStreamDiffBasics:
         assert "0" in diff
         comp = diff["0"]
         assert "stream" in comp
-        # 0.19+ format: [stream_ref, [[dom_id, at, limit, update_only], ...], [deletes], reset]
+        # 0.20 format: [stream_ref, [[dom_id, at, limit], ...], [deletes]]
+        assert len(comp["stream"]) == 3  # no reset flag
         assert comp["stream"][0] == "users"  # stream ref
-        assert comp["stream"][1] == [["users-2", -1, None, False]]  # insert for Bob
+        assert comp["stream"][1] == [["users-2", -1, None]]  # insert for Bob
         assert comp["stream"][2] == []  # no deletes
-        assert comp["stream"][3] is False  # reset flag
         # Should have dynamics for Bob
         assert "d" in comp
 
@@ -102,11 +102,11 @@ class TestStreamDiffBasics:
         assert "0" in diff
         comp = diff["0"]
         assert "stream" in comp
-        # 0.19+ format: [stream_ref, [[dom_id, at, limit, update_only], ...], [deletes], reset]
+        # 0.20 format: [stream_ref, [[dom_id, at, limit], ...], [deletes]]
+        assert len(comp["stream"]) == 3  # no reset flag
         assert comp["stream"][0] == "users"  # stream ref
         assert comp["stream"][1] == []  # no inserts
         assert comp["stream"][2] == ["users-1"]  # delete
-        assert comp["stream"][3] is False  # reset flag
 
     def test_reset_operation_in_diff(self):
         """Reset operation sends items as inserts with reset flag true."""
@@ -127,10 +127,10 @@ class TestStreamDiffBasics:
         assert "0" in diff
         comp = diff["0"]
         assert "stream" in comp
-        # 0.19+ format: [stream_ref, [[dom_id, at, limit, update_only], ...], [deletes], reset]
+        # 0.20 format: [stream_ref, [[dom_id, at, limit], ...], [deletes], reset]
         assert len(comp["stream"]) == 4
         assert comp["stream"][0] == "users"  # stream ref
-        assert comp["stream"][1] == [["users-10", -1, None, False]]  # inserts
+        assert comp["stream"][1] == [["users-10", -1, None]]  # inserts
         assert comp["stream"][2] == []  # no deletes
         assert comp["stream"][3] is True  # reset flag
 
@@ -156,9 +156,9 @@ class TestStreamDiffMultipleRenders:
         diff1 = calc_diff(tree1, tree2)
 
         assert "0" in diff1
-        # 0.19+ format: [stream_ref, [[dom_id, at, limit, update_only], ...], [deletes], reset]
+        # 0.20 format: [stream_ref, [[dom_id, at, limit], ...], [deletes], reset]
         assert diff1["0"]["stream"][0] == "users"  # stream ref
-        assert diff1["0"]["stream"][1] == [["users-1", -1, None, False]]  # Alice insert
+        assert diff1["0"]["stream"][1] == [["users-1", -1, None]]  # Alice insert
 
         # Insert second user
         stream.insert(User(id=2, name="Bob"))
@@ -166,7 +166,7 @@ class TestStreamDiffMultipleRenders:
         diff2 = calc_diff(tree2, tree3)
 
         assert "0" in diff2
-        assert diff2["0"]["stream"][1] == [["users-2", -1, None, False]]  # Bob insert
+        assert diff2["0"]["stream"][1] == [["users-2", -1, None]]  # Bob insert
         # Only Bob should be in this diff, not Alice
         assert len(diff2["0"]["stream"][1]) == 1
 
@@ -187,7 +187,7 @@ class TestStreamDiffMultipleRenders:
         assert "0" in diff
         comp = diff["0"]
         assert "stream" in comp
-        # 0.19+ format: [stream_ref, [[dom_id, at, limit, update_only], ...], [deletes], reset]
+        # 0.20 format: [stream_ref, [[dom_id, at, limit], ...], [deletes], reset]
         assert comp["stream"][0] == "users"  # stream ref
         assert comp["stream"][1] == []  # no inserts
         assert comp["stream"][2] == ["users-1"]  # delete
@@ -215,9 +215,9 @@ class TestStreamDiffCombinedOps:
         assert "0" in diff
         comp = diff["0"]
         assert "stream" in comp
-        # 0.19+ format: [stream_ref, [[dom_id, at, limit, update_only], ...], [deletes], reset]
+        # 0.20 format: [stream_ref, [[dom_id, at, limit], ...], [deletes], reset]
         assert comp["stream"][0] == "users"  # stream ref
-        assert comp["stream"][1] == [["users-2", -1, None, False]]  # Insert Bob
+        assert comp["stream"][1] == [["users-2", -1, None]]  # Insert Bob
         assert comp["stream"][2] == ["users-1"]  # Delete Alice
 
 

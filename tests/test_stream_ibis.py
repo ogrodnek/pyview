@@ -47,12 +47,13 @@ class TestStreamIbisBasic:
         assert "d" in comp
         assert "stream" in comp
 
-        # Check stream metadata format: [stream_ref, [[dom_id, at, limit, update_only], ...], [deletes], reset]
+        # Check stream metadata format: [stream_ref, [[dom_id, at, limit], ...], [deletes]]
+        # (reset flag only present when true)
         stream_meta = comp["stream"]
+        assert len(stream_meta) == 3  # no reset flag
         assert stream_meta[0] == "users"  # stream ref
-        assert stream_meta[1] == [["users-1", -1, None, False], ["users-2", -1, None, False]]  # inserts
+        assert stream_meta[1] == [["users-1", -1, None], ["users-2", -1, None]]  # inserts
         assert stream_meta[2] == []  # no deletes
-        assert stream_meta[3] is False  # reset flag
 
     def test_stream_dynamics_match_inserts(self):
         """Dynamic content matches stream inserts."""
@@ -87,9 +88,9 @@ class TestStreamIbisBasic:
         comp = tree["0"]
 
         # Check custom dom_id in stream metadata
-        # 0.19+ format: [stream_ref, [[dom_id, at, limit, update_only], ...], [deletes], reset]
+        # 0.20 format: [stream_ref, [[dom_id, at, limit], ...], [deletes], reset]
         assert comp["stream"][0] == "messages"  # stream ref
-        assert comp["stream"][1] == [["msg-1", -1, None, False]]  # inserts
+        assert comp["stream"][1] == [["msg-1", -1, None]]  # inserts
         assert comp["stream"][2] == []  # no deletes
         assert comp["d"][0] == ["msg-1", "Hello"]
 
@@ -97,7 +98,7 @@ class TestStreamIbisBasic:
 class TestStreamOperationsInTemplate:
     """Test various stream operations reflected in template output.
 
-    Phoenix 0.19+ wire format: [stream_ref, [[dom_id, at, limit, update_only], ...], [deletes], reset]
+    Phoenix 0.20 wire format: [stream_ref, [[dom_id, at, limit], ...], [deletes], reset]
     """
 
     def test_stream_append(self):
@@ -113,10 +114,10 @@ class TestStreamOperationsInTemplate:
         tree = template.tree({"users": stream})
         comp = tree["0"]
 
+        assert len(comp["stream"]) == 3  # no reset flag
         assert comp["stream"][0] == "users"  # stream ref
-        assert comp["stream"][1] == [["users-1", -1, None, False], ["users-2", -1, None, False]]  # inserts
+        assert comp["stream"][1] == [["users-1", -1, None], ["users-2", -1, None]]  # inserts
         assert comp["stream"][2] == []  # no deletes
-        assert comp["stream"][3] is False  # reset flag
 
     def test_stream_prepend(self):
         """Prepend operation (at=0)."""
@@ -131,7 +132,7 @@ class TestStreamOperationsInTemplate:
         comp = tree["0"]
 
         assert comp["stream"][0] == "users"  # stream ref
-        assert comp["stream"][1] == [["users-1", 0, None, False]]  # inserts with at=0
+        assert comp["stream"][1] == [["users-1", 0, None]]  # inserts with at=0
         assert comp["stream"][2] == []  # no deletes
 
     def test_stream_insert_at_index(self):
@@ -147,11 +148,11 @@ class TestStreamOperationsInTemplate:
         comp = tree["0"]
 
         assert comp["stream"][0] == "users"  # stream ref
-        assert comp["stream"][1] == [["users-1", 5, None, False]]  # inserts with at=5
+        assert comp["stream"][1] == [["users-1", 5, None]]  # inserts with at=5
         assert comp["stream"][2] == []  # no deletes
 
     def test_stream_with_limit(self):
-        """Insert with limit - limit is included in 0.19+ wire format."""
+        """Insert with limit - limit is included in 0.20 wire format."""
         template = Template(
             """{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}"""
         )
@@ -162,13 +163,13 @@ class TestStreamOperationsInTemplate:
         tree = template.tree({"users": stream})
         comp = tree["0"]
 
-        # 0.19+ wire format includes limit
+        # 0.20 wire format includes limit
         assert comp["stream"][0] == "users"  # stream ref
-        assert comp["stream"][1] == [["users-1", -1, 100, False]]  # inserts with limit
+        assert comp["stream"][1] == [["users-1", -1, 100]]  # inserts with limit
         assert comp["stream"][2] == []  # no deletes
 
     def test_stream_update_only(self):
-        """Insert with update_only - included in 0.19+ wire format."""
+        """Insert with update_only - stored internally but not in 0.20 wire format."""
         template = Template(
             """{% for dom_id, user in users %}<li id="{{ dom_id }}">{{ user.name }}</li>{% endfor %}"""
         )
@@ -179,9 +180,9 @@ class TestStreamOperationsInTemplate:
         tree = template.tree({"users": stream})
         comp = tree["0"]
 
-        # 0.19+ wire format includes update_only
+        # 0.20 wire format does not include update_only
         assert comp["stream"][0] == "users"  # stream ref
-        assert comp["stream"][1] == [["users-1", -1, None, True]]  # inserts with update_only
+        assert comp["stream"][1] == [["users-1", -1, None]]  # inserts (no update_only in wire)
         assert comp["stream"][2] == []  # no deletes
 
 
@@ -202,12 +203,12 @@ class TestStreamDeletesAndReset:
         comp = tree["0"]
 
         # Should have stream metadata with deletes
-        # Phoenix 0.19+ format: [stream_ref, [[dom_id, at, limit, update_only], ...], [deletes], reset]
+        # Phoenix 0.20 format: [stream_ref, [[dom_id, at, limit], ...], [deletes]]
         assert "stream" in comp
+        assert len(comp["stream"]) == 3  # no reset flag
         assert comp["stream"][0] == "users"  # stream ref
         assert comp["stream"][1] == []  # no inserts
         assert comp["stream"][2] == ["users-1", "users-2"]  # deletes
-        assert comp["stream"][3] is False  # reset flag
 
     def test_stream_reset(self):
         """Stream reset operation - sends items with reset flag true."""
@@ -221,10 +222,10 @@ class TestStreamDeletesAndReset:
         tree = template.tree({"users": stream})
         comp = tree["0"]
 
-        # 0.19+ format: [stream_ref, [[dom_id, at, limit, update_only], ...], [deletes], reset]
+        # 0.20 format: [stream_ref, [[dom_id, at, limit], ...], [deletes], reset]
         assert len(comp["stream"]) == 4
         assert comp["stream"][0] == "users"  # stream ref
-        assert comp["stream"][1] == [["users-10", -1, None, False]]  # inserts
+        assert comp["stream"][1] == [["users-10", -1, None]]  # inserts
         assert comp["stream"][2] == []  # no deletes
         assert comp["stream"][3] is True  # reset flag
 
@@ -240,7 +241,7 @@ class TestStreamDeletesAndReset:
         tree = template.tree({"users": stream})
         comp = tree["0"]
 
-        # 0.19+ format: [stream_ref, [[dom_id, at, limit, update_only], ...], [deletes], reset]
+        # 0.20 format: [stream_ref, [[dom_id, at, limit], ...], [deletes], reset]
         assert comp["stream"][0] == "users"  # stream ref
         assert comp["stream"][1] == []  # no inserts
         assert comp["stream"][2] == []  # no deletes
@@ -263,9 +264,9 @@ class TestStreamCombinedOperations:
         tree = template.tree({"users": stream})
         comp = tree["0"]
 
-        # 0.19+ format: [stream_ref, [[dom_id, at, limit, update_only], ...], [deletes], reset]
+        # 0.20 format: [stream_ref, [[dom_id, at, limit], ...], [deletes], reset]
         assert comp["stream"][0] == "users"  # stream ref
-        assert comp["stream"][1] == [["users-10", -1, None, False]]  # inserts
+        assert comp["stream"][1] == [["users-10", -1, None]]  # inserts
         assert comp["stream"][2] == ["users-5"]  # deletes
 
     def test_multiple_operations(self):
@@ -283,10 +284,10 @@ class TestStreamCombinedOperations:
         tree = template.tree({"users": stream})
         comp = tree["0"]
 
-        # 0.19+ format: [stream_ref, [[dom_id, at, limit, update_only], ...], [deletes], reset]
+        # 0.20 format: [stream_ref, [[dom_id, at, limit], ...], [deletes], reset]
         assert comp["stream"][0] == "users"  # stream ref
         assert len(comp["stream"][1]) == 2  # 2 inserts
-        assert comp["stream"][1] == [["users-10", -1, None, False], ["users-11", 0, None, False]]
+        assert comp["stream"][1] == [["users-10", -1, None], ["users-11", 0, None]]
         assert len(comp["stream"][2]) == 2  # 2 deletes
 
 

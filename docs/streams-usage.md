@@ -158,6 +158,8 @@ stream.insert(updated_msg)  # Updates existing item with id=123
 
 ### Update Only Mode
 
+> **Note:** `update_only` is stored internally but not sent over the wire in Phoenix LiveView 0.20. This feature requires LiveView 1.1+ client.
+
 Only update items that already exist (ignore if not present):
 
 ```python
