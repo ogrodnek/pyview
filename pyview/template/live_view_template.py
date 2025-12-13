@@ -212,11 +212,17 @@ class LiveViewTemplate:
 
         result: dict[str, Any] = {"d": processed_items}
 
-        # Extract statics from first item if it has them
+        # Extract statics from first item if it has them.
+        # processed_items contains either:
+        #   - dicts with {"s": [...], "0": val, "1": val, ...} for Template items
+        #   - lists of escaped strings for non-Template items
         if processed_items and isinstance(processed_items[0], dict) and "s" in processed_items[0]:
-            # All items should share the same statics
+            # All Template items share the same statics (the template's static strings),
+            # so we extract "s" from the first item and use it for the entire result.
             result["s"] = processed_items[0]["s"]
-            # Convert dynamics to the nested format
+            # Convert each item to just its dynamic values (excluding "s").
+            # Dict items: extract values sorted by key ("0", "1", ...) to maintain order.
+            # Non-dict items (lists): pass through as-is.
             result["d"] = [
                 [v for k, v in sorted(item.items()) if k != "s"]
                 if isinstance(item, dict)
