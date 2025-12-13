@@ -365,6 +365,7 @@ class TestStreamWireFormat:
         stream2 = Stream(name="test")
         stream2.insert(User(id=1, name="Test"), update_only=True)
         ops = stream2._get_pending_ops()
+        assert ops is not None
         assert ops.inserts[0].update_only is True
 
     def test_no_ops_returns_none(self):

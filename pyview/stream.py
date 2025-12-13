@@ -288,10 +288,7 @@ class Stream(Generic[T]):
 
         Note: update_only is stored internally but not sent over wire in 0.20 format.
         """
-        inserts = [
-            [ins.dom_id, ins.at, ins.limit]
-            for ins in ops.inserts
-        ]
+        inserts = [[ins.dom_id, ins.at, ins.limit] for ins in ops.inserts]
 
         # Only include reset if true - JS checks `reset !== undefined` to trigger reset
         if ops.reset:
