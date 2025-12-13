@@ -119,7 +119,9 @@ class TemplateView(Generic[T]):
                 )
 
             # Process the template into LiveView tree format
-            tree = LiveViewTemplate.process(template)
+            # Pass socket for component registration if available
+            socket = meta.socket if meta else None
+            tree = LiveViewTemplate.process(template, socket=socket)
 
             return TStringRenderedContent(tree)
 

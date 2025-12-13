@@ -23,6 +23,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from starlette.websockets import WebSocket
 
 from pyview.async_stream_runner import AsyncStreamRunner
+from pyview.components.manager import ComponentsManager
 from pyview.events import InfoEvent
 from pyview.meta import PyViewMeta
 from pyview.template.render_diff import calc_diff
@@ -96,10 +97,11 @@ class ConnectedLiveViewSocket(Generic[T]):
         self.upload_manager = UploadManager()
         self.stream_runner = AsyncStreamRunner(self)
         self.scheduler = scheduler
+        self.components = ComponentsManager(self)
 
     @property
     def meta(self) -> PyViewMeta:
-        return PyViewMeta()
+        return PyViewMeta(socket=self)
 
     async def subscribe(self, topic: str):
         await self.pub_sub.subscribe_topic_async(topic, self._topic_callback_internal)
@@ -272,6 +274,9 @@ class ConnectedLiveViewSocket(Generic[T]):
 
         with suppress(Exception):
             self.upload_manager.close()
+
+        with suppress(Exception):
+            self.components.clear()
 
         with suppress(Exception):
             await self.liveview.disconnect(self)

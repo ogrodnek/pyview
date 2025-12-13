@@ -1,6 +1,17 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from pyview.live_socket import ConnectedLiveViewSocket
 
 
 @dataclass
 class PyViewMeta:
-    pass
+    """
+    Metadata passed to LiveView render and template methods.
+
+    Attributes:
+        socket: Optional reference to the connected socket (for component registration)
+    """
+
+    socket: Optional["ConnectedLiveViewSocket"] = field(default=None, repr=False)
