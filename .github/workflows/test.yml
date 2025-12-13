@@ -19,32 +19,22 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install Poetry
-        uses: snok/install-poetry@v1.3.4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-          installer-parallel: true
-      - name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v3
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
       - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root
-      - name: Install project
-        run: poetry install --no-interaction
+        run: uv sync --group dev
       - name: Run linter
         run: |
-          poetry run ruff check .
-          poetry run ruff format --check .
+          uv run ruff check .
+          uv run ruff format --check .
       - name: Run tests
-        run: poetry run pytest --cov --cov-branch --cov-report=xml
+        run: uv run pytest --cov --cov-branch --cov-report=xml
       - name: Upload coverage reports
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Run type checker
-        run: poetry run pyright
+        run: uv run pyright

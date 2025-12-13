@@ -1,18 +1,13 @@
 FROM python:3.14-alpine AS build
 
 RUN apk add build-base libffi-dev zlib-dev jpeg-dev
-RUN pip install poetry
-ENV POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_IN_PROJECT=1 \
-    POETRY_VIRTUALENVS_CREATE=1 \
-    PYTHONUNBUFFERED=1
-
+COPY --from=ghcr.io/astral-sh/uv:0.5 /uv /uvx /bin/
 
 WORKDIR /app
 COPY . .
 
 WORKDIR /app/examples
-RUN poetry install --no-root --only main --no-cache
+RUN uv sync --no-dev --no-cache
 
 FROM python:3.14-alpine AS runtime
 

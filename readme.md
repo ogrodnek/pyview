@@ -91,26 +91,30 @@ PyView is in the very early stages of active development. Please check it out an
 ## Setup
 
 ```
-poetry install
+uv sync
 ```
 
 ## Running
 
 ```
-poetry run uvicorn examples.app:app --reload
+uv run uvicorn examples.app:app --reload
 ```
 
 Then go to http://localhost:8000/
 
-### Poetry Install
+### uv Install
 
 ```
-brew install pipx
-pipx install poetry
-pipx ensurepath
+brew install uv
 ```
 
-(see https://python-poetry.org/docs/#installation for more details)
+or
+
+```
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+(see https://docs.astral.sh/uv/getting-started/installation/ for more details)
 
 # License
 

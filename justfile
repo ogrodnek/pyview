@@ -1,31 +1,31 @@
 start:
-  PYVIEW_SECRET=`openssl rand -base64 16` poetry run uvicorn examples.app:app --reload
+  PYVIEW_SECRET=`openssl rand -base64 16` uv run uvicorn examples.app:app --reload
 
 test:
-  poetry run pytest -vvvs
+  uv run pytest -vvvs
 
 code:
-  poetry run code -n .
+  uv run code -n .
 
 docs:
-  poetry run mkdocs serve
+  uv run mkdocs serve
 
 docker:
   docker build -t pyview .
   docker run -p 8000:8000 pyview
 
 type-check:
-  poetry run pyright
+  uv run pyright
 
 lint:
-  poetry run ruff check .
+  uv run ruff check .
 
 format:
-  poetry run ruff format .
+  uv run ruff format .
 
 format-fix:
-  poetry run ruff check --fix .
-  poetry run ruff format .
+  uv run ruff check --fix .
+  uv run ruff format .
 
 build-js:
   cd pyview/assets && npx esbuild js/app.js --bundle --target=es2017 --outdir=../static/assets/
