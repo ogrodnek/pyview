@@ -418,4 +418,99 @@ class TestLiveViewTemplate:
             }
         }
         assert result == expected
-    
+
+    def test_list_comprehension_with_shared_statics(self):
+        """Test list comprehension extracts shared statics for Phoenix.js wire format."""
+        items = [
+            t"<li>{i}</li>"
+            for i in range(3)
+        ]
+        template = t"<ul>{items}</ul>"
+        result = LiveViewTemplate.process(template)
+
+        # Phoenix.js expects shared statics at top level and only dynamics in "d"
+        expected = {
+            "s": ["<ul>", "</ul>"],
+            "0": {
+                "s": ["<li>", "</li>"],  # Shared statics from all list items
+                "d": [
+                    ["0"],  # Just the dynamic value for first item
+                    ["1"],  # Just the dynamic value for second item
+                    ["2"],  # Just the dynamic value for third item
+                ]
+            }
+        }
+        assert result == expected
+
+    def test_list_comprehension_with_multiple_dynamics(self):
+        """Test list comprehension with multiple dynamics per item."""
+        items = [
+            t"<li id=\"item-{i}\">{i * 2}</li>"
+            for i in range(2)
+        ]
+        template = t"<ul>{items}</ul>"
+        result = LiveViewTemplate.process(template)
+
+        # Each item has two dynamics, statics are shared
+        expected = {
+            "s": ["<ul>", "</ul>"],
+            "0": {
+                "s": ["<li id=\"item-", "\">", "</li>"],  # Shared statics
+                "d": [
+                    ["0", "0"],  # First item: id=0, content=0
+                    ["1", "2"],  # Second item: id=1, content=2
+                ]
+            }
+        }
+        assert result == expected
+
+    def test_list_of_component_placeholders(self):
+        """Test list of LiveComponentPlaceholder objects."""
+        socket = MockSocket()
+        components = [
+            LiveComponentPlaceholder(MockComponent, f"comp-{i}", {"index": i})
+            for i in range(3)
+        ]
+        template = t"<div>{components}</div>"
+        result = LiveViewTemplate.process(template, socket=socket)
+
+        # Component lists should have empty statics and wrapped component refs
+        expected = {
+            "s": ["<div>", "</div>"],
+            "0": {
+                "s": ["", ""],  # Empty statics (components don't have template statics)
+                "d": [
+                    [{"c": 1}],  # First component cid=1, wrapped in array
+                    [{"c": 2}],  # Second component cid=2
+                    [{"c": 3}],  # Third component cid=3
+                ]
+            }
+        }
+        assert result == expected
+
+        # Verify all components were registered
+        assert len(socket.components._components) == 3
+        assert socket.components._components[1]["id"] == "comp-0"
+        assert socket.components._components[2]["id"] == "comp-1"
+        assert socket.components._components[3]["id"] == "comp-2"
+
+    def test_list_of_component_placeholders_without_socket(self):
+        """Test list of LiveComponentPlaceholder objects without socket falls back to string."""
+        components = [
+            LiveComponentPlaceholder(MockComponent, f"comp-{i}", {"index": i})
+            for i in range(2)
+        ]
+        template = t"<div>{components}</div>"
+        result = LiveViewTemplate.process(template)  # No socket
+
+        # Without socket, components become escaped strings
+        expected = {
+            "s": ["<div>", "</div>"],
+            "0": {
+                "d": [
+                    ["&lt;pyview-component cid=&#x27;comp-0&#x27;/&gt;"],
+                    ["&lt;pyview-component cid=&#x27;comp-1&#x27;/&gt;"],
+                ]
+            }
+        }
+        assert result == expected
