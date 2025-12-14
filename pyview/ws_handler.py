@@ -399,12 +399,7 @@ async def _render(socket: ConnectedLiveViewSocket):
             if template is not None:
                 # Process the component's template to get wire format
                 tree = LiveViewTemplate.process(template, socket=socket)
-                # Wrap component content with data-phx-component for Phoenix.js tracking
-                wrapped_tree = {
-                    "s": [f'<div data-phx-component="{cid}">', "</div>"],
-                    "0": tree,
-                }
-                components_rendered[str(cid)] = wrapped_tree
+                components_rendered[str(cid)] = tree
 
         if components_rendered:
             rendered["c"] = components_rendered
