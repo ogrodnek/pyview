@@ -196,8 +196,9 @@ class LiveViewTemplate:
 
         result: dict[str, Any] = {"d": processed_items}
 
-        # Extract statics from first item if it has them.
-        # Phoenix.js expects statics to be shared across all list items.
+        # Extract shared statics if all template items have the SAME statics.
+        # This is the case for comprehensions where the same template pattern is used.
+        # Phoenix.js expects shared statics at top level with dynamics in "d" arrays.
         # processed_items contains either:
         #   - dicts with {"s": [...], "0": val, "1": val, ...} for Template items
         #   - dicts with {"c": cid} for component references
@@ -205,18 +206,28 @@ class LiveViewTemplate:
         if processed_items and isinstance(processed_items[0], dict):
             first_item = processed_items[0]
             if "s" in first_item:
-                # All Template items share the same statics (the template's static strings),
-                # so we extract "s" from the first item and use it for the entire result.
-                result["s"] = first_item["s"]
-                # Convert each item to just its dynamic values (excluding "s").
-                # Dict items: extract values sorted by key ("0", "1", ...) to maintain order.
-                # Non-dict items (lists): pass through as-is.
-                result["d"] = [
-                    [v for k, v in sorted(item.items()) if k != "s"]
-                    if isinstance(item, dict)
-                    else item
+                # Check if ALL items have the same statics (comprehension case)
+                first_statics = first_item["s"]
+                all_same_statics = all(
+                    isinstance(item, dict) and item.get("s") == first_statics
                     for item in processed_items
-                ]
+                )
+
+                if all_same_statics:
+                    # All Template items share the same statics (comprehension),
+                    # so extract "s" from first item and use for entire result.
+                    result["s"] = first_statics
+                    # Convert each item to just its dynamic values (excluding "s").
+                    # Dict items: extract values sorted by key ("0", "1", ...).
+                    # Non-dict items (lists): pass through as-is.
+                    result["d"] = [
+                        [v for k, v in sorted(item.items()) if k != "s"]
+                        if isinstance(item, dict)
+                        else item
+                        for item in processed_items
+                    ]
+                # else: items have different statics, keep them as-is in "d"
+
             elif "c" in first_item:
                 # List of component references - provide empty statics and wrap each in array
                 # Phoenix.js expects: {"s": ["", ""], "d": [[{"c": 1}], [{"c": 2}], ...]}
