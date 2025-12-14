@@ -176,7 +176,7 @@ class LiveViewTemplate:
         processed_items = []
         for item in items:
             if isinstance(item, Template):
-                # Process template items
+                # Process template items - produces {"s": [...], "0": ..., ...}
                 processed_items.append(LiveViewTemplate.process(item, socket))
             elif isinstance(item, LiveComponentPlaceholder):
                 # Handle component placeholders in lists
@@ -188,11 +188,11 @@ class LiveViewTemplate:
                     )
                     processed_items.append({"c": cid})
                 else:
-                    # Fallback if no socket available
-                    processed_items.append([LiveViewTemplate.escape_html(str(item))])
+                    # Fallback if no socket available - just escaped string
+                    processed_items.append(LiveViewTemplate.escape_html(str(item)))
             else:
-                # Convert non-template items to escaped strings
-                processed_items.append([LiveViewTemplate.escape_html(str(item))])
+                # Plain strings - just escape, will be wrapped once in fallback
+                processed_items.append(LiveViewTemplate.escape_html(str(item)))
 
         # Phoenix.js comprehension format ALWAYS requires:
         # - "s": array of static strings (shared across all items)

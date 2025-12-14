@@ -107,12 +107,12 @@ class TestLiveViewTemplate:
         template = t"Fruits: {items}"
         result = LiveViewTemplate.process(template)
 
-        # Plain string lists use empty statics wrapper
+        # Plain string lists use empty statics wrapper, each string wrapped once
         expected = {
             "s": ["Fruits: ", ""],
             "0": {
                 "s": ["", ""],
-                "d": [[["apple"]], [["banana"]], [["cherry"]]]
+                "d": [["apple"], ["banana"], ["cherry"]]
             }
         }
         assert result == expected
@@ -322,15 +322,15 @@ class TestLiveViewTemplate:
         template = t"Mixed: {items}"
         result = LiveViewTemplate.process(template)
 
-        # Mixed lists use empty statics wrapper, each item wrapped in array
+        # Mixed lists use empty statics wrapper, each item wrapped once
         expected = {
             "s": ["Mixed: ", ""],
             "0": {
                 "s": ["", ""],
                 "d": [
-                    [["Plain string"]],
+                    ["Plain string"],
                     [{"s": ["Template with ", ""], "0": "Alice"}],
-                    [["42"]]
+                    ["42"]
                 ]
             }
         }
@@ -419,7 +419,7 @@ class TestLiveViewTemplate:
                 "s": ["", ""],
                 "d": [
                     [{"s": ["Welcome ", ""], "0": "Alice"}],
-                    [[LiveViewTemplate.escape_html(str({"type": "dict", "value": 123}))]],
+                    [LiveViewTemplate.escape_html(str({"type": "dict", "value": 123}))],
                     [{"s": ["Goodbye ", ""], "0": "Alice"}]
                 ]
             }
@@ -510,14 +510,14 @@ class TestLiveViewTemplate:
         template = t"<div>{components}</div>"
         result = LiveViewTemplate.process(template)  # No socket
 
-        # Without socket, components become escaped strings wrapped in arrays
+        # Without socket, components become escaped strings wrapped once
         expected = {
             "s": ["<div>", "</div>"],
             "0": {
                 "s": ["", ""],
                 "d": [
-                    [["&lt;pyview-component cid=&#x27;comp-0&#x27;/&gt;"]],
-                    [["&lt;pyview-component cid=&#x27;comp-1&#x27;/&gt;"]],
+                    ["&lt;pyview-component cid=&#x27;comp-0&#x27;/&gt;"],
+                    ["&lt;pyview-component cid=&#x27;comp-1&#x27;/&gt;"],
                 ]
             }
         }
@@ -641,14 +641,14 @@ class TestLiveViewTemplate:
         template = t"<div>{items}</div>"
         result = LiveViewTemplate.process(template)
 
-        # Mixed items use empty statics wrapper, each item wrapped
+        # Mixed items use empty statics wrapper, each item wrapped once
         expected = {
             "s": ["<div>", "</div>"],
             "0": {
                 "s": ["", ""],
                 "d": [
                     [{"s": ["<p>Hello ", "</p>"], "0": "Test"}],
-                    [["plain string"]],
+                    ["plain string"],
                 ]
             }
         }
