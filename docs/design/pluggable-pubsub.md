@@ -36,24 +36,24 @@ await self.pub_sub.unsubscribe_all_async()
 1. **Pluggable backends**: Support Redis, PostgreSQL NOTIFY/LISTEN, or custom implementations
 2. **Zero new dependencies**: Core PyView remains lightweight
 3. **Backward compatible**: Existing code works unchanged
-4. **Follow existing patterns**: Mirror the `InstrumentationProvider` architecture
+4. **Follow existing patterns**: Use `Protocol` for structural typing (like `InfoEventScheduler`)
 5. **Minimal API surface**: Only abstract what's actually needed
 
 ### Core Interface
 
-Create an abstract base class following the existing `InstrumentationProvider` pattern:
+Create a Protocol following the existing `InfoEventScheduler` pattern in `pyview/events/info_event.py`:
 
 ```python
 # pyview/pubsub/interfaces.py
-from abc import ABC, abstractmethod
-from typing import Any, Callable, Coroutine
+from typing import Any, Callable, Coroutine, Protocol, runtime_checkable
 
 # Type alias for async handlers
 TopicHandler = Callable[[str, Any], Coroutine[Any, Any, None]]
 
 
-class PubSubProvider(ABC):
-    """Abstract base class for pub/sub implementations.
+@runtime_checkable
+class PubSubProvider(Protocol):
+    """Protocol for pub/sub implementations.
 
     Implementations must handle:
     - Topic-based subscriptions per session
@@ -64,9 +64,11 @@ class PubSubProvider(ABC):
     - Handlers are local Python callables (not serializable)
     - Messages must be serializable (JSON-compatible recommended)
     - Implementation should handle cross-instance message routing
+
+    Using Protocol enables structural typing - any class implementing
+    these methods is compatible, no inheritance required.
     """
 
-    @abstractmethod
     async def subscribe_topic(
         self,
         session_id: str,
@@ -80,19 +82,16 @@ class PubSubProvider(ABC):
             topic: Topic name to subscribe to
             handler: Async callable(topic, message) to invoke on messages
         """
-        pass
+        ...
 
-    @abstractmethod
     async def unsubscribe_topic(self, session_id: str, topic: str) -> None:
         """Unsubscribe a session from a specific topic."""
-        pass
+        ...
 
-    @abstractmethod
     async def unsubscribe_all(self, session_id: str) -> None:
         """Remove all subscriptions for a session (cleanup on disconnect)."""
-        pass
+        ...
 
-    @abstractmethod
     async def broadcast(self, topic: str, message: Any) -> None:
         """Broadcast a message to all subscribers on a topic.
 
@@ -100,31 +99,32 @@ class PubSubProvider(ABC):
         JSON-serializable. Complex objects should be converted before
         broadcasting.
         """
-        pass
+        ...
 
-    # Optional lifecycle hooks for implementations that need them
     async def start(self) -> None:
         """Called when the PyView app starts. Override for setup."""
-        pass
+        ...
 
     async def stop(self) -> None:
         """Called when the PyView app shuts down. Override for cleanup."""
-        pass
+        ...
 ```
+
+Note: Using `...` (Ellipsis) instead of `pass` is the convention for Protocol method stubs.
 
 ### Default In-Memory Implementation
 
-Refactor the existing `PubSubHub` to implement the new interface:
+Refactor the existing `PubSubHub` to satisfy the protocol (no inheritance needed):
 
 ```python
 # pyview/pubsub/memory.py
 import asyncio
 from typing import Any
 
-from .interfaces import PubSubProvider, TopicHandler
+from .interfaces import TopicHandler
 
 
-class InMemoryPubSub(PubSubProvider):
+class InMemoryPubSub:
     """Default in-memory pub/sub implementation.
 
     Suitable for single-instance deployments. Messages are delivered
@@ -184,6 +184,14 @@ class InMemoryPubSub(PubSubProvider):
         # Dispatch outside the lock to prevent deadlocks
         for handler in handlers:
             asyncio.create_task(handler(topic, message))
+
+    async def start(self) -> None:
+        """No-op for in-memory implementation."""
+        pass
+
+    async def stop(self) -> None:
+        """No-op for in-memory implementation."""
+        pass
 ```
 
 ### Session-Scoped Wrapper
@@ -312,10 +320,10 @@ from typing import Any
 
 import redis.asyncio as redis
 
-from pyview.pubsub import PubSubProvider, TopicHandler
+from pyview.pubsub import TopicHandler
 
 
-class RedisPubSub(PubSubProvider):
+class RedisPubSub:
     """Redis-backed pub/sub for multi-instance deployments.
 
     Install: pip install pyview-redis
@@ -472,11 +480,13 @@ app = PyView(
 
 ```python
 # Example structure for PostgreSQL backend
-class PostgresPubSub(PubSubProvider):
+class PostgresPubSub:
     """PostgreSQL NOTIFY/LISTEN for deployments already using PostgreSQL.
 
     Pros: No additional infrastructure if you have PostgreSQL
     Cons: Less throughput than Redis, doesn't persist messages
+
+    Satisfies PubSubProvider protocol via structural typing.
     """
 
     def __init__(self, dsn: str, channel_prefix: str = "pyview_"):
@@ -488,19 +498,23 @@ class PostgresPubSub(PubSubProvider):
         channel = f"{self._prefix}{topic}"
         payload = json.dumps(message)
         await self._conn.execute(f"NOTIFY {channel}, '{payload}'")
+
+    # ... implement other protocol methods
 ```
 
 ### NATS
 
 ```python
 # Example structure for NATS backend
-class NatsPubSub(PubSubProvider):
+class NatsPubSub:
     """NATS for high-performance distributed messaging.
 
     Pros: Very high throughput, built for pub/sub
     Cons: Additional infrastructure to manage
+
+    Satisfies PubSubProvider protocol via structural typing.
     """
-    pass
+    # ... implement protocol methods
 ```
 
 ---
@@ -511,7 +525,7 @@ class NatsPubSub(PubSubProvider):
 pyview/
 ├── pubsub/
 │   ├── __init__.py          # Exports: PubSubProvider, InMemoryPubSub, SessionPubSub
-│   ├── interfaces.py        # Abstract PubSubProvider class
+│   ├── interfaces.py        # PubSubProvider Protocol
 │   ├── memory.py            # InMemoryPubSub implementation
 │   └── session.py           # SessionPubSub wrapper
 ├── vendor/
@@ -571,9 +585,10 @@ For distributed backends, messages must be serializable. Recommend documenting:
 ## Summary
 
 This design:
-1. **Mirrors existing patterns** - Follows `InstrumentationProvider` architecture
-2. **Minimal interface** - Only 4 abstract methods needed
-3. **Zero new deps** - Core PyView stays lightweight
-4. **Easy to implement** - Redis example is ~100 lines
-5. **Backward compatible** - Default in-memory behavior unchanged
-6. **Production ready** - Lifecycle hooks for proper startup/shutdown
+1. **Mirrors existing patterns** - Uses `Protocol` like `InfoEventScheduler`
+2. **Structural typing** - No inheritance required, just implement the methods
+3. **Minimal interface** - Only 4 core methods + 2 lifecycle hooks
+4. **Zero new deps** - Core PyView stays lightweight
+5. **Easy to implement** - Redis example is ~100 lines
+6. **Backward compatible** - Default in-memory behavior unchanged
+7. **Production ready** - Lifecycle hooks for proper startup/shutdown
