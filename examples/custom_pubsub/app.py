@@ -23,8 +23,9 @@ To switch backends:
 import os
 from typing import TypedDict
 
-from pyview import LiveView, PyView, is_connected
 from redis_pubsub import RedisPubSub
+
+from pyview import LiveView, PyView, is_connected
 
 
 class CounterContext(TypedDict):

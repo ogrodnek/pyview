@@ -18,6 +18,7 @@ How it works:
 import asyncio
 import json
 import logging
+from contextlib import suppress
 from typing import Any, Callable, Coroutine
 
 import redis.asyncio as redis
@@ -65,10 +66,8 @@ class RedisPubSub:
         """Disconnect from Redis and clean up."""
         if self._listener_task:
             self._listener_task.cancel()
-            try:
+            with suppress(asyncio.CancelledError):
                 await self._listener_task
-            except asyncio.CancelledError:
-                pass
 
         if self._pubsub:
             await self._pubsub.close()

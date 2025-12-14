@@ -13,8 +13,8 @@ from pyview.auth import AuthProviderFactory
 from pyview.csrf import generate_csrf_token
 from pyview.instrumentation import InstrumentationProvider, NoOpInstrumentation
 from pyview.live_socket import UnconnectedSocket
-from pyview.pubsub import InMemoryPubSub, PubSubProvider
 from pyview.meta import PyViewMeta
+from pyview.pubsub import InMemoryPubSub, PubSubProvider
 from pyview.session import serialize_session
 
 from .live_routes import LiveViewLookup
