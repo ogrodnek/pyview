@@ -182,7 +182,28 @@ class LiveViewTemplate:
                 # Convert non-template items to escaped strings
                 processed_items.append([LiveViewTemplate.escape_html(str(item))])
 
-        return {"d": processed_items}
+        result: dict[str, Any] = {"d": processed_items}
+
+        # Extract statics from first item if it has them.
+        # Phoenix.js expects statics to be shared across all list items.
+        # processed_items contains either:
+        #   - dicts with {"s": [...], "0": val, "1": val, ...} for Template items
+        #   - lists of escaped strings for non-Template items
+        if processed_items and isinstance(processed_items[0], dict) and "s" in processed_items[0]:
+            # All Template items share the same statics (the template's static strings),
+            # so we extract "s" from the first item and use it for the entire result.
+            result["s"] = processed_items[0]["s"]
+            # Convert each item to just its dynamic values (excluding "s").
+            # Dict items: extract values sorted by key ("0", "1", ...) to maintain order.
+            # Non-dict items (lists): pass through as-is.
+            result["d"] = [
+                [v for k, v in sorted(item.items()) if k != "s"]
+                if isinstance(item, dict)
+                else item
+                for item in processed_items
+            ]
+
+        return result
 
     @staticmethod
     def _process_stream_list(
