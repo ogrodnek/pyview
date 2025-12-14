@@ -49,9 +49,7 @@ class PyView(Starlette):
         self.instrumentation = instrumentation or NoOpInstrumentation()
         self.pubsub = pubsub or InMemoryPubSub()
         self.view_lookup = LiveViewLookup()
-        self.live_handler = LiveSocketHandler(
-            self.view_lookup, self.instrumentation, self.pubsub
-        )
+        self.live_handler = LiveSocketHandler(self.view_lookup, self.instrumentation, self.pubsub)
 
         self.routes.append(WebSocketRoute("/live/websocket", self.live_handler.handle))
         self.add_middleware(GZipMiddleware)
@@ -69,16 +67,15 @@ class PyView(Starlette):
             app.live_handler.start_scheduler()
             await app.pubsub.start()
 
-            # Run user's lifespan if they provided one
-            if user_lifespan:
-                async with user_lifespan(app):
+            try:
+                if user_lifespan:
+                    async with user_lifespan(app):
+                        yield
+                else:
                     yield
-            else:
-                yield
-
-            # Shutdown
-            await app.pubsub.stop()
-            await app.live_handler.shutdown_scheduler()
+            finally:
+                await app.pubsub.stop()
+                await app.live_handler.shutdown_scheduler()
 
         return lifespan
 
