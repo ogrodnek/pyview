@@ -178,6 +178,18 @@ class LiveViewTemplate:
             if isinstance(item, Template):
                 # Process template items
                 processed_items.append(LiveViewTemplate.process(item, socket))
+            elif isinstance(item, LiveComponentPlaceholder):
+                # Handle component placeholders in lists
+                if socket and hasattr(socket, "components"):
+                    cid = socket.components.register(
+                        item.component_class,
+                        item.component_id,
+                        item.assigns,
+                    )
+                    processed_items.append({"c": cid})
+                else:
+                    # Fallback if no socket available
+                    processed_items.append([LiveViewTemplate.escape_html(str(item))])
             else:
                 # Convert non-template items to escaped strings
                 processed_items.append([LiveViewTemplate.escape_html(str(item))])
@@ -188,20 +200,28 @@ class LiveViewTemplate:
         # Phoenix.js expects statics to be shared across all list items.
         # processed_items contains either:
         #   - dicts with {"s": [...], "0": val, "1": val, ...} for Template items
+        #   - dicts with {"c": cid} for component references
         #   - lists of escaped strings for non-Template items
-        if processed_items and isinstance(processed_items[0], dict) and "s" in processed_items[0]:
-            # All Template items share the same statics (the template's static strings),
-            # so we extract "s" from the first item and use it for the entire result.
-            result["s"] = processed_items[0]["s"]
-            # Convert each item to just its dynamic values (excluding "s").
-            # Dict items: extract values sorted by key ("0", "1", ...) to maintain order.
-            # Non-dict items (lists): pass through as-is.
-            result["d"] = [
-                [v for k, v in sorted(item.items()) if k != "s"]
-                if isinstance(item, dict)
-                else item
-                for item in processed_items
-            ]
+        if processed_items and isinstance(processed_items[0], dict):
+            first_item = processed_items[0]
+            if "s" in first_item:
+                # All Template items share the same statics (the template's static strings),
+                # so we extract "s" from the first item and use it for the entire result.
+                result["s"] = first_item["s"]
+                # Convert each item to just its dynamic values (excluding "s").
+                # Dict items: extract values sorted by key ("0", "1", ...) to maintain order.
+                # Non-dict items (lists): pass through as-is.
+                result["d"] = [
+                    [v for k, v in sorted(item.items()) if k != "s"]
+                    if isinstance(item, dict)
+                    else item
+                    for item in processed_items
+                ]
+            elif "c" in first_item:
+                # List of component references - provide empty statics and wrap each in array
+                # Phoenix.js expects: {"s": ["", ""], "d": [[{"c": 1}], [{"c": 2}], ...]}
+                result["s"] = ["", ""]
+                result["d"] = [[item] for item in processed_items]
 
         return result
 
