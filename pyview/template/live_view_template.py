@@ -194,47 +194,41 @@ class LiveViewTemplate:
                 # Convert non-template items to escaped strings
                 processed_items.append([LiveViewTemplate.escape_html(str(item))])
 
-        result: dict[str, Any] = {"d": processed_items}
-
-        # Extract shared statics if all template items have the SAME statics.
-        # This is the case for comprehensions where the same template pattern is used.
-        # Phoenix.js expects shared statics at top level with dynamics in "d" arrays.
+        # Phoenix.js comprehension format ALWAYS requires:
+        # - "s": array of static strings (shared across all items)
+        # - "d": array where each item is an array of dynamic values
+        #
         # processed_items contains either:
         #   - dicts with {"s": [...], "0": val, "1": val, ...} for Template items
         #   - dicts with {"c": cid} for component references
         #   - lists of escaped strings for non-Template items
-        if processed_items and isinstance(processed_items[0], dict):
-            first_item = processed_items[0]
-            if "s" in first_item:
-                # Check if ALL items have the same statics (comprehension case)
-                first_statics = first_item["s"]
-                all_same_statics = all(
-                    isinstance(item, dict) and item.get("s") == first_statics
-                    for item in processed_items
-                )
 
-                if all_same_statics:
-                    # All Template items share the same statics (comprehension),
-                    # so extract "s" from first item and use for entire result.
-                    result["s"] = first_statics
-                    # Convert each item to just its dynamic values (excluding "s").
-                    # Dict items: extract values sorted by key ("0", "1", ...).
-                    # Non-dict items (lists): pass through as-is.
-                    result["d"] = [
+        # Check if all items are dicts with the same statics (true comprehension)
+        if processed_items and isinstance(processed_items[0], dict) and "s" in processed_items[0]:
+            first_statics = processed_items[0]["s"]
+            all_same_statics = all(
+                isinstance(item, dict) and item.get("s") == first_statics
+                for item in processed_items
+            )
+
+            if all_same_statics:
+                # True comprehension: all items share same statics
+                # Extract statics to top level, keep only dynamics in "d"
+                return {
+                    "s": first_statics,
+                    "d": [
                         [v for k, v in sorted(item.items()) if k != "s"]
-                        if isinstance(item, dict)
-                        else item
                         for item in processed_items
-                    ]
-                # else: items have different statics, keep them as-is in "d"
+                    ],
+                }
 
-            elif "c" in first_item:
-                # List of component references - provide empty statics and wrap each in array
-                # Phoenix.js expects: {"s": ["", ""], "d": [[{"c": 1}], [{"c": 2}], ...]}
-                result["s"] = ["", ""]
-                result["d"] = [[item] for item in processed_items]
-
-        return result
+        # For all other cases (mixed types, different statics, components, etc.):
+        # Use empty statics and wrap each item as a single dynamic
+        # This ensures Phoenix.js comprehensionToBuffer always has valid statics
+        return {
+            "s": ["", ""],
+            "d": [[item] for item in processed_items],
+        }
 
     @staticmethod
     def _process_stream_list(
