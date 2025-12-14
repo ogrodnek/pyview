@@ -389,6 +389,21 @@ async def _render(socket: ConnectedLiveViewSocket):
     # Components are registered during template rendering, so we process them after
     await socket.components.run_pending_lifecycle()
 
+    # Render all registered components and include in response
+    if socket.components.component_count > 0:
+        from pyview.template.live_view_template import LiveViewTemplate
+
+        components_rendered = {}
+        for cid in socket.components.get_all_cids():
+            template = socket.components.render_component(cid, socket.meta)
+            if template is not None:
+                # Process the component's template to get wire format
+                tree = LiveViewTemplate.process(template, socket=socket)
+                components_rendered[str(cid)] = tree
+
+        if components_rendered:
+            rendered["c"] = components_rendered
+
     if socket.live_title:
         rendered["t"] = socket.live_title
         socket.live_title = None
