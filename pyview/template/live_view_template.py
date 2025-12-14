@@ -122,14 +122,15 @@ class LiveViewTemplate:
 
                 # Handle different interpolation types
                 if isinstance(formatted_value, LiveComponentPlaceholder):
-                    # Handle live component
+                    # Handle live component - Phoenix.js expects CID as a number
+                    # which it looks up in output.components[cid]
                     if socket and hasattr(socket, "components"):
                         cid = socket.components.register(
                             formatted_value.component_class,
                             formatted_value.component_id,
                             formatted_value.assigns,
                         )
-                        parts[key] = {"c": cid}
+                        parts[key] = cid  # Just the CID number
                     else:
                         # Fallback if no socket available
                         parts[key] = str(formatted_value)
@@ -180,13 +181,14 @@ class LiveViewTemplate:
                 processed_items.append(LiveViewTemplate.process(item, socket))
             elif isinstance(item, LiveComponentPlaceholder):
                 # Handle component placeholders in lists
+                # Phoenix.js expects CID as a number for component lookup
                 if socket and hasattr(socket, "components"):
                     cid = socket.components.register(
                         item.component_class,
                         item.component_id,
                         item.assigns,
                     )
-                    processed_items.append({"c": cid})
+                    processed_items.append(cid)  # Just the CID number
                 else:
                     # Fallback if no socket available - just escaped string
                     processed_items.append(LiveViewTemplate.escape_html(str(item)))

@@ -163,17 +163,17 @@ class TestLiveViewTemplate:
         comp = LiveComponentPlaceholder(MockComponent, "test-1", {"foo": "bar"})
         template = t"<div>{comp}</div>"
         result = LiveViewTemplate.process(template, socket=socket)
-        
+
         expected = {
             "s": ["<div>", "</div>"],
-            "0": {"c": 1}  # First registered component gets cid=1
+            "0": 1  # CID as number - Phoenix.js looks up in components[1]
         }
         assert result == expected
-        
+
         # Verify component was registered correctly
         assert socket.components._components[1] == {
             "class": MockComponent,
-            "id": "test-1", 
+            "id": "test-1",
             "assigns": {"foo": "bar"}
         }
     
@@ -481,15 +481,15 @@ class TestLiveViewTemplate:
         template = t"<div>{components}</div>"
         result = LiveViewTemplate.process(template, socket=socket)
 
-        # Component lists should have empty statics and wrapped component refs
+        # Component CIDs are numbers, wrapped once in arrays for comprehension format
         expected = {
             "s": ["<div>", "</div>"],
             "0": {
-                "s": ["", ""],  # Empty statics (components don't have template statics)
+                "s": ["", ""],
                 "d": [
-                    [{"c": 1}],  # First component cid=1, wrapped in array
-                    [{"c": 2}],  # Second component cid=2
-                    [{"c": 3}],  # Third component cid=3
+                    [1],  # First component cid=1
+                    [2],  # Second component cid=2
+                    [3],  # Third component cid=3
                 ]
             }
         }
@@ -551,7 +551,7 @@ class TestLiveViewTemplate:
             "s": ["<div>", "</div>"],
             "0": {
                 "s": ["", ""],
-                "d": [[{"c": 1}]]
+                "d": [[1]]  # CID as number
             }
         }
         assert result == expected
@@ -575,7 +575,7 @@ class TestLiveViewTemplate:
                 "s": ["", ""],
                 "d": [
                     [{"s": ["<p>Hello ", "</p>"], "0": "Alice"}],
-                    [{"c": 1}],
+                    [1],  # CID as number
                 ]
             }
         }
@@ -599,7 +599,7 @@ class TestLiveViewTemplate:
             "0": {
                 "s": ["", ""],
                 "d": [
-                    [{"c": 1}],
+                    [1],  # CID as number
                     [{"s": ["<p>Goodbye ", "</p>"], "0": "Bob"}],
                 ]
             }
@@ -618,14 +618,14 @@ class TestLiveViewTemplate:
         template = t"<ul>{items}</ul>"
         result = LiveViewTemplate.process(template, socket=socket)
 
-        # All templates share same statics, with component references as dynamics
+        # All templates share same statics, with component CIDs as dynamics
         expected = {
             "s": ["<ul>", "</ul>"],
             "0": {
                 "s": ["<li>", "</li>"],
                 "d": [
-                    [{"c": 1}],  # First template's dynamic is a component
-                    [{"c": 2}],  # Second template's dynamic is a component
+                    [1],  # First template's dynamic is component cid=1
+                    [2],  # Second template's dynamic is component cid=2
                 ]
             }
         }
