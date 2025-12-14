@@ -290,7 +290,12 @@ class LiveSocketHandler:
 
                     # Create new socket for new LiveView
                     socket = ConnectedLiveViewSocket(
-                        socket.websocket, topic, lv, self.scheduler, self.instrumentation, self.pubsub
+                        socket.websocket,
+                        topic,
+                        lv,
+                        self.scheduler,
+                        self.instrumentation,
+                        self.pubsub,
                     )
 
                     session = {}

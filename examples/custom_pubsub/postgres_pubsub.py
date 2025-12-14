@@ -70,9 +70,7 @@ class PostgresPubSub:
                 self._topic_subscribers[topic] = {}
 
                 if channel not in self._subscribed_channels:
-                    await self._listen_conn.add_listener(
-                        channel, self._make_listener(topic)
-                    )
+                    await self._listen_conn.add_listener(channel, self._make_listener(topic))
                     self._subscribed_channels.add(channel)
 
             self._topic_subscribers[topic][session_id] = handler
@@ -83,8 +81,10 @@ class PostgresPubSub:
 
     def _make_listener(self, topic: str):
         """Create a listener callback for a topic."""
+
         def listener(conn, pid, channel, payload):
             asyncio.create_task(self._handle_notification(topic, payload))
+
         return listener
 
     async def _handle_notification(self, topic: str, payload: str) -> None:

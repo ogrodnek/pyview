@@ -159,9 +159,7 @@ class RedisPubSub:
 
                     # Get handlers while holding lock
                     async with self._lock:
-                        handlers = list(
-                            self._topic_subscribers.get(topic, {}).values()
-                        )
+                        handlers = list(self._topic_subscribers.get(topic, {}).values())
 
                     # Dispatch outside lock to prevent deadlocks
                     for handler in handlers:
