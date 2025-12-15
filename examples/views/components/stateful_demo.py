@@ -252,19 +252,6 @@ class StatefulComponentsDemo(AutoEventDispatch, TemplateView, LiveView[DemoConte
                     </div>
                 </div>
 
-                <!-- Toggles Section -->
-                <div class="bg-gray-50 rounded-lg p-6">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Toggle Components</h2>
-                    <p class="text-sm text-gray-500 mb-4">
-                        Simple boolean state components. Each toggle maintains its own state.
-                    </p>
-                    <div class="space-y-3">
-                        {live_component(Toggle, id="toggle-notifications", label="Notifications")}
-                        {live_component(Toggle, id="toggle-dark-mode", label="Dark Mode")}
-                        {live_component(Toggle, id="toggle-sound", label="Sound Effects", initial=True)}
-                    </div>
-                </div>
-
                 <!-- Messages from Components -->
                 <div class="bg-gray-50 rounded-lg p-6">
                     <div class="flex items-center justify-between mb-4">
@@ -280,6 +267,19 @@ class StatefulComponentsDemo(AutoEventDispatch, TemplateView, LiveView[DemoConte
                     <ul class="space-y-1 bg-white rounded border border-gray-200 p-3 min-h-[100px]">
                         {message_items}
                     </ul>
+                </div>
+
+                <!-- Toggles Section -->
+                <div class="bg-gray-50 rounded-lg p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Toggle Components</h2>
+                    <p class="text-sm text-gray-500 mb-4">
+                        Simple boolean state components. Each toggle maintains its own state.
+                    </p>
+                    <div class="space-y-3">
+                        {live_component(Toggle, id="toggle-notifications", label="Notifications")}
+                        {live_component(Toggle, id="toggle-dark-mode", label="Dark Mode")}
+                        {live_component(Toggle, id="toggle-sound", label="Sound Effects", initial=True)}
+                    </div>
                 </div>
 
                 <!-- How It Works -->
