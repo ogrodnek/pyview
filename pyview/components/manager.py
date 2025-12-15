@@ -51,6 +51,7 @@ class ComponentsManager:
         self._pending_mounts: list[tuple[int, dict[str, Any]]] = []
         self._pending_updates: list[tuple[int, dict[str, Any]]] = []
         self._next_cid = 1
+        self._seen_this_render: set[int] = set()  # Track CIDs seen during current render
 
     def register(
         self, component_class: type[LiveComponent], component_id: str, assigns: dict[str, Any]
@@ -75,6 +76,7 @@ class ComponentsManager:
             # Existing component - queue update with new assigns
             cid = self._by_key[key]
             self._pending_updates.append((cid, assigns))
+            self._seen_this_render.add(cid)
             logger.debug(f"Component {component_class.__name__}:{component_id} (cid={cid}) queued for update")
             return cid
 
@@ -89,6 +91,7 @@ class ComponentsManager:
 
         # Queue mount with initial assigns
         self._pending_mounts.append((cid, assigns))
+        self._seen_this_render.add(cid)
         logger.debug(f"Component {component_class.__name__}:{component_id} (cid={cid}) registered and queued for mount")
 
         return cid
@@ -271,7 +274,38 @@ class ComponentsManager:
         self._by_key.clear()
         self._pending_mounts.clear()
         self._pending_updates.clear()
+        self._seen_this_render.clear()
         logger.debug("ComponentsManager cleared")
+
+    def begin_render(self) -> None:
+        """
+        Start a new render cycle.
+
+        Clears the set of seen components. Call this before rendering
+        the parent LiveView template.
+        """
+        self._seen_this_render.clear()
+
+    def prune_stale_components(self) -> list[int]:
+        """
+        Remove components that weren't seen during this render cycle.
+
+        Components not referenced in the current render are considered
+        removed from the DOM and should be cleaned up.
+
+        Returns:
+            List of CIDs that were pruned
+        """
+        all_cids = set(self._components.keys())
+        stale_cids = all_cids - self._seen_this_render
+
+        for cid in stale_cids:
+            self.unregister(cid)
+
+        if stale_cids:
+            logger.debug(f"Pruned {len(stale_cids)} stale components: {stale_cids}")
+
+        return list(stale_cids)
 
     @property
     def component_count(self) -> int:

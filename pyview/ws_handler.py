@@ -383,11 +383,17 @@ class LiveSocketHandler:
 
 
 async def _render(socket: ConnectedLiveViewSocket):
+    # Start new render cycle - track which components are seen
+    socket.components.begin_render()
+
     rendered = (await socket.liveview.render(socket.context, socket.meta)).tree()
 
     # Run pending component lifecycle methods (mount/update)
     # Components are registered during template rendering, so we process them after
     await socket.components.run_pending_lifecycle()
+
+    # Clean up components that were removed from the DOM
+    socket.components.prune_stale_components()
 
     # Render all registered components and include in response
     if socket.components.component_count > 0:
