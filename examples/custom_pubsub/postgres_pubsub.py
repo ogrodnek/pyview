@@ -21,6 +21,7 @@ import logging
 from typing import Any, Callable, Coroutine
 
 import asyncpg
+from asyncpg.utils import quote_ident
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,8 @@ class PostgresPubSub:
         self._topic_subscribers: dict[str, dict[str, TopicHandler]] = {}
         self._session_topics: dict[str, dict[str, TopicHandler]] = {}
         self._subscribed_channels: set[str] = set()
+        # Store listener callbacks for proper cleanup
+        self._channel_listeners: dict[str, Callable] = {}
 
     async def start(self) -> None:
         """Connect to PostgreSQL."""
@@ -70,7 +73,9 @@ class PostgresPubSub:
                 self._topic_subscribers[topic] = {}
 
                 if channel not in self._subscribed_channels:
-                    await self._listen_conn.add_listener(channel, self._make_listener(topic))
+                    listener = self._make_listener(topic)
+                    self._channel_listeners[channel] = listener
+                    await self._listen_conn.add_listener(channel, listener)
                     self._subscribed_channels.add(channel)
 
             self._topic_subscribers[topic][session_id] = handler
@@ -111,7 +116,9 @@ class PostgresPubSub:
                 if not self._topic_subscribers[topic]:
                     del self._topic_subscribers[topic]
                     if channel in self._subscribed_channels:
-                        await self._listen_conn.remove_listener(channel, None)
+                        listener = self._channel_listeners.pop(channel, None)
+                        if listener:
+                            await self._listen_conn.remove_listener(channel, listener)
                         self._subscribed_channels.discard(channel)
 
             if session_id in self._session_topics:
@@ -134,7 +141,9 @@ class PostgresPubSub:
                     if not self._topic_subscribers[topic]:
                         del self._topic_subscribers[topic]
                         if channel in self._subscribed_channels:
-                            await self._listen_conn.remove_listener(channel, None)
+                            listener = self._channel_listeners.pop(channel, None)
+                            if listener:
+                                await self._listen_conn.remove_listener(channel, listener)
                             self._subscribed_channels.discard(channel)
 
             del self._session_topics[session_id]
@@ -144,4 +153,5 @@ class PostgresPubSub:
         channel = f"{self._prefix}{topic}"
         payload = json.dumps(message)
         # PostgreSQL NOTIFY has an 8000 byte payload limit
-        await self._conn.execute(f"NOTIFY {channel}, $1", payload)
+        # Use quote_ident to prevent SQL injection
+        await self._conn.execute(f"NOTIFY {quote_ident(channel)}, $1", payload)

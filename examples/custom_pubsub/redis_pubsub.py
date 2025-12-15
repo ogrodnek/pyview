@@ -57,7 +57,7 @@ class RedisPubSub:
 
     async def start(self) -> None:
         """Connect to Redis and start the message listener."""
-        self._client = redis.from_url(self._url)
+        self._client = redis.from_url(self._url, decode_responses=True)
         self._pubsub = self._client.pubsub()
         self._listener_task = asyncio.create_task(self._listen())
         logger.info("Redis pub/sub connected to %s", self._url)
@@ -66,6 +66,7 @@ class RedisPubSub:
         """Disconnect from Redis and clean up."""
         if self._listener_task:
             self._listener_task.cancel()
+            # Suppress CancelledError from listener task - expected during shutdown
             with suppress(asyncio.CancelledError):
                 await self._listener_task
 
@@ -154,6 +155,14 @@ class RedisPubSub:
 
                 try:
                     data = json.loads(message["data"])
+
+                    # Validate required fields
+                    if "topic" not in data or "message" not in data:
+                        logger.warning(
+                            "Redis message missing required fields: %s", list(data.keys())
+                        )
+                        continue
+
                     topic = data["topic"]
                     payload = data["message"]
 
@@ -166,11 +175,15 @@ class RedisPubSub:
                         asyncio.create_task(handler(topic, payload))
 
                 except json.JSONDecodeError:
+                    # Malformed JSON from Redis - log and continue
                     logger.warning("Invalid JSON in Redis message: %s", message["data"])
                 except Exception:
+                    # Unexpected error processing message - log and continue
                     logger.exception("Error processing Redis message")
 
         except asyncio.CancelledError:
+            # Task cancelled during shutdown - this is expected
             pass
         except Exception:
+            # Unexpected listener crash - log for debugging
             logger.exception("Redis listener crashed")
