@@ -147,8 +147,29 @@ class ConnectedLiveViewSocket(Generic[T]):
 
     async def send_info(self, event: InfoEvent):
         await self.liveview.handle_info(event, self)
-        r = await self.liveview.render(self.context, self.meta)
-        resp = [None, None, self.topic, "diff", self.diff(r.tree())]
+
+        # Use same component lifecycle as ws_handler._render()
+        self.components.begin_render()
+        rendered = (await self.liveview.render(self.context, self.meta)).tree()
+        await self.components.run_pending_lifecycle()
+        self.components.prune_stale_components()
+
+        # Render components
+        if self.components.component_count > 0:
+            from pyview.template.live_view_template import LiveViewTemplate
+
+            components_rendered = {}
+            for cid in self.components.get_all_cids():
+                template = self.components.render_component(cid, self.meta)
+                if template is not None:
+                    tree = LiveViewTemplate.process(template, socket=self)
+                    tree["r"] = 1
+                    components_rendered[str(cid)] = tree
+
+            if components_rendered:
+                rendered["c"] = components_rendered
+
+        resp = [None, None, self.topic, "diff", self.diff(rendered)]
 
         try:
             await self.websocket.send_text(json.dumps(resp))
