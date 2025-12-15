@@ -20,7 +20,7 @@ from .webping import PingLiveView
 import sys
 
 if sys.version_info >= (3, 14):
-    from .components import StatelessComponentsDemo
+    from .components import StatelessComponentsDemo, StatefulComponentsDemo
 
 __all__ = [
     "CountLiveView",

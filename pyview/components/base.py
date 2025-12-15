@@ -106,10 +106,22 @@ class LiveComponent(Generic[T]):
     by the ComponentsManager.
 
     Lifecycle:
-        1. mount(socket) - Called once when component first appears
+        1. mount(socket, assigns) - Called once when component first appears
         2. update(assigns, socket) - Called when parent passes new assigns
         3. template(assigns, meta) - Called to render the component
         4. handle_event(event, payload, socket) - Called for targeted events
+
+    Error Handling:
+        Errors in lifecycle methods (mount, update, handle_event) are logged with
+        full context (component class name, CID, method) and then re-raised. This
+        matches Phoenix LiveView behavior where component errors crash the parent
+        LiveView process. The client-side JavaScript will automatically attempt
+        to reconnect and remount the view.
+
+        This "let it crash" approach ensures:
+        - Errors are visible during development
+        - No partial/inconsistent UI state
+        - Automatic recovery via reconnection
 
     Example:
         class Counter(LiveComponent[CounterContext]):

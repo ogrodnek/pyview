@@ -295,6 +295,35 @@ class TestComponentsManagerParentCommunication:
             "my_event", {"key": "value"}, parent
         )
 
+    @pytest.mark.asyncio
+    async def test_send_parent_from_component_event_handler(self):
+        """Test that a component can send events to parent via socket.send_parent()."""
+
+        class NotifyingCounter(LiveComponent[CounterContext]):
+            async def mount(self, socket, assigns):
+                socket.context = CounterContext(count=0)
+
+            async def handle_event(self, event, payload, socket):
+                if event == "notify":
+                    await socket.send_parent("component_notification", {"from_cid": socket.cid})
+
+            def template(self, assigns, meta):
+                return ""
+
+        parent = MockParentSocket()
+        manager = ComponentsManager(parent)
+
+        cid = manager.register(NotifyingCounter, "notifier-1", {})
+        await manager.run_pending_lifecycle()
+
+        # Trigger the notify event on the component
+        await manager.handle_event(cid, "notify", {})
+
+        # Verify parent's handle_event was called with the notification
+        parent.liveview.handle_event.assert_called_once_with(
+            "component_notification", {"from_cid": cid}, parent
+        )
+
 
 class TestComponentsManagerCleanup:
     """Tests for component cleanup."""

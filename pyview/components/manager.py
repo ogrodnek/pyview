@@ -144,14 +144,15 @@ class ComponentsManager:
         component = self._components[cid]
         socket = self._create_socket(cid)
 
+        component_name = component.__class__.__name__
         try:
             # Pass assigns to mount so component can initialize from parent props
             await component.mount(socket, assigns)
             # Persist context changes
             self._contexts[cid] = socket.context
-            logger.debug(f"Component cid={cid} mounted successfully")
+            logger.debug(f"Component {component_name} (cid={cid}) mounted successfully")
         except Exception as e:
-            logger.error(f"Error mounting component cid={cid}: {e}", exc_info=True)
+            logger.error(f"Error in {component_name}.mount() (cid={cid}): {e}", exc_info=True)
             raise
 
         # After mount, run update with initial assigns (Phoenix pattern)
@@ -166,13 +167,14 @@ class ComponentsManager:
         component = self._components[cid]
         socket = self._create_socket(cid)
 
+        component_name = component.__class__.__name__
         try:
             await component.update(assigns, socket)
             # Persist context changes
             self._contexts[cid] = socket.context
-            logger.debug(f"Component cid={cid} updated with assigns: {list(assigns.keys())}")
+            logger.debug(f"Component {component_name} (cid={cid}) updated with assigns: {list(assigns.keys())}")
         except Exception as e:
-            logger.error(f"Error updating component cid={cid}: {e}", exc_info=True)
+            logger.error(f"Error in {component_name}.update() (cid={cid}): {e}", exc_info=True)
             raise
 
     async def handle_event(self, cid: int, event: str, payload: dict[str, Any]) -> None:
@@ -193,13 +195,14 @@ class ComponentsManager:
         component = self._components[cid]
         socket = self._create_socket(cid)
 
+        component_name = component.__class__.__name__
         try:
             await component.handle_event(event, payload, socket)
             # Persist context changes
             self._contexts[cid] = socket.context
-            logger.debug(f"Component cid={cid} handled event '{event}'")
+            logger.debug(f"Component {component_name} (cid={cid}) handled event '{event}'")
         except Exception as e:
-            logger.error(f"Error handling event '{event}' for component cid={cid}: {e}", exc_info=True)
+            logger.error(f"Error in {component_name}.handle_event('{event}') (cid={cid}): {e}", exc_info=True)
             raise
 
     def render_component(self, cid: int, parent_meta: PyViewMeta) -> Any:
