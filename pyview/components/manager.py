@@ -187,10 +187,7 @@ class ComponentsManager:
             payload: Event payload
         """
         if cid not in self._components:
-            logger.warning(
-                f"Event '{event}' targeted non-existent component cid={cid}. "
-                f"Known CIDs: {list(self._components.keys())}"
-            )
+            logger.warning(f"Event '{event}' targeted non-existent component cid={cid}")
             return
 
         component = self._components[cid]

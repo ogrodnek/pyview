@@ -103,6 +103,49 @@ class ConnectedLiveViewSocket(Generic[T]):
     def meta(self) -> PyViewMeta:
         return PyViewMeta(socket=self)
 
+    async def render_with_components(self) -> dict[str, Any]:
+        """
+        Render the LiveView and all its components.
+
+        Handles the full component lifecycle:
+        1. Begin render cycle (track seen components)
+        2. Render parent LiveView template
+        3. Run pending component lifecycle (mount/update)
+        4. Prune stale components not in this render
+        5. Render all component templates with ROOT flag
+
+        Returns:
+            Rendered tree in Phoenix wire format
+        """
+        from pyview.template.live_view_template import LiveViewTemplate
+
+        # Start new render cycle - track which components are seen
+        self.components.begin_render()
+
+        rendered = (await self.liveview.render(self.context, self.meta)).tree()
+
+        # Run pending component lifecycle methods (mount/update)
+        await self.components.run_pending_lifecycle()
+
+        # Clean up components that were removed from the DOM
+        self.components.prune_stale_components()
+
+        # Render all registered components and include in response
+        if self.components.component_count > 0:
+            components_rendered = {}
+            for cid in self.components.get_all_cids():
+                template = self.components.render_component(cid, self.meta)
+                if template is not None:
+                    tree = LiveViewTemplate.process(template, socket=self)
+                    # Add ROOT flag so Phoenix.js injects data-phx-component
+                    tree["r"] = 1
+                    components_rendered[str(cid)] = tree
+
+            if components_rendered:
+                rendered["c"] = components_rendered
+
+        return rendered
+
     async def subscribe(self, topic: str):
         await self.pub_sub.subscribe_topic_async(topic, self._topic_callback_internal)
 
@@ -148,27 +191,7 @@ class ConnectedLiveViewSocket(Generic[T]):
     async def send_info(self, event: InfoEvent):
         await self.liveview.handle_info(event, self)
 
-        # Use same component lifecycle as ws_handler._render()
-        self.components.begin_render()
-        rendered = (await self.liveview.render(self.context, self.meta)).tree()
-        await self.components.run_pending_lifecycle()
-        self.components.prune_stale_components()
-
-        # Render components
-        if self.components.component_count > 0:
-            from pyview.template.live_view_template import LiveViewTemplate
-
-            components_rendered = {}
-            for cid in self.components.get_all_cids():
-                template = self.components.render_component(cid, self.meta)
-                if template is not None:
-                    tree = LiveViewTemplate.process(template, socket=self)
-                    tree["r"] = 1
-                    components_rendered[str(cid)] = tree
-
-            if components_rendered:
-                rendered["c"] = components_rendered
-
+        rendered = await self.render_with_components()
         resp = [None, None, self.topic, "diff", self.diff(rendered)]
 
         try:

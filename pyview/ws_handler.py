@@ -383,34 +383,7 @@ class LiveSocketHandler:
 
 
 async def _render(socket: ConnectedLiveViewSocket):
-    # Start new render cycle - track which components are seen
-    socket.components.begin_render()
-
-    rendered = (await socket.liveview.render(socket.context, socket.meta)).tree()
-
-    # Run pending component lifecycle methods (mount/update)
-    # Components are registered during template rendering, so we process them after
-    await socket.components.run_pending_lifecycle()
-
-    # Clean up components that were removed from the DOM
-    socket.components.prune_stale_components()
-
-    # Render all registered components and include in response
-    if socket.components.component_count > 0:
-        from pyview.template.live_view_template import LiveViewTemplate
-
-        components_rendered = {}
-        for cid in socket.components.get_all_cids():
-            template = socket.components.render_component(cid, socket.meta)
-            if template is not None:
-                # Process the component's template to get wire format
-                tree = LiveViewTemplate.process(template, socket=socket)
-                # Add ROOT flag so Phoenix.js will inject data-phx-component via modifyRoot
-                tree["r"] = 1
-                components_rendered[str(cid)] = tree
-
-        if components_rendered:
-            rendered["c"] = components_rendered
+    rendered = await socket.render_with_components()
 
     if socket.live_title:
         rendered["t"] = socket.live_title
