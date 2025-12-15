@@ -180,8 +180,12 @@ class LiveSocketHandler:
                     "pyview.events.duration", {"event": event_name, "view": view_name}
                 ):
                     if target_cid is not None:
-                        # Route event to component
-                        await socket.components.handle_event(target_cid, event_name, value)
+                        # Validate CID type - must be an integer
+                        if not isinstance(target_cid, int):
+                            logger.warning(f"Invalid cid type for event '{event_name}': {type(target_cid).__name__}")
+                        else:
+                            # Route event to component
+                            await socket.components.handle_event(target_cid, event_name, value)
                     else:
                         # Route event to LiveView (default behavior)
                         await socket.liveview.handle_event(event_name, value, socket)
