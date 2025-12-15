@@ -142,7 +142,7 @@ class TestLiveComponent:
         )
 
         # Default update should not modify context
-        await component.update({"count": 10, "new_key": "new_value"}, socket)
+        await component.update(socket, {"count": 10, "new_key": "new_value"})
 
         # Context should be unchanged
         assert socket.context["count"] == 0

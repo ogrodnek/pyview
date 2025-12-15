@@ -49,7 +49,7 @@ class CounterWithInitial(LiveComponent[CounterContext]):
     async def mount(self, socket: ComponentSocket[CounterContext], assigns: dict):
         socket.context = CounterContext(count=assigns.get("initial", 0))
 
-    async def update(self, assigns, socket):
+    async def update(self, socket, assigns):
         # Update handles subsequent changes to initial
         if "initial" in assigns:
             socket.context["count"] = assigns["initial"]
@@ -279,6 +279,57 @@ class TestComponentsManagerRendering:
         result = manager.render_component(999, parent.meta)
         assert result is None
 
+    @pytest.mark.asyncio
+    async def test_nested_component_registration(self):
+        """Test that nested components (component rendering another component) get separate CIDs."""
+
+        class ChildComponent(LiveComponent[CounterContext]):
+            async def mount(self, socket, assigns):
+                socket.context = CounterContext(count=assigns.get("value", 0))
+
+            def template(self, assigns, meta):
+                return f"Child value: {assigns['count']}"
+
+        class ParentComponent(LiveComponent):
+            async def mount(self, socket, assigns):
+                socket.context = {"label": assigns.get("label", "Parent")}
+
+            def template(self, assigns, meta):
+                # In real usage, this would be a t-string with live_component()
+                # Here we simulate by registering the child during "render"
+                return f"Parent: {assigns['label']}"
+
+        parent_socket = MockParentSocket()
+        manager = ComponentsManager(parent_socket)
+
+        # Register parent component
+        manager.begin_render()
+        parent_cid = manager.register(ParentComponent, "parent-1", {"label": "Test"})
+
+        # Simulate parent's template rendering a child component
+        # (In real code this happens via live_component() in t-string)
+        child_cid = manager.register(ChildComponent, "child-1", {"value": 42})
+
+        await manager.run_pending_lifecycle()
+
+        # Both components should have distinct CIDs
+        assert parent_cid != child_cid
+        assert manager.component_count == 2
+
+        # Both should be accessible
+        parent_result = manager.get_component(parent_cid)
+        child_result = manager.get_component(child_cid)
+
+        assert parent_result is not None
+        assert child_result is not None
+
+        # Verify their contexts are independent
+        _, parent_ctx = parent_result
+        _, child_ctx = child_result
+
+        assert parent_ctx == {"label": "Test"}
+        assert child_ctx == {"count": 42}
+
 
 class TestComponentsManagerParentCommunication:
     """Tests for component-to-parent communication."""
@@ -365,6 +416,56 @@ class TestComponentsManagerCleanup:
 
         manager.clear()
 
+        assert manager.component_count == 0
+
+    def test_prune_stale_components(self):
+        """Test that components not seen during render cycle are pruned."""
+        parent = MockParentSocket()
+        manager = ComponentsManager(parent)
+
+        # Register 3 components in first render
+        manager.begin_render()
+        cid1 = manager.register(SimpleCounter, "counter-1", {})
+        cid2 = manager.register(SimpleCounter, "counter-2", {})
+        cid3 = manager.register(SimpleCounter, "counter-3", {})
+        assert manager.component_count == 3
+
+        # Simulate second render where only counter-1 and counter-3 are used
+        manager.begin_render()
+        manager.register(SimpleCounter, "counter-1", {})  # Same CID
+        manager.register(SimpleCounter, "counter-3", {})  # Same CID
+        # counter-2 is NOT registered this render
+
+        # Prune stale components
+        pruned = manager.prune_stale_components()
+
+        # counter-2 should be pruned
+        assert cid2 in pruned
+        assert len(pruned) == 1
+        assert manager.component_count == 2
+        assert manager.get_component(cid1) is not None
+        assert manager.get_component(cid2) is None  # Pruned
+        assert manager.get_component(cid3) is not None
+
+    def test_prune_stale_components_all_removed(self):
+        """Test pruning when all components are removed."""
+        parent = MockParentSocket()
+        manager = ComponentsManager(parent)
+
+        # Register components in first render
+        manager.begin_render()
+        cid1 = manager.register(SimpleCounter, "counter-1", {})
+        cid2 = manager.register(SimpleCounter, "counter-2", {})
+        assert manager.component_count == 2
+
+        # Second render with NO components
+        manager.begin_render()
+        # Don't register anything
+
+        # Prune all
+        pruned = manager.prune_stale_components()
+
+        assert set(pruned) == {cid1, cid2}
         assert manager.component_count == 0
 
 

@@ -47,7 +47,7 @@ class Counter(LiveComponent[CounterContext]):
             label=assigns.get("label", "Counter")
         )
 
-    async def update(self, assigns: dict, socket: ComponentSocket[CounterContext]):
+    async def update(self, socket: ComponentSocket[CounterContext], assigns: dict):
         """Handle changed assigns from parent (e.g., label updates)."""
         if "label" in assigns:
             socket.context["label"] = assigns["label"]
@@ -131,7 +131,7 @@ class Toggle(LiveComponent[ToggleContext]):
             label=assigns.get("label", "Toggle")
         )
 
-    async def update(self, assigns: dict, socket: ComponentSocket[ToggleContext]):
+    async def update(self, socket: ComponentSocket[ToggleContext], assigns: dict):
         """Handle changed assigns from parent (e.g., label updates)."""
         if "label" in assigns:
             socket.context["label"] = assigns["label"]

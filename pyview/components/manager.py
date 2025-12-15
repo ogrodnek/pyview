@@ -169,7 +169,7 @@ class ComponentsManager:
 
         component_name = component.__class__.__name__
         try:
-            await component.update(assigns, socket)
+            await component.update(socket, assigns)
             # Persist context changes
             self._contexts[cid] = socket.context
             logger.debug(f"Component {component_name} (cid={cid}) updated with assigns: {list(assigns.keys())}")

@@ -107,7 +107,7 @@ class LiveComponent(Generic[T]):
 
     Lifecycle:
         1. mount(socket, assigns) - Called once when component first appears
-        2. update(assigns, socket) - Called when parent passes new assigns
+        2. update(socket, assigns) - Called when parent passes new assigns
         3. template(assigns, meta) - Called to render the component
         4. handle_event(event, payload, socket) - Called for targeted events
 
@@ -132,7 +132,7 @@ class LiveComponent(Generic[T]):
                     "label": assigns.get("label", "Counter")
                 }
 
-            async def update(self, assigns: dict, socket: ComponentSocket[CounterContext]):
+            async def update(self, socket: ComponentSocket[CounterContext], assigns: dict):
                 # React to changed assigns from parent (e.g., label updates)
                 if "label" in assigns:
                     socket.context["label"] = assigns["label"]
@@ -163,7 +163,7 @@ class LiveComponent(Generic[T]):
         """
         pass
 
-    async def update(self, assigns: dict[str, Any], socket: ComponentSocket[T]) -> None:
+    async def update(self, socket: ComponentSocket[T], assigns: dict[str, Any]) -> None:
         """
         Called every time the component receives new assigns from the parent.
 
@@ -171,8 +171,8 @@ class LiveComponent(Generic[T]):
         The default is a no-op - components explicitly decide what affects their state.
 
         Args:
-            assigns: New assigns passed from parent via live_component()
             socket: ComponentSocket for state access
+            assigns: New assigns passed from parent via live_component()
         """
         pass
 
