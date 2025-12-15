@@ -116,6 +116,7 @@ class Counter(LiveComponent[CounterContext]):
 class ToggleContext(TypedDict):
     enabled: bool
     label: str
+    _initial_applied: bool
 
 
 class Toggle(LiveComponent[ToggleContext]):
@@ -126,13 +127,15 @@ class Toggle(LiveComponent[ToggleContext]):
     """
 
     async def mount(self, socket: ComponentSocket[ToggleContext]):
-        socket.context = ToggleContext(enabled=False, label="Toggle")
+        socket.context = ToggleContext(enabled=False, label="Toggle", _initial_applied=False)
 
     async def update(self, assigns: dict, socket: ComponentSocket[ToggleContext]):
         if "label" in assigns:
             socket.context["label"] = assigns["label"]
-        if "initial" in assigns:
+        # Only apply initial value once (on first update after mount)
+        if "initial" in assigns and not socket.context.get("_initial_applied"):
             socket.context["enabled"] = assigns["initial"]
+            socket.context["_initial_applied"] = True
 
     async def handle_event(self, event: str, payload: dict, socket: ComponentSocket[ToggleContext]):
         if event == "toggle":
