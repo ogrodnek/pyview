@@ -19,6 +19,7 @@ if sys.version_info < (3, 14):
 from string.templatelib import Template
 
 if TYPE_CHECKING:
+    from pyview.components.base import LiveComponent
     from pyview.stream import Stream
 
 T = TypeVar("T")
@@ -72,7 +73,7 @@ def stream_for(
 class LiveComponentPlaceholder:
     """Placeholder for live components in templates."""
 
-    component_class: type
+    component_class: "type[LiveComponent]"
     component_id: str
     assigns: dict[str, Any]
 
@@ -298,7 +299,7 @@ class LiveViewTemplate:
 
 
 def live_component(
-    component_class: type, id: str, **assigns
+    component_class: "type[LiveComponent]", id: str, **assigns
 ) -> LiveComponentPlaceholder:
     """
     Insert a live component into a template.
