@@ -97,7 +97,6 @@ class ComponentSocket(Generic[T]):
             payload = {}
         await self.manager.send_to_parent(event, payload)
 
-
 class LiveComponent(Generic[T]):
     """
     Base class for stateful live components.
@@ -114,13 +113,17 @@ class LiveComponent(Generic[T]):
 
     Example:
         class Counter(LiveComponent[CounterContext]):
-            async def mount(self, socket: ComponentSocket[CounterContext]):
-                socket.context = {"count": 0}
+            async def mount(self, socket: ComponentSocket[CounterContext], assigns: dict):
+                # Initialize state from parent assigns
+                socket.context = {
+                    "count": assigns.get("initial", 0),
+                    "label": assigns.get("label", "Counter")
+                }
 
             async def update(self, assigns: dict, socket: ComponentSocket[CounterContext]):
-                # Optionally react to new assigns from parent
-                if "initial" in assigns:
-                    socket.context["count"] = assigns["initial"]
+                # React to changed assigns from parent (e.g., label updates)
+                if "label" in assigns:
+                    socket.context["label"] = assigns["label"]
 
             def template(self, assigns: CounterContext, meta: ComponentMeta):
                 return t'''
@@ -135,15 +138,16 @@ class LiveComponent(Generic[T]):
                     socket.context["count"] += 1
     """
 
-    async def mount(self, socket: ComponentSocket[T]) -> None:
+    async def mount(self, socket: ComponentSocket[T], assigns: dict[str, Any]) -> None:
         """
         Called once when the component is first added to the page.
 
-        Use this to initialize the component's state (socket.context).
-        This is NOT called on subsequent re-renders.
+        Use this to initialize the component's state (socket.context) from
+        the initial assigns passed by the parent.
 
         Args:
             socket: ComponentSocket for state access
+            assigns: Initial assigns from parent (e.g., label, initial values)
         """
         pass
 

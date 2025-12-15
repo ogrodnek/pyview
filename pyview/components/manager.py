@@ -145,7 +145,8 @@ class ComponentsManager:
         socket = self._create_socket(cid)
 
         try:
-            await component.mount(socket)
+            # Pass assigns to mount so component can initialize from parent props
+            await component.mount(socket, assigns)
             # Persist context changes
             self._contexts[cid] = socket.context
             logger.debug(f"Component cid={cid} mounted successfully")
@@ -153,7 +154,7 @@ class ComponentsManager:
             logger.error(f"Error mounting component cid={cid}: {e}", exc_info=True)
             raise
 
-        # After mount, run update with initial assigns
+        # After mount, run update with initial assigns (Phoenix pattern)
         await self._run_update(cid, assigns)
 
     async def _run_update(self, cid: int, assigns: dict[str, Any]) -> None:

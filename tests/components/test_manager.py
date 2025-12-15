@@ -30,8 +30,8 @@ class MockParentSocket:
 class SimpleCounter(LiveComponent[CounterContext]):
     """Simple counter component for testing."""
 
-    async def mount(self, socket: ComponentSocket[CounterContext]):
-        socket.context = CounterContext(count=0)
+    async def mount(self, socket: ComponentSocket[CounterContext], assigns: dict):
+        socket.context = CounterContext(count=assigns.get("initial", 0))
 
     async def handle_event(self, event, payload, socket):
         if event == "increment":
@@ -46,10 +46,11 @@ class SimpleCounter(LiveComponent[CounterContext]):
 class CounterWithInitial(LiveComponent[CounterContext]):
     """Counter that uses assigns for initial value."""
 
-    async def mount(self, socket: ComponentSocket[CounterContext]):
-        socket.context = CounterContext(count=0)
+    async def mount(self, socket: ComponentSocket[CounterContext], assigns: dict):
+        socket.context = CounterContext(count=assigns.get("initial", 0))
 
     async def update(self, assigns, socket):
+        # Update handles subsequent changes to initial
         if "initial" in assigns:
             socket.context["count"] = assigns["initial"]
 
@@ -173,7 +174,7 @@ class TestComponentsManagerLifecycle:
         mount_count = 0
 
         class CountingCounter(LiveComponent):
-            async def mount(self, socket):
+            async def mount(self, socket, assigns):
                 nonlocal mount_count
                 mount_count += 1
                 socket.context = {"count": mount_count}

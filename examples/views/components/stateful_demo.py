@@ -40,18 +40,17 @@ class Counter(LiveComponent[CounterContext]):
     Events are handled locally via phx-target={meta.myself}.
     """
 
-    async def mount(self, socket: ComponentSocket[CounterContext]):
-        """Initialize component state on first render."""
-        socket.context = CounterContext(count=0, label="Counter")
+    async def mount(self, socket: ComponentSocket[CounterContext], assigns: dict):
+        """Initialize component state from parent assigns."""
+        socket.context = CounterContext(
+            count=assigns.get("initial", 0),
+            label=assigns.get("label", "Counter")
+        )
 
     async def update(self, assigns: dict, socket: ComponentSocket[CounterContext]):
-        """Handle new assigns from parent."""
-        # Update label if provided
+        """Handle changed assigns from parent (e.g., label updates)."""
         if "label" in assigns:
             socket.context["label"] = assigns["label"]
-        # Set initial count if provided (only on first update)
-        if "initial" in assigns and socket.context["count"] == 0:
-            socket.context["count"] = assigns["initial"]
 
     async def handle_event(self, event: str, payload: dict, socket: ComponentSocket[CounterContext]):
         """Handle events targeted at this component."""
@@ -116,7 +115,6 @@ class Counter(LiveComponent[CounterContext]):
 class ToggleContext(TypedDict):
     enabled: bool
     label: str
-    _initial_applied: bool
 
 
 class Toggle(LiveComponent[ToggleContext]):
@@ -126,16 +124,17 @@ class Toggle(LiveComponent[ToggleContext]):
     Demonstrates a simple boolean state component with its own event handling.
     """
 
-    async def mount(self, socket: ComponentSocket[ToggleContext]):
-        socket.context = ToggleContext(enabled=False, label="Toggle", _initial_applied=False)
+    async def mount(self, socket: ComponentSocket[ToggleContext], assigns: dict):
+        """Initialize toggle state from parent assigns."""
+        socket.context = ToggleContext(
+            enabled=assigns.get("initial", False),
+            label=assigns.get("label", "Toggle")
+        )
 
     async def update(self, assigns: dict, socket: ComponentSocket[ToggleContext]):
+        """Handle changed assigns from parent (e.g., label updates)."""
         if "label" in assigns:
             socket.context["label"] = assigns["label"]
-        # Only apply initial value once (on first update after mount)
-        if "initial" in assigns and not socket.context.get("_initial_applied"):
-            socket.context["enabled"] = assigns["initial"]
-            socket.context["_initial_applied"] = True
 
     async def handle_event(self, event: str, payload: dict, socket: ComponentSocket[ToggleContext]):
         if event == "toggle":

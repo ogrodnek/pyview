@@ -123,8 +123,8 @@ class TestLiveComponent:
         component = Counter()
         socket = ComponentSocket(context={}, cid=1, manager=MagicMock())
 
-        # Should not raise
-        await component.mount(socket)
+        # Should not raise - mount now receives assigns
+        await component.mount(socket, {"initial": 0})
 
     @pytest.mark.asyncio
     async def test_default_update_merges_assigns(self):
@@ -175,11 +175,11 @@ class TestLiveComponent:
 
     @pytest.mark.asyncio
     async def test_custom_mount(self):
-        """Test custom mount implementation."""
+        """Test custom mount implementation with assigns."""
 
         class Counter(LiveComponent[CounterContext]):
-            async def mount(self, socket):
-                socket.context = CounterContext(count=100)
+            async def mount(self, socket, assigns):
+                socket.context = CounterContext(count=assigns.get("initial", 100))
 
             def template(self, assigns, meta):
                 return ""
@@ -187,8 +187,8 @@ class TestLiveComponent:
         component = Counter()
         socket = ComponentSocket(context={}, cid=1, manager=MagicMock())
 
-        await component.mount(socket)
-        assert socket.context["count"] == 100
+        await component.mount(socket, {"initial": 50})
+        assert socket.context["count"] == 50
 
     @pytest.mark.asyncio
     async def test_custom_handle_event(self):
