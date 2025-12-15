@@ -155,16 +155,14 @@ class LiveComponent(Generic[T]):
         """
         Called every time the component receives new assigns from the parent.
 
-        The default implementation merges assigns into context if context is a dict.
-        Override to customize how parent assigns affect component state.
+        Override to handle assigns that should update component state.
+        The default is a no-op - components explicitly decide what affects their state.
 
         Args:
             assigns: New assigns passed from parent via live_component()
             socket: ComponentSocket for state access
         """
-        # Default: merge assigns into context if it's a dict
-        if hasattr(socket, "context") and isinstance(socket.context, dict):
-            socket.context.update(assigns)
+        pass
 
     def template(self, assigns: T, meta: ComponentMeta) -> Any:
         """

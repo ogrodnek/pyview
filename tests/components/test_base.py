@@ -127,8 +127,8 @@ class TestLiveComponent:
         await component.mount(socket, {"initial": 0})
 
     @pytest.mark.asyncio
-    async def test_default_update_merges_assigns(self):
-        """Test default update merges assigns into dict context."""
+    async def test_default_update_is_noop(self):
+        """Test default update does nothing (doesn't pollute context)."""
 
         class Counter(LiveComponent[CounterContext]):
             def template(self, assigns, meta):
@@ -141,11 +141,13 @@ class TestLiveComponent:
             manager=MagicMock(),
         )
 
+        # Default update should not modify context
         await component.update({"count": 10, "new_key": "new_value"}, socket)
 
-        assert socket.context["count"] == 10
+        # Context should be unchanged
+        assert socket.context["count"] == 0
         assert socket.context["existing"] == "value"
-        assert socket.context["new_key"] == "new_value"
+        assert "new_key" not in socket.context
 
     @pytest.mark.asyncio
     async def test_default_handle_event(self):
