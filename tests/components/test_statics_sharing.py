@@ -4,12 +4,19 @@ Tests for component statics sharing optimization.
 These tests verify that multiple instances of the same component type
 share their statics array via integer CID references, matching Phoenix
 wire format optimization.
+
+NOTE: This test file uses t-string literal syntax and can only be run on Python 3.14+.
+The pytest.skip call below prevents import errors on earlier Python versions.
 """
+import sys
+import pytest
+
+# Skip entire module if Python < 3.14 (t-string literals cause SyntaxError)
+if sys.version_info < (3, 14):
+    pytest.skip("T-string tests require Python 3.14+", allow_module_level=True)
 
 from typing import TypedDict
 from unittest.mock import AsyncMock, MagicMock
-
-import pytest
 
 from pyview.components.base import ComponentSocket, LiveComponent
 from pyview.components.manager import ComponentsManager
