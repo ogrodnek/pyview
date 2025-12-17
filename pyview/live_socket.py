@@ -133,12 +133,29 @@ class ConnectedLiveViewSocket(Generic[T]):
         # Render all registered components and include in response
         if self.components.component_count > 0:
             components_rendered = {}
+            # Track statics we've seen to enable sharing (Phoenix optimization)
+            # Map: tuple(statics) -> first CID that used them
+            statics_cache: dict[tuple[str, ...], int] = {}
+
             for cid in self.components.get_all_cids():
                 template = self.components.render_component(cid, self.meta)
                 if template is not None:
                     tree = LiveViewTemplate.process(template, socket=self)
                     # Add ROOT flag so Phoenix.js injects data-phx-component
                     tree["r"] = 1
+
+                    # Share statics if we've seen them before (Phoenix wire optimization)
+                    # Components with identical statics reference the first CID instead
+                    statics = tree.get("s")
+                    if statics is not None and isinstance(statics, list):
+                        statics_key = tuple(statics)
+                        if statics_key in statics_cache:
+                            # Replace statics array with CID reference
+                            tree["s"] = statics_cache[statics_key]
+                        else:
+                            # First time seeing these statics, cache them
+                            statics_cache[statics_key] = cid
+
                     components_rendered[str(cid)] = tree
 
             if components_rendered:

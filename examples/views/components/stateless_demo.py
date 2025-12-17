@@ -237,7 +237,7 @@ class StatelessComponentsDemo(AutoEventDispatch, TemplateView, LiveView[DemoCont
                 on_dismiss=self.dismiss_alert,
             )
             if show_alert
-            else t'{Button("Show Alert", self.show_alert, style="secondary", size="sm")}'
+            else t"{Button('Show Alert', self.show_alert, style='secondary', size='sm')}"
         )
 
         # Compose badges from a list
@@ -279,9 +279,10 @@ class StatelessComponentsDemo(AutoEventDispatch, TemplateView, LiveView[DemoCont
                 {Card("Counter Example", card_content, footer=footer)}
 
                 <!-- Badges Section -->
-                {Card(
-                    "Dynamic Badges",
-                    t'''
+                {
+            Card(
+                "Dynamic Badges",
+                t'''
                         <div class="space-y-4">
                             <p class="text-gray-600">
                                 Components work with list comprehensions too!
@@ -291,13 +292,15 @@ class StatelessComponentsDemo(AutoEventDispatch, TemplateView, LiveView[DemoCont
                             </div>
                             {Button("Add Badge", self.add_item, size="sm")}
                         </div>
-                    '''
-                )}
+                    ''',
+            )
+        }
 
                 <!-- Component Showcase -->
-                {Card(
-                    "Button Variants",
-                    t'''
+                {
+            Card(
+                "Button Variants",
+                t'''
                         <div class="space-y-4">
                             <div class="space-y-2">
                                 <p class="text-sm font-medium text-gray-700">Styles:</p>
@@ -322,7 +325,8 @@ class StatelessComponentsDemo(AutoEventDispatch, TemplateView, LiveView[DemoCont
                                 </div>
                             </div>
                         </div>
-                    '''
-                )}
+                    ''',
+            )
+        }
             </div>
         """

@@ -5,12 +5,16 @@ These tests verify the base class interfaces and default behaviors
 without requiring Python 3.14 (no t-strings needed).
 """
 
-import pytest
-from typing import TypedDict
+from typing import TypedDict, TypeVar
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from pyview.components.base import ComponentMeta, ComponentSocket, LiveComponent
 from pyview.meta import PyViewMeta
+
+# Generic type var for test components that accept any context
+T = TypeVar("T")
 
 
 class TestComponentMeta:
@@ -116,7 +120,7 @@ class TestLiveComponent:
     async def test_default_mount(self):
         """Test default mount does nothing (doesn't raise)."""
 
-        class Counter(LiveComponent[CounterContext]):
+        class Counter(LiveComponent[T]):
             def template(self, assigns, meta):
                 return ""
 
@@ -130,7 +134,7 @@ class TestLiveComponent:
     async def test_default_update_is_noop(self):
         """Test default update does nothing (doesn't pollute context)."""
 
-        class Counter(LiveComponent[CounterContext]):
+        class Counter(LiveComponent[T]):
             def template(self, assigns, meta):
                 return ""
 
@@ -153,7 +157,7 @@ class TestLiveComponent:
     async def test_default_handle_event(self):
         """Test default handle_event does nothing (doesn't raise)."""
 
-        class Counter(LiveComponent[CounterContext]):
+        class Counter(LiveComponent[T]):
             def template(self, assigns, meta):
                 return ""
 
@@ -187,7 +191,9 @@ class TestLiveComponent:
                 return ""
 
         component = Counter()
-        socket = ComponentSocket(context={}, cid=1, manager=MagicMock())
+        socket: ComponentSocket[CounterContext] = ComponentSocket(
+            context=CounterContext(count=0), cid=1, manager=MagicMock()
+        )
 
         await component.mount(socket, {"initial": 50})
         assert socket.context["count"] == 50
@@ -238,6 +244,7 @@ class TestLiveComponent:
 
         result = component.template({"count": 0}, meta)
 
+        assert received_meta is not None
         assert received_meta is meta
         assert received_meta.myself == 42
         assert "phx-target=42" in result

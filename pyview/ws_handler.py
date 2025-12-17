@@ -182,7 +182,9 @@ class LiveSocketHandler:
                     if target_cid is not None:
                         # Validate CID type - must be an integer
                         if not isinstance(target_cid, int):
-                            logger.warning(f"Invalid cid type for event '{event_name}': {type(target_cid).__name__}")
+                            logger.warning(
+                                f"Invalid cid type for event '{event_name}': {type(target_cid).__name__}"
+                            )
                         else:
                             # Route event to component
                             await socket.components.handle_event(target_cid, event_name, value)

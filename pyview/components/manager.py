@@ -15,15 +15,31 @@ Same module + id = same component instance across re-renders.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 from .base import ComponentMeta, ComponentSocket, LiveComponent
 
 if TYPE_CHECKING:
-    from pyview.live_socket import ConnectedLiveViewSocket
     from pyview.meta import PyViewMeta
 
 logger = logging.getLogger(__name__)
+
+
+class LiveViewProtocol(Protocol):
+    """Protocol for LiveView's handle_event method."""
+
+    async def handle_event(self, event: str, payload: dict[str, Any], socket: Any) -> None: ...
+
+
+class ParentSocketProtocol(Protocol):
+    """Protocol defining what ComponentsManager needs from its parent socket.
+
+    ComponentsManager only uses parent_socket.liveview.handle_event() for
+    sending events from components to their parent LiveView.
+    """
+
+    @property
+    def liveview(self) -> LiveViewProtocol: ...
 
 
 class ComponentsManager:
@@ -43,7 +59,7 @@ class ComponentsManager:
         _pending_updates: CIDs that need update() called with new assigns
     """
 
-    def __init__(self, parent_socket: ConnectedLiveViewSocket):
+    def __init__(self, parent_socket: ParentSocketProtocol):
         self.parent_socket = parent_socket
         self._components: dict[int, LiveComponent] = {}
         self._contexts: dict[int, Any] = {}
@@ -77,7 +93,9 @@ class ComponentsManager:
             cid = self._by_key[key]
             self._pending_updates.append((cid, assigns))
             self._seen_this_render.add(cid)
-            logger.debug(f"Component {component_class.__name__}:{component_id} (cid={cid}) queued for update")
+            logger.debug(
+                f"Component {component_class.__name__}:{component_id} (cid={cid}) queued for update"
+            )
             return cid
 
         # New component - assign CID and create instance
@@ -92,7 +110,9 @@ class ComponentsManager:
         # Queue mount with initial assigns
         self._pending_mounts.append((cid, assigns))
         self._seen_this_render.add(cid)
-        logger.debug(f"Component {component_class.__name__}:{component_id} (cid={cid}) registered and queued for mount")
+        logger.debug(
+            f"Component {component_class.__name__}:{component_id} (cid={cid}) registered and queued for mount"
+        )
 
         return cid
 
@@ -172,7 +192,9 @@ class ComponentsManager:
             await component.update(socket, assigns)
             # Persist context changes
             self._contexts[cid] = socket.context
-            logger.debug(f"Component {component_name} (cid={cid}) updated with assigns: {list(assigns.keys())}")
+            logger.debug(
+                f"Component {component_name} (cid={cid}) updated with assigns: {list(assigns.keys())}"
+            )
         except Exception as e:
             logger.error(f"Error in {component_name}.update() (cid={cid}): {e}", exc_info=True)
             raise
@@ -202,7 +224,9 @@ class ComponentsManager:
             self._contexts[cid] = socket.context
             logger.debug(f"Component {component_name} (cid={cid}) handled event '{event}'")
         except Exception as e:
-            logger.error(f"Error in {component_name}.handle_event('{event}') (cid={cid}): {e}", exc_info=True)
+            logger.error(
+                f"Error in {component_name}.handle_event('{event}') (cid={cid}): {e}", exc_info=True
+            )
             raise
 
     def render_component(self, cid: int, parent_meta: PyViewMeta) -> Any:

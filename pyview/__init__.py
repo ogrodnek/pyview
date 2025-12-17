@@ -1,4 +1,4 @@
-from pyview.components import ComponentMeta, ComponentSocket, ComponentsManager, LiveComponent
+from pyview.components import ComponentMeta, ComponentsManager, ComponentSocket, LiveComponent
 from pyview.js import JsCommand
 from pyview.live_socket import (
     ConnectedLiveViewSocket,

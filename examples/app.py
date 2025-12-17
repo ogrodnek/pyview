@@ -32,9 +32,9 @@ from .views import (
 
 # T-string examples are only available on Python 3.14+
 if sys.version_info >= (3, 14):
+    from .views.components import StatefulComponentsDemo, StatelessComponentsDemo
     from .views.count.count_tstring import CounterTStringLiveView
     from .views.streams.streams_tstring import StreamsTStringLiveView
-    from .views.components import StatelessComponentsDemo, StatefulComponentsDemo
 
 app = PyView()
 app.mount(

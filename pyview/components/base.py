@@ -14,7 +14,7 @@ instance. This keeps components clean and testable.
 """
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 
 if TYPE_CHECKING:
     from pyview.meta import PyViewMeta
@@ -82,7 +82,7 @@ class ComponentSocket(Generic[T]):
         """Returns the CID for use in templates/events."""
         return self.cid
 
-    async def send_parent(self, event: str, payload: dict[str, Any] | None = None) -> None:
+    async def send_parent(self, event: str, payload: Optional[dict[str, Any]] = None) -> None:
         """
         Send an event to the parent LiveView.
 
@@ -96,6 +96,7 @@ class ComponentSocket(Generic[T]):
         if payload is None:
             payload = {}
         await self.manager.send_to_parent(event, payload)
+
 
 class LiveComponent(Generic[T]):
     """

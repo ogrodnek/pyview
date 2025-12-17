@@ -5,11 +5,12 @@ These tests verify component registration, lifecycle management,
 event routing, and state persistence.
 """
 
-import pytest
 from typing import TypedDict
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-from pyview.components.base import ComponentMeta, ComponentSocket, LiveComponent
+import pytest
+
+from pyview.components.base import ComponentSocket, LiveComponent
 from pyview.components.manager import ComponentsManager
 from pyview.meta import PyViewMeta
 
@@ -182,7 +183,7 @@ class TestComponentsManagerLifecycle:
             def template(self, assigns, meta):
                 return ""
 
-        cid = manager.register(CountingCounter, "counter-1", {})
+        manager.register(CountingCounter, "counter-1", {})
         await manager.run_pending_lifecycle()
         assert mount_count == 1
 
@@ -342,9 +343,7 @@ class TestComponentsManagerParentCommunication:
 
         await manager.send_to_parent("my_event", {"key": "value"})
 
-        parent.liveview.handle_event.assert_called_once_with(
-            "my_event", {"key": "value"}, parent
-        )
+        parent.liveview.handle_event.assert_called_once_with("my_event", {"key": "value"}, parent)
 
     @pytest.mark.asyncio
     async def test_send_parent_from_component_event_handler(self):

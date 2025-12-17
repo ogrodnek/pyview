@@ -10,17 +10,15 @@ This example demonstrates stateful LiveComponents that:
 Each component instance is identified by (class, id) and persists across re-renders.
 """
 
+from string.templatelib import Template
 from typing import TypedDict
 
-from string.templatelib import Template
-
-from pyview.components import LiveComponent, ComponentMeta, ComponentSocket
+from pyview.components import ComponentMeta, ComponentSocket, LiveComponent
 from pyview.events import AutoEventDispatch, event
 from pyview.live_view import LiveView, LiveViewSocket
 from pyview.meta import PyViewMeta
 from pyview.template.live_view_template import live_component
 from pyview.template.template_view import TemplateView
-
 
 # =============================================================================
 # Stateful LiveComponents
@@ -43,8 +41,7 @@ class Counter(LiveComponent[CounterContext]):
     async def mount(self, socket: ComponentSocket[CounterContext], assigns: dict):
         """Initialize component state from parent assigns."""
         socket.context = CounterContext(
-            count=assigns.get("initial", 0),
-            label=assigns.get("label", "Counter")
+            count=assigns.get("initial", 0), label=assigns.get("label", "Counter")
         )
 
     async def update(self, socket: ComponentSocket[CounterContext], assigns: dict):
@@ -52,7 +49,9 @@ class Counter(LiveComponent[CounterContext]):
         if "label" in assigns:
             socket.context["label"] = assigns["label"]
 
-    async def handle_event(self, event: str, payload: dict, socket: ComponentSocket[CounterContext]):
+    async def handle_event(
+        self, event: str, payload: dict, socket: ComponentSocket[CounterContext]
+    ):
         """Handle events targeted at this component."""
         if event == "increment":
             socket.context["count"] += 1
@@ -62,10 +61,13 @@ class Counter(LiveComponent[CounterContext]):
             socket.context["count"] = 0
         elif event == "notify_parent":
             # Demonstrate communication with parent
-            await socket.send_parent("counter_updated", {
-                "cid": socket.cid,
-                "count": socket.context["count"],
-            })
+            await socket.send_parent(
+                "counter_updated",
+                {
+                    "cid": socket.cid,
+                    "count": socket.context["count"],
+                },
+            )
 
     def template(self, assigns: CounterContext, meta: ComponentMeta) -> Template:
         """Render the component template."""
@@ -127,8 +129,7 @@ class Toggle(LiveComponent[ToggleContext]):
     async def mount(self, socket: ComponentSocket[ToggleContext], assigns: dict):
         """Initialize toggle state from parent assigns."""
         socket.context = ToggleContext(
-            enabled=assigns.get("initial", False),
-            label=assigns.get("label", "Toggle")
+            enabled=assigns.get("initial", False), label=assigns.get("label", "Toggle")
         )
 
     async def update(self, socket: ComponentSocket[ToggleContext], assigns: dict):
@@ -214,15 +215,16 @@ class StatefulComponentsDemo(AutoEventDispatch, TemplateView, LiveView[DemoConte
 
         # Generate counter components dynamically
         counters = [
-            live_component(Counter, id=f"counter-{i}", label=f"Counter {i+1}", initial=i * 10)
+            live_component(Counter, id=f"counter-{i}", label=f"Counter {i + 1}", initial=i * 10)
             for i in range(counter_count)
         ]
 
         # Messages display
-        message_items = [
-            t'<li class="text-sm text-gray-600">{msg}</li>'
-            for msg in messages
-        ] if messages else [t'<li class="text-sm text-gray-400 italic">No messages yet</li>']
+        message_items = (
+            [t'<li class="text-sm text-gray-600">{msg}</li>' for msg in messages]
+            if messages
+            else [t'<li class="text-sm text-gray-400 italic">No messages yet</li>']
+        )
 
         return t"""
             <div class="max-w-4xl mx-auto space-y-6">
