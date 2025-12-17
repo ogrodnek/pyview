@@ -203,8 +203,8 @@ class LiveViewTemplate:
         #
         # processed_items contains either:
         #   - dicts with {"s": [...], "0": val, "1": val, ...} for Template items
-        #   - dicts with {"c": cid} for component references
-        #   - lists of escaped strings for non-Template items
+        #   - integer CIDs for component references
+        #   - escaped strings for non-Template items
 
         # Check if all items are dicts with the same statics (true comprehension)
         if processed_items and isinstance(processed_items[0], dict) and "s" in processed_items[0]:
