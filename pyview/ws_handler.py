@@ -17,6 +17,9 @@ from pyview.session import deserialize_session
 
 logger = logging.getLogger(__name__)
 
+# Must match phoenix_live_view version in pyview/assets/package.json
+PHOENIX_LIVEVIEW_VERSION = "0.20.17"
+
 
 class AuthException(Exception):
     pass
@@ -122,7 +125,13 @@ class LiveSocketHandler:
                     mesageRef,
                     topic,
                     "phx_reply",
-                    {"response": {"rendered": rendered}, "status": "ok"},
+                    {
+                        "response": {
+                            "rendered": rendered,
+                            "liveview_version": PHOENIX_LIVEVIEW_VERSION,
+                        },
+                        "status": "ok",
+                    },
                 ]
 
                 await self.manager.send_personal_message(json.dumps(resp), websocket)
@@ -321,7 +330,13 @@ class LiveSocketHandler:
                         mesageRef,
                         topic,
                         "phx_reply",
-                        {"response": {"rendered": rendered}, "status": "ok"},
+                        {
+                            "response": {
+                                "rendered": rendered,
+                                "liveview_version": PHOENIX_LIVEVIEW_VERSION,
+                            },
+                            "status": "ok",
+                        },
                     ]
 
                     await self.manager.send_personal_message(json.dumps(resp), socket.websocket)

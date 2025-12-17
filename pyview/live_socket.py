@@ -117,12 +117,18 @@ class ConnectedLiveViewSocket(Generic[T]):
         Returns:
             Rendered tree in Phoenix wire format
         """
-        from pyview.components.renderer import render_component_tree
+        import sys
 
-        # Start new render cycle - track which components are seen
+        # Start new render cycle - track which components are seen during parent render
         self.components.begin_render()
 
         rendered = (await self.liveview.render(self.context, self.meta)).tree()
+
+        # Component rendering requires Python 3.14+ (t-string support)
+        if sys.version_info < (3, 14):
+            return rendered
+
+        from pyview.components.renderer import render_component_tree
 
         # Run pending component lifecycle methods (mount/update)
         await self.components.run_pending_lifecycle()
@@ -133,9 +139,6 @@ class ConnectedLiveViewSocket(Generic[T]):
         # Render all registered components and include in response
         if self.components.component_count > 0:
             components_rendered = {}
-            # Track statics we've seen to enable sharing (Phoenix optimization)
-            # Map: tuple(statics) -> first CID that used them
-            statics_cache: dict[tuple[str, ...], int] = {}
 
             for cid in self.components.get_all_cids():
                 template = self.components.render_component(cid, self.meta)
@@ -143,19 +146,6 @@ class ConnectedLiveViewSocket(Generic[T]):
                     tree = render_component_tree(template, socket=self)
                     # Add ROOT flag so Phoenix.js injects data-phx-component
                     tree["r"] = 1
-
-                    # Share statics if we've seen them before (Phoenix wire optimization)
-                    # Components with identical statics reference the first CID instead
-                    statics = tree.get("s")
-                    if statics is not None and isinstance(statics, list):
-                        statics_key = tuple(statics)
-                        if statics_key in statics_cache:
-                            # Replace statics array with CID reference
-                            tree["s"] = statics_cache[statics_key]
-                        else:
-                            # First time seeing these statics, cache them
-                            statics_cache[statics_key] = cid
-
                     components_rendered[str(cid)] = tree
 
             if components_rendered:

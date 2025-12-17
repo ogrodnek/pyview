@@ -114,6 +114,7 @@ class DifferentCounter(LiveComponent[CounterContext]):
         return t"<section class='other'><p>{assigns['count']}</p></section>"
 
 
+@pytest.mark.skip(reason="Statics sharing reverted due to diff bug.")
 class TestComponentStaticsSharing:
     """Tests for component statics sharing optimization."""
 
