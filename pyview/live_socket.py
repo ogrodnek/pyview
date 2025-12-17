@@ -117,7 +117,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         Returns:
             Rendered tree in Phoenix wire format
         """
-        from pyview.template.live_view_template import LiveViewTemplate
+        from pyview.components.renderer import render_component_tree
 
         # Start new render cycle - track which components are seen
         self.components.begin_render()
@@ -140,7 +140,7 @@ class ConnectedLiveViewSocket(Generic[T]):
             for cid in self.components.get_all_cids():
                 template = self.components.render_component(cid, self.meta)
                 if template is not None:
-                    tree = LiveViewTemplate.process(template, socket=self)
+                    tree = render_component_tree(template, socket=self)
                     # Add ROOT flag so Phoenix.js injects data-phx-component
                     tree["r"] = 1
 
