@@ -19,6 +19,7 @@ if sys.version_info < (3, 14):
 from string.templatelib import Template
 
 if TYPE_CHECKING:
+    from pyview.components.base import LiveComponent
     from pyview.stream import Stream
 
 T = TypeVar("T")
@@ -72,13 +73,24 @@ def stream_for(
 class LiveComponentPlaceholder:
     """Placeholder for live components in templates."""
 
-    component_class: type
+    component_class: "type[LiveComponent]"
     component_id: str
     assigns: dict[str, Any]
 
     def __str__(self):
         # Return a placeholder that gets replaced during rendering
         return f"<pyview-component cid='{self.component_id}'/>"
+
+
+@dataclass
+class ComponentMarker:
+    """Marker for component that will be resolved lazily in .text().
+
+    Used during unconnected (HTTP) phase to defer component rendering
+    until after lifecycle methods have run.
+    """
+
+    cid: int
 
 
 class LiveViewTemplate:
@@ -122,14 +134,20 @@ class LiveViewTemplate:
 
                 # Handle different interpolation types
                 if isinstance(formatted_value, LiveComponentPlaceholder):
-                    # Handle live component
+                    # Handle live component - Phoenix.js expects CID as a number
+                    # which it looks up in output.components[cid]
                     if socket and hasattr(socket, "components"):
                         cid = socket.components.register(
                             formatted_value.component_class,
                             formatted_value.component_id,
                             formatted_value.assigns,
                         )
-                        parts[key] = {"c": cid}
+                        if getattr(socket, "connected", True):
+                            # Connected: return CID for wire format
+                            parts[key] = cid
+                        else:
+                            # Unconnected: store marker for lazy resolution in .text()
+                            parts[key] = ComponentMarker(cid=cid)
                     else:
                         # Fallback if no socket available
                         parts[key] = str(formatted_value)
@@ -176,13 +194,68 @@ class LiveViewTemplate:
         processed_items = []
         for item in items:
             if isinstance(item, Template):
-                # Process template items
+                # Process template items - produces {"s": [...], "0": ..., ...}
                 processed_items.append(LiveViewTemplate.process(item, socket))
+            elif isinstance(item, LiveComponentPlaceholder):
+                # Handle component placeholders in lists
+                # Phoenix.js expects CID as a number for component lookup
+                if socket and hasattr(socket, "components"):
+                    cid = socket.components.register(
+                        item.component_class,
+                        item.component_id,
+                        item.assigns,
+                    )
+                    if getattr(socket, "connected", True):
+                        # Connected: return CID for wire format
+                        processed_items.append(cid)
+                    else:
+                        # Unconnected: store marker for lazy resolution in .text()
+                        processed_items.append(ComponentMarker(cid=cid))
+                else:
+                    # Fallback if no socket available - just escaped string
+                    processed_items.append(LiveViewTemplate.escape_html(str(item)))
             else:
-                # Convert non-template items to escaped strings
-                processed_items.append([LiveViewTemplate.escape_html(str(item))])
+                # Plain strings - just escape, will be wrapped once in fallback
+                processed_items.append(LiveViewTemplate.escape_html(str(item)))
 
-        return {"d": processed_items}
+        # Phoenix.js comprehension format ALWAYS requires:
+        # - "s": array of static strings (shared across all items)
+        # - "d": array where each item is an array of dynamic values
+        #
+        # processed_items contains either:
+        #   - dicts with {"s": [...], "0": val, "1": val, ...} for Template items
+        #   - integer CIDs for component references
+        #   - escaped strings for non-Template items
+
+        # Check if all items are dicts with the same statics (true comprehension)
+        if processed_items and isinstance(processed_items[0], dict) and "s" in processed_items[0]:
+            first_statics = processed_items[0]["s"]
+            all_same_statics = all(
+                isinstance(item, dict) and item.get("s") == first_statics
+                for item in processed_items
+            )
+
+            if all_same_statics:
+                # True comprehension: all items share same statics
+                # Extract statics to top level, keep only dynamics in "d"
+                # Note: We rely on Python 3.7+ dict insertion order here.
+                # Keys are inserted as "0", "1", "2", ... in process(), so
+                # item.items() yields them in correct order without sorting.
+                return {
+                    "s": first_statics,
+                    "d": [
+                        [v for k, v in item.items() if k != "s"]
+                        for item in processed_items
+                    ],
+                }
+
+        # For all other cases (mixed types, different statics, components, etc.):
+        # Use empty statics and wrap each item as a single dynamic
+        # This ensures Phoenix.js comprehensionToBuffer always has valid statics
+        return {
+            "s": ["", ""],
+            "d": [[item] for item in processed_items],
+        }
 
     @staticmethod
     def _process_stream_list(
@@ -221,10 +294,11 @@ class LiveViewTemplate:
             # so we extract "s" from the first item and use it for the entire result.
             result["s"] = processed_items[0]["s"]
             # Convert each item to just its dynamic values (excluding "s").
-            # Dict items: extract values sorted by key ("0", "1", ...) to maintain order.
+            # We rely on Python 3.7+ dict insertion order - keys are inserted as
+            # "0", "1", "2", ... in process(), so item.items() yields correct order.
             # Non-dict items (lists): pass through as-is.
             result["d"] = [
-                [v for k, v in sorted(item.items()) if k != "s"]
+                [v for k, v in item.items() if k != "s"]
                 if isinstance(item, dict)
                 else item
                 for item in processed_items
@@ -250,7 +324,7 @@ class LiveViewTemplate:
 
 
 def live_component(
-    component_class: type, id: str, **assigns
+    component_class: "type[LiveComponent]", id: str, **assigns
 ) -> LiveComponentPlaceholder:
     """
     Insert a live component into a template.

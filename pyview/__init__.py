@@ -1,3 +1,4 @@
+from pyview.components import ComponentMeta, ComponentsManager, ComponentSocket, LiveComponent
 from pyview.js import JsCommand
 from pyview.live_socket import (
     ConnectedLiveViewSocket,
@@ -23,4 +24,9 @@ __all__ = [
     "UnconnectedSocket",
     "playground",
     "Stream",
+    # Components
+    "LiveComponent",
+    "ComponentMeta",
+    "ComponentSocket",
+    "ComponentsManager",
 ]

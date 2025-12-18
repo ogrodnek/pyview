@@ -2,6 +2,7 @@ import os.path
 from dataclasses import Field, asdict
 from typing import Any, ClassVar, Optional, Protocol, Union
 
+from pyview.components import SocketWithComponents
 from pyview.meta import PyViewMeta
 from pyview.template.context_processor import apply_context_processors
 from pyview.vendor.ibis import Template
@@ -49,7 +50,7 @@ class LiveTemplate:
 class RenderedContent(Protocol):
     def tree(self) -> dict[str, Any]: ...
 
-    def text(self) -> str: ...
+    def text(self, socket: Optional[SocketWithComponents] = None) -> str: ...
 
 
 class LiveRender:
@@ -61,7 +62,8 @@ class LiveRender:
     def tree(self) -> dict[str, Any]:
         return self.template.tree(self.assigns, self.meta)
 
-    def text(self) -> str:
+    def text(self, socket: Optional[SocketWithComponents] = None) -> str:
+        # socket parameter unused for Ibis templates (only used by t-string templates)
         return self.template.text(self.assigns, self.meta)
 
 

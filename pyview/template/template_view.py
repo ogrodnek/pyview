@@ -5,7 +5,7 @@ This module requires Python 3.14+ for t-string support.
 """
 
 import sys
-from typing import Any, TypeVar, Generic
+from typing import Any, TypeVar, Generic, Optional
 
 # T-string support requires Python 3.14+
 if sys.version_info < (3, 14):
@@ -14,7 +14,8 @@ if sys.version_info < (3, 14):
         f"Current version: {sys.version_info.major}.{sys.version_info.minor}"
     )
 
-from .live_view_template import LiveViewTemplate
+from pyview.components import SocketWithComponents
+from .live_view_template import LiveViewTemplate, ComponentMarker
 from string.templatelib import Template
 from pyview.meta import PyViewMeta
 
@@ -31,14 +32,22 @@ class TStringRenderedContent:
         """Return the LiveView diff tree."""
         return self._tree_data
 
-    def text(self) -> str:
-        """Convert tree back to HTML string (for testing/debugging)."""
-        return self._tree_to_html(self._tree_data)
+    def text(self, socket: Optional[SocketWithComponents] = None) -> str:
+        """Convert tree back to HTML string, resolving any component markers.
 
-    def _tree_to_html(self, tree: dict[str, Any] | list[Any]) -> str:
-        """Convert tree back to HTML (simplified version)."""
+        Args:
+            socket: Optional socket with components manager for resolving
+                    ComponentMarkers during unconnected phase.
+        """
+        return self._tree_to_html(self._tree_data, socket)
+
+    def _tree_to_html(self, tree: dict[str, Any] | list[Any], socket: Optional[SocketWithComponents] = None) -> str:
+        """Convert tree back to HTML, resolving ComponentMarkers."""
         if isinstance(tree, str):
             return tree
+
+        if isinstance(tree, ComponentMarker):
+            return self._resolve_component_marker(tree, socket)
 
         if not isinstance(tree, dict):
             return str(tree)
@@ -57,10 +66,7 @@ class TStringRenderedContent:
                     parts.append(static)
                     if i < len(dynamics):
                         dyn = dynamics[i]
-                        if isinstance(dyn, dict):
-                            parts.append(self._tree_to_html(dyn))
-                        else:
-                            parts.append(str(dyn))
+                        parts.append(self._value_to_html(dyn, socket))
                 html_items.append("".join(parts))
 
             return "".join(html_items)
@@ -71,9 +77,9 @@ class TStringRenderedContent:
             html_items = []
             for item in items:
                 if isinstance(item, list) and len(item) == 1:
-                    html_items.append(str(item[0]))
+                    html_items.append(self._value_to_html(item[0], socket))
                 else:
-                    html_items.append(self._tree_to_html(item))
+                    html_items.append(self._tree_to_html(item, socket))
             return "".join(html_items)
 
         html_parts = []
@@ -86,12 +92,34 @@ class TStringRenderedContent:
             key = str(i)
             if key in tree:
                 dynamic = tree[key]
-                if isinstance(dynamic, dict):
-                    html_parts.append(self._tree_to_html(dynamic))
-                else:
-                    html_parts.append(str(dynamic))
+                html_parts.append(self._value_to_html(dynamic, socket))
 
         return "".join(html_parts)
+
+    def _value_to_html(self, value: Any, socket: Optional[SocketWithComponents]) -> str:
+        """Convert a tree value to HTML string."""
+        if isinstance(value, ComponentMarker):
+            return self._resolve_component_marker(value, socket)
+        elif isinstance(value, dict):
+            return self._tree_to_html(value, socket)
+        elif isinstance(value, list):
+            return "".join(self._value_to_html(item, socket) for item in value)
+        else:
+            return str(value)
+
+    def _resolve_component_marker(self, marker: ComponentMarker, socket: Optional[SocketWithComponents]) -> str:
+        """Resolve a ComponentMarker to HTML by rendering the component."""
+        if not socket or not hasattr(socket, "components"):
+            return ""  # Component not available
+
+        meta = PyViewMeta(socket=socket)
+        template = socket.components.render_component(marker.cid, meta)
+        if template is None:
+            return ""
+
+        # Process the component template and recursively convert to HTML
+        component_tree = LiveViewTemplate.process(template, socket)
+        return self._tree_to_html(component_tree, socket)
 
 
 class TemplateView(Generic[T]):
@@ -119,7 +147,9 @@ class TemplateView(Generic[T]):
                 )
 
             # Process the template into LiveView tree format
-            tree = LiveViewTemplate.process(template)
+            # Pass socket for component registration if available
+            socket = meta.socket if meta else None
+            tree = LiveViewTemplate.process(template, socket=socket)
 
             return TStringRenderedContent(tree)
 

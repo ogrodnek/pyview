@@ -17,6 +17,9 @@ from pyview.session import deserialize_session
 
 logger = logging.getLogger(__name__)
 
+# Must match phoenix_live_view version in pyview/assets/package.json
+PHOENIX_LIVEVIEW_VERSION = "0.20.17"
+
 
 class AuthException(Exception):
     pass
@@ -122,7 +125,13 @@ class LiveSocketHandler:
                     mesageRef,
                     topic,
                     "phx_reply",
-                    {"response": {"rendered": rendered}, "status": "ok"},
+                    {
+                        "response": {
+                            "rendered": rendered,
+                            "liveview_version": PHOENIX_LIVEVIEW_VERSION,
+                        },
+                        "status": "ok",
+                    },
                 ]
 
                 await self.manager.send_personal_message(json.dumps(resp), websocket)
@@ -169,13 +178,28 @@ class LiveSocketHandler:
                 # Track event metrics
                 event_name = payload["event"]
                 view_name = socket.liveview.__class__.__name__
+
+                # Check if event is targeted at a component (via phx-target={cid})
+                target_cid = payload.get("cid")
+
                 self.metrics.events_processed.add(1, {"event": event_name, "view": view_name})
 
                 # Time event processing
                 with self.instrumentation.time_histogram(
                     "pyview.events.duration", {"event": event_name, "view": view_name}
                 ):
-                    await socket.liveview.handle_event(event_name, value, socket)
+                    if target_cid is not None:
+                        # Validate CID type - must be an integer
+                        if not isinstance(target_cid, int):
+                            logger.warning(
+                                f"Invalid cid type for event '{event_name}': {type(target_cid).__name__}"
+                            )
+                        else:
+                            # Route event to component
+                            await socket.components.handle_event(target_cid, event_name, value)
+                    else:
+                        # Route event to LiveView (default behavior)
+                        await socket.liveview.handle_event(event_name, value, socket)
 
                 # Time rendering
                 with self.instrumentation.time_histogram(
@@ -306,7 +330,13 @@ class LiveSocketHandler:
                         mesageRef,
                         topic,
                         "phx_reply",
-                        {"response": {"rendered": rendered}, "status": "ok"},
+                        {
+                            "response": {
+                                "rendered": rendered,
+                                "liveview_version": PHOENIX_LIVEVIEW_VERSION,
+                            },
+                            "status": "ok",
+                        },
                     ]
 
                     await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
@@ -374,7 +404,7 @@ class LiveSocketHandler:
 
 
 async def _render(socket: ConnectedLiveViewSocket):
-    rendered = (await socket.liveview.render(socket.context, socket.meta)).tree()
+    rendered = await socket.render_with_components()
 
     if socket.live_title:
         rendered["t"] = socket.live_title

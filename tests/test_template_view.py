@@ -1,8 +1,16 @@
 """
 Tests for TemplateView and TStringRenderedContent.
-"""
 
+NOTE: This test file uses t-string literal syntax and can only be run on Python 3.14+.
+The pytest.skip call below prevents import errors on earlier Python versions.
+"""
+import sys
 import pytest
+
+# Skip entire module if Python < 3.14 (t-string literals cause SyntaxError)
+if sys.version_info < (3, 14):
+    pytest.skip("T-string tests require Python 3.14+", allow_module_level=True)
+
 from pyview.template.template_view import TemplateView, TStringRenderedContent
 from pyview.meta import PyViewMeta
 

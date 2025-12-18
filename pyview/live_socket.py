@@ -23,6 +23,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from starlette.websockets import WebSocket
 
 from pyview.async_stream_runner import AsyncStreamRunner
+from pyview.components.manager import ComponentsManager
 from pyview.events import InfoEvent
 from pyview.meta import PyViewMeta
 from pyview.template.render_diff import calc_diff
@@ -46,10 +47,30 @@ def is_connected(socket: LiveViewSocket[T]) -> TypeGuard[ConnectedLiveViewSocket
     return socket.connected
 
 
+class UnconnectedLiveView:
+    """Stub liveview that raises if send_parent() is called in unconnected phase."""
+
+    async def handle_event(self, event: str, payload: dict[str, Any], socket: Any) -> None:
+        raise RuntimeError(
+            "send_parent() is not available during initial HTTP render. "
+            "Component events only work after WebSocket connection."
+        )
+
+
 class UnconnectedSocket(Generic[T]):
     context: T
     live_title: Optional[str] = None
     connected: bool = False
+    _liveview: UnconnectedLiveView
+    components: ComponentsManager
+
+    def __init__(self) -> None:
+        self._liveview = UnconnectedLiveView()
+        self.components = ComponentsManager(self)
+
+    @property
+    def liveview(self) -> UnconnectedLiveView:
+        return self._liveview
 
     def allow_upload(
         self,
@@ -96,10 +117,61 @@ class ConnectedLiveViewSocket(Generic[T]):
         self.upload_manager = UploadManager()
         self.stream_runner = AsyncStreamRunner(self)
         self.scheduler = scheduler
+        self.components = ComponentsManager(self)
 
     @property
     def meta(self) -> PyViewMeta:
-        return PyViewMeta()
+        return PyViewMeta(socket=self)
+
+    async def render_with_components(self) -> dict[str, Any]:
+        """
+        Render the LiveView and all its components.
+
+        Handles the full component lifecycle:
+        1. Begin render cycle (track seen components)
+        2. Render parent LiveView template
+        3. Run pending component lifecycle (mount/update)
+        4. Prune stale components not in this render
+        5. Render all component templates with ROOT flag
+
+        Returns:
+            Rendered tree in Phoenix wire format
+        """
+        import sys
+
+        # Start new render cycle - track which components are seen during parent render
+        self.components.begin_render()
+
+        rendered = (await self.liveview.render(self.context, self.meta)).tree()
+
+        # Component rendering requires Python 3.14+ (t-string support)
+        if sys.version_info < (3, 14):
+            return rendered
+
+        from pyview.components.renderer import render_component_tree
+
+        # Run pending component lifecycle methods (mount/update)
+        await self.components.run_pending_lifecycle()
+
+        # Clean up components that were removed from the DOM
+        self.components.prune_stale_components()
+
+        # Render all registered components and include in response
+        if self.components.component_count > 0:
+            components_rendered = {}
+
+            for cid in self.components.get_all_cids():
+                template = self.components.render_component(cid, self.meta)
+                if template is not None:
+                    tree = render_component_tree(template, socket=self)
+                    # Add ROOT flag so Phoenix.js injects data-phx-component
+                    tree["r"] = 1
+                    components_rendered[str(cid)] = tree
+
+            if components_rendered:
+                rendered["c"] = components_rendered
+
+        return rendered
 
     async def subscribe(self, topic: str):
         await self.pub_sub.subscribe_topic_async(topic, self._topic_callback_internal)
@@ -145,8 +217,9 @@ class ConnectedLiveViewSocket(Generic[T]):
 
     async def send_info(self, event: InfoEvent):
         await self.liveview.handle_info(event, self)
-        r = await self.liveview.render(self.context, self.meta)
-        resp = [None, None, self.topic, "diff", self.diff(r.tree())]
+
+        rendered = await self.render_with_components()
+        resp = [None, None, self.topic, "diff", self.diff(rendered)]
 
         try:
             await self.websocket.send_text(json.dumps(resp))
@@ -272,6 +345,9 @@ class ConnectedLiveViewSocket(Generic[T]):
 
         with suppress(Exception):
             self.upload_manager.close()
+
+        with suppress(Exception):
+            self.components.clear()
 
         with suppress(Exception):
             await self.liveview.disconnect(self)
