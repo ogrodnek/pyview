@@ -13,7 +13,7 @@ CID (Component ID) is stored externally in ComponentsManager, not on the compone
 instance. This keeps components clean and testable.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 
 if TYPE_CHECKING:
@@ -70,12 +70,6 @@ class ComponentSocket(Generic[T]):
     context: T
     cid: int
     manager: "ComponentsManager"
-    _context_modified: bool = field(default=False, repr=False)
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        if name == "context":
-            object.__setattr__(self, "_context_modified", True)
-        object.__setattr__(self, name, value)
 
     @property
     def myself(self) -> int:

@@ -61,21 +61,6 @@ class TestComponentSocket:
         socket = ComponentSocket(context={}, cid=42, manager=MagicMock())
         assert socket.myself == 42
 
-    def test_context_modification_tracking(self):
-        """Test that context modification is tracked."""
-        socket = ComponentSocket(context={"count": 0}, cid=1, manager=MagicMock())
-
-        # Initially not modified
-        assert socket._context_modified is False
-
-        # Modifying context dict values doesn't trigger (only replacing context does)
-        socket.context["count"] = 5
-        assert socket._context_modified is False
-
-        # Replacing context triggers modification flag
-        socket.context = {"count": 10}
-        assert socket._context_modified is True
-
     @pytest.mark.asyncio
     async def test_send_parent(self):
         """Test send_parent calls manager.send_to_parent."""
