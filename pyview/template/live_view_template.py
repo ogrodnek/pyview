@@ -82,6 +82,17 @@ class LiveComponentPlaceholder:
         return f"<pyview-component cid='{self.component_id}'/>"
 
 
+@dataclass
+class ComponentMarker:
+    """Marker for component that will be resolved lazily in .text().
+
+    Used during unconnected (HTTP) phase to defer component rendering
+    until after lifecycle methods have run.
+    """
+
+    cid: int
+
+
 class LiveViewTemplate:
     """Processes Python t-string Templates into LiveView diff tree format."""
 
@@ -131,7 +142,12 @@ class LiveViewTemplate:
                             formatted_value.component_id,
                             formatted_value.assigns,
                         )
-                        parts[key] = cid  # Just the CID number
+                        if getattr(socket, "connected", True):
+                            # Connected: return CID for wire format
+                            parts[key] = cid
+                        else:
+                            # Unconnected: store marker for lazy resolution in .text()
+                            parts[key] = ComponentMarker(cid=cid)
                     else:
                         # Fallback if no socket available
                         parts[key] = str(formatted_value)
@@ -189,7 +205,12 @@ class LiveViewTemplate:
                         item.component_id,
                         item.assigns,
                     )
-                    processed_items.append(cid)  # Just the CID number
+                    if getattr(socket, "connected", True):
+                        # Connected: return CID for wire format
+                        processed_items.append(cid)
+                    else:
+                        # Unconnected: store marker for lazy resolution in .text()
+                        processed_items.append(ComponentMarker(cid=cid))
                 else:
                     # Fallback if no socket available - just escaped string
                     processed_items.append(LiveViewTemplate.escape_html(str(item)))

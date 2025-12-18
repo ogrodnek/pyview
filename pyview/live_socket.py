@@ -47,10 +47,30 @@ def is_connected(socket: LiveViewSocket[T]) -> TypeGuard[ConnectedLiveViewSocket
     return socket.connected
 
 
+class UnconnectedLiveView:
+    """Stub liveview that raises if send_parent() is called in unconnected phase."""
+
+    async def handle_event(self, event: str, payload: dict[str, Any], socket: Any) -> None:
+        raise RuntimeError(
+            "send_parent() is not available during initial HTTP render. "
+            "Component events only work after WebSocket connection."
+        )
+
+
 class UnconnectedSocket(Generic[T]):
     context: T
     live_title: Optional[str] = None
     connected: bool = False
+    _liveview: UnconnectedLiveView
+    components: ComponentsManager
+
+    def __init__(self) -> None:
+        self._liveview = UnconnectedLiveView()
+        self.components = ComponentsManager(self)
+
+    @property
+    def liveview(self) -> UnconnectedLiveView:
+        return self._liveview
 
     def allow_upload(
         self,

@@ -166,14 +166,18 @@ class LiveComponent(Generic[T]):
 
     async def update(self, socket: ComponentSocket[T], assigns: dict[str, Any]) -> None:
         """
-        Called every time the component receives new assigns from the parent.
+        Called after mount() and on subsequent renders with new assigns.
+
+        This is called:
+        1. Immediately after mount() with the initial assigns
+        2. On re-renders when the parent passes new assigns via live_component()
 
         Override to handle assigns that should update component state.
         The default is a no-op - components explicitly decide what affects their state.
 
         Args:
             socket: ComponentSocket for state access
-            assigns: New assigns passed from parent via live_component()
+            assigns: Assigns passed from parent via live_component()
         """
         pass
 

@@ -29,12 +29,39 @@ Usage:
     {live_component(Counter, id="counter-1")}
 """
 
+from typing import Any, Protocol
+
 from .base import ComponentMeta, ComponentSocket, LiveComponent
 from .manager import ComponentsManager
+
+
+class ComponentsManagerProtocol(Protocol):
+    """Protocol for component manager used in text() rendering."""
+
+    def render_component(self, cid: int, parent_meta: Any) -> Any: ...
+
+    def has_pending_lifecycle(self) -> bool: ...
+
+    def get_all_cids(self) -> list[int]: ...
+
+    async def run_pending_lifecycle(self) -> None: ...
+
+    @property
+    def component_count(self) -> int: ...
+
+
+class SocketWithComponents(Protocol):
+    """Protocol for socket with components manager (for template rendering)."""
+
+    @property
+    def components(self) -> ComponentsManagerProtocol: ...
+
 
 __all__ = [
     "LiveComponent",
     "ComponentMeta",
     "ComponentSocket",
     "ComponentsManager",
+    "ComponentsManagerProtocol",
+    "SocketWithComponents",
 ]

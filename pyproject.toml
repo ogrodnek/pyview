@@ -93,6 +93,7 @@ exclude = [
     "tests/test_template_view.py",
     "tests/test_stream_tstring.py",
     "tests/components/test_statics_sharing.py",
+    "tests/components/test_unconnected_render.py",
 ]
 
 [tool.pytest.ini_options]
@@ -114,6 +115,7 @@ exclude = [
     "tests/test_template_view.py",
     "tests/test_stream_tstring.py",
     "tests/components/test_statics_sharing.py",
+    "tests/components/test_unconnected_render.py",
 ]
 
 [tool.ruff.lint]

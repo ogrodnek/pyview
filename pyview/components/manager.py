@@ -343,3 +343,7 @@ class ComponentsManager:
     def get_all_cids(self) -> list[int]:
         """Get all registered CIDs."""
         return list(self._components.keys())
+
+    def has_pending_lifecycle(self) -> bool:
+        """Check if there are components waiting for mount/update."""
+        return bool(self._pending_mounts) or bool(self._pending_updates)

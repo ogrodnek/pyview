@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from pyview.live_socket import ConnectedLiveViewSocket
+    from pyview.components import SocketWithComponents
 
 
 @dataclass
@@ -11,7 +11,8 @@ class PyViewMeta:
     Metadata passed to LiveView render and template methods.
 
     Attributes:
-        socket: Optional reference to the connected socket (for component registration)
+        socket: Optional reference to the socket (for component registration).
+                Can be either ConnectedLiveViewSocket or UnconnectedSocket.
     """
 
-    socket: Optional["ConnectedLiveViewSocket"] = field(default=None, repr=False)
+    socket: Optional["SocketWithComponents"] = field(default=None, repr=False)

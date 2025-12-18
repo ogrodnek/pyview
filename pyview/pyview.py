@@ -10,6 +10,7 @@ from starlette.responses import HTMLResponse
 from starlette.routing import Route, WebSocketRoute
 
 from pyview.auth import AuthProviderFactory
+from pyview.components.unconnected import run_nested_component_lifecycle
 from pyview.csrf import generate_csrf_token
 from pyview.instrumentation import InstrumentationProvider, NoOpInstrumentation
 from pyview.live_socket import UnconnectedSocket
@@ -98,7 +99,12 @@ async def liveview_container(template: RootTemplate, view_lookup: LiveViewLookup
     # Pass merged parameters to handle_params
     await lv.handle_params(urlparse(url._url), merged_params, s)
 
-    r = await lv.render(s.context, PyViewMeta())
+    # Pass socket to meta for component registration
+    meta = PyViewMeta(socket=s)
+    r = await lv.render(s.context, meta)
+
+    # Run component lifecycle, including nested components
+    await run_nested_component_lifecycle(s, meta)
 
     liveview_css = find_associated_css(lv)
 
@@ -106,7 +112,7 @@ async def liveview_container(template: RootTemplate, view_lookup: LiveViewLookup
 
     context: RootTemplateContext = {
         "id": id,
-        "content": r.text(),
+        "content": r.text(socket=s),  # Pass socket for ComponentMarker resolution
         "title": s.live_title,
         "csrf_token": generate_csrf_token("lv:phx-" + id),
         "session": serialize_session(session),
