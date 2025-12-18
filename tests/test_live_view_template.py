@@ -654,3 +654,27 @@ class TestLiveViewTemplate:
         }
         assert result == expected
 
+    def test_list_comprehension_with_many_dynamics(self):
+        """Test list comprehension with 10+ dynamics to verify ordering.
+
+        This test ensures that dynamic values are extracted in the correct
+        order (0, 1, 2, ..., 10, 11) rather than lexicographic order
+        (0, 1, 10, 11, 2, ...) which would happen with string sorting.
+        """
+        # Create templates with 12 separate interpolations each
+        # Each {f"..."} is a distinct interpolation
+        items = [
+            t"<tr><td>{f'{i}-0'}</td><td>{f'{i}-1'}</td><td>{f'{i}-2'}</td><td>{f'{i}-3'}</td><td>{f'{i}-4'}</td><td>{f'{i}-5'}</td><td>{f'{i}-6'}</td><td>{f'{i}-7'}</td><td>{f'{i}-8'}</td><td>{f'{i}-9'}</td><td>{f'{i}-10'}</td><td>{f'{i}-11'}</td></tr>"
+            for i in range(2)
+        ]
+        template = t"<table>{items}</table>"
+        result = LiveViewTemplate.process(template)
+
+        # Verify the dynamics are in numeric order, not lexicographic
+        # If sorted() was used with string keys, "10" and "11" would come after "1" but before "2"
+        expected_dynamics_row_0 = ["0-0", "0-1", "0-2", "0-3", "0-4", "0-5", "0-6", "0-7", "0-8", "0-9", "0-10", "0-11"]
+        expected_dynamics_row_1 = ["1-0", "1-1", "1-2", "1-3", "1-4", "1-5", "1-6", "1-7", "1-8", "1-9", "1-10", "1-11"]
+
+        assert result["0"]["d"][0] == expected_dynamics_row_0
+        assert result["0"]["d"][1] == expected_dynamics_row_1
+

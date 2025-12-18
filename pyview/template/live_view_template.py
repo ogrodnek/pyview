@@ -238,10 +238,13 @@ class LiveViewTemplate:
             if all_same_statics:
                 # True comprehension: all items share same statics
                 # Extract statics to top level, keep only dynamics in "d"
+                # Note: We rely on Python 3.7+ dict insertion order here.
+                # Keys are inserted as "0", "1", "2", ... in process(), so
+                # item.items() yields them in correct order without sorting.
                 return {
                     "s": first_statics,
                     "d": [
-                        [v for k, v in sorted(item.items()) if k != "s"]
+                        [v for k, v in item.items() if k != "s"]
                         for item in processed_items
                     ],
                 }
@@ -291,10 +294,11 @@ class LiveViewTemplate:
             # so we extract "s" from the first item and use it for the entire result.
             result["s"] = processed_items[0]["s"]
             # Convert each item to just its dynamic values (excluding "s").
-            # Dict items: extract values sorted by key ("0", "1", ...) to maintain order.
+            # We rely on Python 3.7+ dict insertion order - keys are inserted as
+            # "0", "1", "2", ... in process(), so item.items() yields correct order.
             # Non-dict items (lists): pass through as-is.
             result["d"] = [
-                [v for k, v in sorted(item.items()) if k != "s"]
+                [v for k, v in item.items() if k != "s"]
                 if isinstance(item, dict)
                 else item
                 for item in processed_items
