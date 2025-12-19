@@ -32,7 +32,7 @@ from .views import (
 
 # T-string examples are only available on Python 3.14+
 if sys.version_info >= (3, 14):
-    from .views.components import StatefulComponentsDemo, StatelessComponentsDemo
+    from .views.components import SlotsDemo, StatefulComponentsDemo, StatelessComponentsDemo
     from .views.count.count_tstring import CounterTStringLiveView
     from .views.streams.streams_tstring import StreamsTStringLiveView
 
@@ -157,8 +157,9 @@ routes = [
 if sys.version_info >= (3, 14):
     routes.append(("/counter_tstring", CounterTStringLiveView))
     routes.append(("/streams_tstring", StreamsTStringLiveView))
-    routes.append(("/stateless_components", StatelessComponentsDemo))
-    routes.append(("/stateful_components", StatefulComponentsDemo))
+    routes.append(("/components/stateless", StatelessComponentsDemo))
+    routes.append(("/components/stateful", StatefulComponentsDemo))
+    routes.append(("/components/slots", SlotsDemo))
 
 
 async def get(request):

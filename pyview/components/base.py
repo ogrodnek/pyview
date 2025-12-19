@@ -13,10 +13,12 @@ CID (Component ID) is stored externally in ComponentsManager, not on the compone
 instance. This keeps components clean and testable.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 
 if TYPE_CHECKING:
+    from string.templatelib import Template  # type: ignore[import-not-found]
+
     from pyview.meta import PyViewMeta
 
     # Avoid circular import - manager imports this module
@@ -31,15 +33,17 @@ class ComponentMeta:
     Metadata passed to component's template() method.
 
     Contains the component's CID (Component ID) which is used for event targeting
-    via phx-target={meta.myself}.
+    via phx-target={meta.myself}, and any slots passed from the parent.
 
     Attributes:
         cid: The component's unique identifier (assigned by ComponentsManager)
         parent_meta: The parent LiveView's PyViewMeta
+        slots: Dictionary of slot content passed from parent template
     """
 
     cid: int
     parent_meta: "PyViewMeta"
+    slots: "dict[str, Template]" = field(default_factory=dict)
 
     @property
     def myself(self) -> int:

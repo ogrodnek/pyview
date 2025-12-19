@@ -1,8 +1,9 @@
 """
-Helper for running component lifecycle during unconnected (HTTP) phase.
+Helper for running component lifecycle with nested component discovery.
 
-This module handles nested component discovery, which requires iterating
-lifecycle + template rendering until no new components are discovered.
+This module handles nested component discovery (e.g., components inside slots),
+which requires iterating lifecycle + template rendering until no new components
+are discovered. Used by both HTTP (unconnected) and WebSocket (connected) flows.
 """
 
 import sys

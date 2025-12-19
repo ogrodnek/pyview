@@ -148,10 +148,11 @@ class ConnectedLiveViewSocket(Generic[T]):
         if sys.version_info < (3, 14):
             return rendered
 
+        from pyview.components.lifecycle import run_nested_component_lifecycle
         from pyview.components.renderer import render_component_tree
 
-        # Run pending component lifecycle methods (mount/update)
-        await self.components.run_pending_lifecycle()
+        # Run component lifecycle, discovering nested components (e.g., in slots)
+        await run_nested_component_lifecycle(self, self.meta)
 
         # Clean up components that were removed from the DOM
         self.components.prune_stale_components()

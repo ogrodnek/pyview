@@ -10,7 +10,7 @@ from starlette.responses import HTMLResponse
 from starlette.routing import Route, WebSocketRoute
 
 from pyview.auth import AuthProviderFactory
-from pyview.components.unconnected import run_nested_component_lifecycle
+from pyview.components.lifecycle import run_nested_component_lifecycle
 from pyview.csrf import generate_csrf_token
 from pyview.instrumentation import InstrumentationProvider, NoOpInstrumentation
 from pyview.live_socket import UnconnectedSocket

@@ -18,6 +18,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Protocol
 
 from .base import ComponentMeta, ComponentSocket, LiveComponent
+from .slots import Slots
 
 if TYPE_CHECKING:
     from pyview.meta import PyViewMeta
@@ -63,6 +64,7 @@ class ComponentsManager:
         self.parent_socket = parent_socket
         self._components: dict[int, LiveComponent] = {}
         self._contexts: dict[int, Any] = {}
+        self._slots: dict[int, Slots] = {}  # Slot content keyed by CID
         self._by_key: dict[tuple[type, str], int] = {}
         self._pending_mounts: list[tuple[int, dict[str, Any]]] = []
         self._pending_updates: list[tuple[int, dict[str, Any]]] = []
@@ -88,9 +90,15 @@ class ComponentsManager:
         """
         key = (component_class, component_id)
 
+        # Extract slots from assigns (if present) without mutating caller's dict
+        component_slots = assigns.get("slots", {})
+        if "slots" in assigns:
+            assigns = {k: v for k, v in assigns.items() if k != "slots"}
+
         if key in self._by_key:
             # Existing component - queue update with new assigns
             cid = self._by_key[key]
+            self._slots[cid] = component_slots  # Update slots
             self._pending_updates.append((cid, assigns))
             self._seen_this_render.add(cid)
             logger.debug(
@@ -105,6 +113,7 @@ class ComponentsManager:
         component = component_class()
         self._components[cid] = component
         self._contexts[cid] = {}  # Empty initial context
+        self._slots[cid] = component_slots  # Store slots
         self._by_key[key] = cid
 
         # Queue mount with initial assigns
@@ -246,7 +255,8 @@ class ComponentsManager:
 
         component = self._components[cid]
         context = self._contexts[cid]
-        meta = ComponentMeta(cid=cid, parent_meta=parent_meta)
+        component_slots = self._slots.get(cid, {})
+        meta = ComponentMeta(cid=cid, parent_meta=parent_meta, slots=component_slots)
 
         return component.template(context, meta)
 
@@ -283,6 +293,8 @@ class ComponentsManager:
             del self._components[cid]
         if cid in self._contexts:
             del self._contexts[cid]
+        if cid in self._slots:
+            del self._slots[cid]
 
         # Remove from key mapping
         key_to_remove = None
@@ -299,6 +311,7 @@ class ComponentsManager:
         """Clear all components. Called on socket close."""
         self._components.clear()
         self._contexts.clear()
+        self._slots.clear()
         self._by_key.clear()
         self._pending_mounts.clear()
         self._pending_updates.clear()

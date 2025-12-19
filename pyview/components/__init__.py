@@ -33,6 +33,7 @@ from typing import Any, Protocol
 
 from .base import ComponentMeta, ComponentSocket, LiveComponent
 from .manager import ComponentsManager
+from .slots import Slots, slots
 
 
 class ComponentsManagerProtocol(Protocol):
@@ -64,4 +65,6 @@ __all__ = [
     "ComponentsManager",
     "ComponentsManagerProtocol",
     "SocketWithComponents",
+    "Slots",
+    "slots",
 ]
