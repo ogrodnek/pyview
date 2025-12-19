@@ -458,3 +458,123 @@ class TestNestedComponentsInSlots:
         assert counter_tree is not None
         assert "s" in counter_tree  # Has statics
         # Counter should render "Count: 42"
+
+
+class TestSingleRenderPerCycle:
+    """Tests that components are only rendered once per render cycle."""
+
+    @pytest.mark.asyncio
+    async def test_component_template_called_once(self):
+        """Verify each component's template() is only called once during lifecycle."""
+        from pyview.components.manager import ComponentsManager
+        from pyview.template.live_view_template import live_component
+
+        class MockConnectedSocket:
+            components: ComponentsManager
+
+            def __init__(self):
+                self.context: dict = {}
+                self.connected = True
+                self.liveview = MagicMock()
+
+            @property
+            def meta(self):
+                return PyViewMeta(socket=self)
+
+        socket = MockConnectedSocket()
+        socket.components = ComponentsManager(socket)
+
+        # Track how many times template() is called
+        render_counts: dict[str, int] = {"card": 0, "counter": 0}
+
+        class CountingCounter(LiveComponent):
+            async def mount(self, socket, assigns):
+                socket.context = {"count": assigns.get("initial", 0)}
+
+            def template(self, assigns, meta):
+                render_counts["counter"] += 1
+                return t"<span>Count: {assigns['count']}</span>"
+
+        class CountingCard(LiveComponent):
+            async def mount(self, socket, assigns):
+                socket.context = {}
+
+            def template(self, assigns, meta):
+                render_counts["card"] += 1
+                body = meta.slots.get("default", t"")
+                return t"<div class='card'>{body}</div>"
+
+        from pyview.components.lifecycle import run_nested_component_lifecycle
+
+        # Register Card with nested Counter
+        socket.components.begin_render()
+        socket.components.register(
+            CountingCard, "card-1",
+            {"slots": slots(t"<p>{live_component(CountingCounter, id='counter-1', initial=10)}</p>")}
+        )
+
+        # Run lifecycle - this should render each component exactly once
+        rendered_trees = await run_nested_component_lifecycle(socket, socket.meta)
+
+        # Verify each component was rendered exactly once
+        assert render_counts["card"] == 1, f"Card rendered {render_counts['card']} times, expected 1"
+        assert render_counts["counter"] == 1, f"Counter rendered {render_counts['counter']} times, expected 1"
+
+        # Verify we got trees for both components
+        assert len(rendered_trees) == 2, f"Expected 2 rendered trees, got {len(rendered_trees)}"
+
+    @pytest.mark.asyncio
+    async def test_no_pending_updates_after_lifecycle(self):
+        """Verify no spurious updates are queued after lifecycle completes."""
+        from pyview.components.manager import ComponentsManager
+        from pyview.template.live_view_template import live_component
+
+        class MockConnectedSocket:
+            components: ComponentsManager
+
+            def __init__(self):
+                self.context: dict = {}
+                self.connected = True
+                self.liveview = MagicMock()
+
+            @property
+            def meta(self):
+                return PyViewMeta(socket=self)
+
+        socket = MockConnectedSocket()
+        socket.components = ComponentsManager(socket)
+
+        class SimpleCounter(LiveComponent):
+            async def mount(self, socket, assigns):
+                socket.context = {"count": 0}
+
+            def template(self, assigns, meta):
+                return t"<span>{assigns['count']}</span>"
+
+        class SimpleCard(LiveComponent):
+            async def mount(self, socket, assigns):
+                socket.context = {}
+
+            def template(self, assigns, meta):
+                body = meta.slots.get("default", t"")
+                return t"<div>{body}</div>"
+
+        from pyview.components.lifecycle import run_nested_component_lifecycle
+
+        # Register Card with nested Counter
+        socket.components.begin_render()
+        socket.components.register(
+            SimpleCard, "card-1",
+            {"slots": slots(t"{live_component(SimpleCounter, id='counter-1')}")}
+        )
+
+        # Run lifecycle
+        await run_nested_component_lifecycle(socket, socket.meta)
+
+        # Verify no pending lifecycle remains
+        assert not socket.components.has_pending_lifecycle(), \
+            "Expected no pending lifecycle after run_nested_component_lifecycle()"
+
+        # Verify _pending_updates is empty (no spurious updates queued)
+        assert len(socket.components._pending_updates) == 0, \
+            f"Expected 0 pending updates, got {len(socket.components._pending_updates)}"
