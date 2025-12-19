@@ -578,3 +578,79 @@ class TestSingleRenderPerCycle:
         # Verify _pending_updates is empty (no spurious updates queued)
         assert len(socket.components._pending_updates) == 0, \
             f"Expected 0 pending updates, got {len(socket.components._pending_updates)}"
+
+    @pytest.mark.asyncio
+    async def test_stale_components_not_rendered(self):
+        """Verify stale components from previous renders don't get rendered or resurrect children."""
+        from pyview.components.manager import ComponentsManager
+        from pyview.template.live_view_template import live_component
+
+        class MockConnectedSocket:
+            components: ComponentsManager
+
+            def __init__(self):
+                self.context: dict = {}
+                self.connected = True
+                self.liveview = MagicMock()
+
+            @property
+            def meta(self):
+                return PyViewMeta(socket=self)
+
+        socket = MockConnectedSocket()
+        socket.components = ComponentsManager(socket)
+
+        render_counts: dict[str, int] = {"card": 0, "counter": 0}
+
+        class TrackingCounter(LiveComponent):
+            async def mount(self, socket, assigns):
+                socket.context = {"count": 0}
+
+            def template(self, assigns, meta):
+                render_counts["counter"] += 1
+                return t"<span>{assigns['count']}</span>"
+
+        class TrackingCard(LiveComponent):
+            async def mount(self, socket, assigns):
+                socket.context = {}
+
+            def template(self, assigns, meta):
+                render_counts["card"] += 1
+                body = meta.slots.get("default", t"")
+                return t"<div>{body}</div>"
+
+        from pyview.components.lifecycle import run_nested_component_lifecycle
+
+        # Render 1: Register Card with nested Counter
+        socket.components.begin_render()
+        socket.components.register(
+            TrackingCard, "card-1",
+            {"slots": slots(t"{live_component(TrackingCounter, id='counter-1')}")}
+        )
+        await run_nested_component_lifecycle(socket, socket.meta)
+
+        assert render_counts["card"] == 1
+        assert render_counts["counter"] == 1
+        assert socket.components.component_count == 2
+
+        # Render 2: Card is no longer in the template (stale)
+        # Only register a different component
+        socket.components.begin_render()
+        # Don't register Card or Counter - they should be stale
+
+        # Reset counts to verify stale components aren't rendered
+        render_counts["card"] = 0
+        render_counts["counter"] = 0
+
+        rendered_trees = await run_nested_component_lifecycle(socket, socket.meta)
+
+        # Stale components should NOT be rendered
+        assert render_counts["card"] == 0, "Stale Card should not be rendered"
+        assert render_counts["counter"] == 0, "Stale Counter should not be rendered"
+
+        # No trees should be returned for stale components
+        assert len(rendered_trees) == 0, "No trees should be returned for stale components"
+
+        # After pruning, both stale components should be removed
+        socket.components.prune_stale_components()
+        assert socket.components.component_count == 0, "All stale components should be pruned"

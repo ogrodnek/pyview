@@ -53,9 +53,11 @@ async def run_nested_component_lifecycle(
     iterations = 0
 
     while True:
-        # Find CIDs that haven't been processed yet
-        all_cids = set(socket.components.get_all_cids())
-        new_cids = all_cids - discovered_cids
+        # Only process CIDs that were seen (registered) in the current render cycle.
+        # This prevents rendering stale components from previous renders, which could
+        # resurrect their nested children and leave orphaned components in the response.
+        seen_cids = socket.components.get_seen_cids()
+        new_cids = seen_cids - discovered_cids
 
         # Exit if no new components and no pending lifecycle
         if not new_cids and not socket.components.has_pending_lifecycle():

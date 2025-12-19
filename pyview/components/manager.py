@@ -357,6 +357,10 @@ class ComponentsManager:
         """Get all registered CIDs."""
         return list(self._components.keys())
 
+    def get_seen_cids(self) -> set[int]:
+        """Get CIDs that were seen (registered) during the current render cycle."""
+        return self._seen_this_render.copy()
+
     def has_pending_lifecycle(self) -> bool:
         """Check if there are components waiting for mount/update."""
         return bool(self._pending_mounts) or bool(self._pending_updates)
