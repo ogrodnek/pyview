@@ -148,28 +148,17 @@ class ConnectedLiveViewSocket(Generic[T]):
         if sys.version_info < (3, 14):
             return rendered
 
-        from pyview.components.renderer import render_component_tree
+        from pyview.components.lifecycle import run_nested_component_lifecycle
 
-        # Run pending component lifecycle methods (mount/update)
-        await self.components.run_pending_lifecycle()
+        # Run component lifecycle and get rendered trees in one pass
+        rendered_trees = await run_nested_component_lifecycle(self, self.meta)
 
         # Clean up components that were removed from the DOM
         self.components.prune_stale_components()
 
-        # Render all registered components and include in response
-        if self.components.component_count > 0:
-            components_rendered = {}
-
-            for cid in self.components.get_all_cids():
-                template = self.components.render_component(cid, self.meta)
-                if template is not None:
-                    tree = render_component_tree(template, socket=self)
-                    # Add ROOT flag so Phoenix.js injects data-phx-component
-                    tree["r"] = 1
-                    components_rendered[str(cid)] = tree
-
-            if components_rendered:
-                rendered["c"] = components_rendered
+        # Include rendered component trees in response
+        if rendered_trees:
+            rendered["c"] = {str(cid): tree for cid, tree in rendered_trees.items()}
 
         return rendered
 

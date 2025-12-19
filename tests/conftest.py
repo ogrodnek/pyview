@@ -32,5 +32,6 @@ def pytest_ignore_collect(collection_path, config):
         "test_template_view.py",
         "test_stream_tstring.py",
         "test_statics_sharing.py",
-        "test_unconnected_render.py",
+        "test_lifecycle.py",
+        "test_slots.py",
     )

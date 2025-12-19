@@ -1,4 +1,4 @@
-"""Tests for component rendering during unconnected (HTTP) phase."""
+"""Tests for component lifecycle with nested component discovery."""
 
 import sys
 import pytest
@@ -11,7 +11,7 @@ if sys.version_info < (3, 14):
 from pyview.live_socket import UnconnectedSocket, UnconnectedLiveView
 from pyview.meta import PyViewMeta
 from pyview.components import ComponentsManager
-from pyview.components.unconnected import run_nested_component_lifecycle
+from pyview.components.lifecycle import run_nested_component_lifecycle
 from pyview.template.live_view_template import (
     LiveViewTemplate,
     LiveComponentPlaceholder,

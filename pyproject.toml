@@ -93,7 +93,8 @@ exclude = [
     "tests/test_template_view.py",
     "tests/test_stream_tstring.py",
     "tests/components/test_statics_sharing.py",
-    "tests/components/test_unconnected_render.py",
+    "tests/components/test_lifecycle.py",
+    "tests/components/test_slots.py",
 ]
 
 [tool.pytest.ini_options]
@@ -107,15 +108,18 @@ exclude = [
     "pyview/template/__init__.py",
     "pyview/template/template_view.py",
     "pyview/template/live_view_template.py",
+    "pyview/components/slots.py",
     "examples/views/count/count_tstring.py",
     "examples/views/streams/streams_tstring.py",
+    "examples/views/components/slots_demo.py",
     "examples/views/components/stateful_demo.py",
     "examples/views/components/stateless_demo.py",
     "tests/test_live_view_template.py",
     "tests/test_template_view.py",
     "tests/test_stream_tstring.py",
+    "tests/components/test_slots.py",
     "tests/components/test_statics_sharing.py",
-    "tests/components/test_unconnected_render.py",
+    "tests/components/test_lifecycle.py",
 ]
 
 [tool.ruff.lint]

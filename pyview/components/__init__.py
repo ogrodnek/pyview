@@ -33,6 +33,7 @@ from typing import Any, Protocol
 
 from .base import ComponentMeta, ComponentSocket, LiveComponent
 from .manager import ComponentsManager
+from .slots import Slots, slots
 
 
 class ComponentsManagerProtocol(Protocol):
@@ -43,6 +44,8 @@ class ComponentsManagerProtocol(Protocol):
     def has_pending_lifecycle(self) -> bool: ...
 
     def get_all_cids(self) -> list[int]: ...
+
+    def get_seen_cids(self) -> set[int]: ...
 
     async def run_pending_lifecycle(self) -> None: ...
 
@@ -64,4 +67,6 @@ __all__ = [
     "ComponentsManager",
     "ComponentsManagerProtocol",
     "SocketWithComponents",
+    "Slots",
+    "slots",
 ]

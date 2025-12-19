@@ -171,6 +171,81 @@ class ParentLiveView(LiveView[ParentContext]):
             socket.context["messages"].append(f"Counter is now {count}")
 ```
 
+## Slots
+
+Slots allow parent templates to pass content into components, similar to React's children or Phoenix LiveView's slots. This enables flexible, composable components.
+
+### Basic Usage
+
+Use the `slots()` helper to pass content when rendering a component:
+
+```python
+from pyview.components import slots
+from pyview.template.live_view_template import live_component
+
+# Default slot only
+live_component(Card, id="card-1", slots=slots(
+    t"<p>This is the card body content</p>"
+))
+
+# Named slots
+live_component(Card, id="card-2", slots=slots(
+    t"<p>Body content</p>",
+    header=t"<h2>Card Title</h2>",
+    actions=t"<button>Save</button>"
+))
+```
+
+### Accessing Slots in Components
+
+Access slots via `meta.slots` in your component's template:
+
+```python
+class Card(LiveComponent):
+    async def mount(self, socket, assigns):
+        socket.context = {}
+
+    def template(self, assigns, meta):
+        # Use .get() for optional slots with fallbacks
+        header = meta.slots.get("header", t"")
+        body = meta.slots.get("default", t"<p>No content</p>")
+        actions = meta.slots.get("actions", t"")
+
+        return t"""
+            <div class="card">
+                <header>{header}</header>
+                <main>{body}</main>
+                <footer>{actions}</footer>
+            </div>
+        """
+```
+
+### Nested Components in Slots
+
+Slots can contain live components, enabling nested interactivity:
+
+```python
+live_component(Card, id="card-with-counter", slots=slots(
+    t"""
+        <p>This card contains a counter:</p>
+        {live_component(Counter, id="nested-counter", initial=10)}
+    """,
+    header=t"<h2>Interactive Card</h2>"
+))
+```
+
+The nested Counter component is fully interactive with its own state and event handling.
+
+### Slot Patterns
+
+| Pattern | Example |
+|---------|---------|
+| Default slot only | `slots(t"<p>Content</p>")` |
+| Named slots only | `slots(header=t"...", footer=t"...")` |
+| Default + named | `slots(t"Body", header=t"Title")` |
+| Optional with fallback | `meta.slots.get("header", t"Default")` |
+| Check if provided | `if "header" in meta.slots:` |
+
 ## Multiple Component Instances
 
 Each component instance has isolated state. Create multiple instances with unique IDs:
