@@ -23,6 +23,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from starlette.websockets import WebSocket
 
 from pyview.async_stream_runner import AsyncStreamRunner
+from pyview.binding import InjectableRegistry, call_handler
 from pyview.components.manager import ComponentsManager
 from pyview.events import InfoEvent
 from pyview.meta import PyViewMeta
@@ -205,7 +206,10 @@ class ConnectedLiveViewSocket(Generic[T]):
         self.scheduled_jobs.discard(job_id)
 
     async def send_info(self, event: InfoEvent):
-        await self.liveview.handle_info(event, self)
+        await call_handler(
+            self.liveview.handle_info,
+            InjectableRegistry(event=event, socket=self),
+        )
 
         rendered = await self.render_with_components()
         resp = [None, None, self.topic, "diff", self.diff(rendered)]
@@ -248,7 +252,10 @@ class ConnectedLiveViewSocket(Generic[T]):
 
         # Parse string to ParseResult for type consistency
         parsed_url = urlparse(to)
-        await self.liveview.handle_params(parsed_url, params_for_handler, self)
+        await call_handler(
+            self.liveview.handle_params,
+            InjectableRegistry(url=parsed_url, params=params_for_handler, socket=self),
+        )
         try:
             await self.websocket.send_text(json.dumps(message))
         except Exception:

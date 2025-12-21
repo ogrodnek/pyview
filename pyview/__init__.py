@@ -1,3 +1,4 @@
+from pyview.binding import Params
 from pyview.components import ComponentMeta, ComponentsManager, ComponentSocket, LiveComponent
 from pyview.js import JsCommand
 from pyview.live_socket import (
@@ -29,4 +30,5 @@ __all__ = [
     "ComponentMeta",
     "ComponentSocket",
     "ComponentsManager",
+    "Params",
 ]

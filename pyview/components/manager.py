@@ -17,6 +17,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, Protocol
 
+from pyview.binding import InjectableRegistry, call_handler
+
 from .base import ComponentMeta, ComponentSocket, LiveComponent
 from .slots import Slots
 
@@ -228,7 +230,10 @@ class ComponentsManager:
 
         component_name = component.__class__.__name__
         try:
-            await component.handle_event(event, payload, socket)
+            await call_handler(
+                component.handle_event,
+                InjectableRegistry(event=event, payload=payload, socket=socket),
+            )
             # Persist context changes
             self._contexts[cid] = socket.context
             logger.debug(f"Component {component_name} (cid={cid}) handled event '{event}'")
@@ -270,7 +275,10 @@ class ComponentsManager:
             event: Event name
             payload: Event payload
         """
-        await self.parent_socket.liveview.handle_event(event, payload, self.parent_socket)
+        await call_handler(
+            self.parent_socket.liveview.handle_event,
+            InjectableRegistry(event=event, payload=payload, socket=self.parent_socket),
+        )
 
     def _create_socket(self, cid: int) -> ComponentSocket:
         """Create a ComponentSocket for lifecycle/event calls."""

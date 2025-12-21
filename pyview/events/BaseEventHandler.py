@@ -1,6 +1,8 @@
 import logging
 from typing import TYPE_CHECKING, Any, Callable
 
+from pyview.binding import InjectableRegistry, call_handler
+
 if TYPE_CHECKING:
     from pyview.live_view import InfoEvent
 
@@ -71,7 +73,9 @@ class BaseEventHandler:
         handler = self._event_handlers.get(event)
 
         if handler:
-            return await handler(self, event, payload, socket)
+            bound_handler = handler.__get__(self, self.__class__)
+            injectables = InjectableRegistry(event=event, payload=payload, socket=socket)
+            return await call_handler(bound_handler, injectables)
         else:
             logging.warning(f"Unhandled event: {event} {payload}")
 
@@ -79,6 +83,8 @@ class BaseEventHandler:
         handler = self._info_handlers.get(event.name)
 
         if handler:
-            return await handler(self, event, socket)
+            bound_handler = handler.__get__(self, self.__class__)
+            injectables = InjectableRegistry(event=event, socket=socket)
+            return await call_handler(bound_handler, injectables)
         else:
             logging.warning(f"Unhandled info: {event.name} {event}")

@@ -10,6 +10,7 @@ from starlette.responses import HTMLResponse
 from starlette.routing import Route, WebSocketRoute
 
 from pyview.auth import AuthProviderFactory
+from pyview.binding import InjectableRegistry, call_handler
 from pyview.components.lifecycle import run_nested_component_lifecycle
 from pyview.csrf import generate_csrf_token
 from pyview.instrumentation import InstrumentationProvider, NoOpInstrumentation
@@ -97,7 +98,10 @@ async def liveview_container(template: RootTemplate, view_lookup: LiveViewLookup
     merged_params = {**query_params, **path_params}
 
     # Pass merged parameters to handle_params
-    await lv.handle_params(urlparse(url._url), merged_params, s)
+    await call_handler(
+        lv.handle_params,
+        InjectableRegistry(url=urlparse(url._url), params=merged_params, socket=s),
+    )
 
     # Pass socket to meta for component registration
     meta = PyViewMeta(socket=s)
