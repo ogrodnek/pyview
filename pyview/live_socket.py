@@ -26,9 +26,9 @@ from pyview.async_stream_runner import AsyncStreamRunner
 from pyview.components.manager import ComponentsManager
 from pyview.events import InfoEvent
 from pyview.meta import PyViewMeta
+from pyview.pubsub import PubSubProvider, SessionPubSub
 from pyview.template.render_diff import calc_diff
 from pyview.uploads import UploadConfig, UploadConstraints, UploadManager
-from pyview.vendor.flet.pubsub import PubSub, PubSubHub
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +36,6 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from .instrumentation import InstrumentationProvider
     from .live_view import LiveView
-
-
-pub_sub_hub = PubSubHub()
 
 T = TypeVar("T")
 
@@ -105,6 +102,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         liveview: LiveView,
         scheduler: AsyncIOScheduler,
         instrumentation: InstrumentationProvider,
+        pubsub: PubSubProvider,
     ):
         self.websocket = websocket
         self.topic = topic
@@ -112,7 +110,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         self.instrumentation = instrumentation
         self.scheduled_jobs = set()
         self.connected = True
-        self.pub_sub = PubSub(pub_sub_hub, topic)
+        self._pubsub = SessionPubSub(pubsub, topic)
         self.pending_events = []
         self.upload_manager = UploadManager()
         self.stream_runner = AsyncStreamRunner(self)
@@ -163,10 +161,10 @@ class ConnectedLiveViewSocket(Generic[T]):
         return rendered
 
     async def subscribe(self, topic: str):
-        await self.pub_sub.subscribe_topic_async(topic, self._topic_callback_internal)
+        await self._pubsub.subscribe(topic, self._topic_callback_internal)
 
     async def broadcast(self, topic: str, message: Any):
-        await self.pub_sub.send_all_on_topic_async(topic, message)
+        await self._pubsub.broadcast(topic, message)
 
     async def _topic_callback_internal(self, topic, message):
         await self.send_info(InfoEvent(topic, message))
@@ -330,7 +328,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         for id in list(self.scheduled_jobs):
             with suppress(JobLookupError):
                 self.scheduler.remove_job(id)
-        await self.pub_sub.unsubscribe_all_async()
+        await self._pubsub.unsubscribe_all()
 
         with suppress(Exception):
             self.upload_manager.close()
