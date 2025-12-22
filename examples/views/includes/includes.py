@@ -1,7 +1,8 @@
 import random
 from dataclasses import dataclass, field
+from typing import Optional
 
-from pyview import LiveView
+from pyview import LiveView, LiveViewSocket
 
 
 @dataclass
@@ -30,6 +31,6 @@ class IncludesLiveView(LiveView):
     async def mount(self, socket, session):
         socket.context = IncludesContext()
 
-    async def handle_params(self, url, params, socket):
-        if "page" in params:
-            socket.context.current_page = params["page"][0]
+    async def handle_params(self, socket: LiveViewSocket[IncludesContext], page: Optional[str] = None):
+        if page is not None:
+            socket.context.current_page = page

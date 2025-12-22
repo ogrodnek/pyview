@@ -23,11 +23,10 @@ class PodcastLiveView(LiveView):
         casts = podcasts()
         socket.context = PodcastContext(casts[0], casts)
 
-    async def handle_params(self, url, params, socket: LiveViewSocket[PodcastContext]):
+    async def handle_params(self, socket: LiveViewSocket[PodcastContext], id: Optional[int] = None):
         def _current_podcast():
             sel: Optional[Podcast] = None
-            if "id" in params:
-                id = int(params["id"][0])
+            if id is not None:
                 sel = next((s for s in socket.context.podcasts if s.id == id), None)
             if sel is not None:
                 return sel

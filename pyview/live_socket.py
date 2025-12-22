@@ -18,6 +18,8 @@ from typing import (
 )
 from urllib.parse import urlencode, urlparse
 
+from pyview.binding.helpers import call_handle_params
+
 from apscheduler.jobstores.base import JobLookupError
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from starlette.websockets import WebSocket
@@ -248,7 +250,7 @@ class ConnectedLiveViewSocket(Generic[T]):
 
         # Parse string to ParseResult for type consistency
         parsed_url = urlparse(to)
-        await self.liveview.handle_params(parsed_url, params_for_handler, self)
+        await call_handle_params(self.liveview, parsed_url, params_for_handler, self)
         try:
             await self.websocket.send_text(json.dumps(message))
         except Exception:

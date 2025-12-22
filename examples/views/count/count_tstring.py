@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import Optional, TypedDict
 
 from pyview.live_view import LiveView, LiveViewSocket
 from pyview.events import AutoEventDispatch, event
@@ -31,9 +31,9 @@ class CounterTStringLiveView(AutoEventDispatch, TemplateView, LiveView[CountCont
         socket.context["count"] += 1
 
 
-    async def handle_params(self, url, params, socket: LiveViewSocket[CountContext]):
-        if "c" in params:
-            socket.context["count"] = int(params["c"][0])
+    async def handle_params(self, socket: LiveViewSocket[CountContext], c: Optional[int] = None):
+        if c is not None:
+            socket.context["count"] = c
 
     def button(self, label: str, event_ref, style: str = "primary") -> Template:
         """Reusable button component demonstrating t-string composition."""

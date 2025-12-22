@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import Optional, TypedDict
 
 from pyview import LiveView, LiveViewSocket
 
@@ -25,8 +25,6 @@ class CountLiveView(LiveView[CountContext]):
         if event == "increment":
             socket.context["count"] += 1
 
-    async def handle_params(self, url, params, socket: LiveViewSocket[CountContext]):
-        # check if "c" is in params
-        # and if so set self.count to the value
-        if "c" in params:
-            socket.context["count"] = int(params["c"][0])
+    async def handle_params(self, socket: LiveViewSocket[CountContext], c: Optional[int] = None):
+        if c is not None:
+            socket.context["count"] = c
