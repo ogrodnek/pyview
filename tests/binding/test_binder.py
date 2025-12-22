@@ -301,3 +301,38 @@ class TestBinder:
         result = binder.bind(handler, ctx)
         assert result.success
         assert result.bound_args["data"] == EventData(amount=42, description="test")
+
+    # --- *args and **kwargs handling ---
+
+    def test_skip_var_positional_args(self, binder: Binder, ctx: BindContext):
+        """*args should be skipped, not treated as a parameter named 'args'."""
+
+        async def handler(*args):
+            pass
+
+        result = binder.bind(handler, ctx)
+        assert result.success
+        assert "args" not in result.bound_args
+
+    def test_skip_var_keyword_kwargs(self, binder: Binder, ctx: BindContext):
+        """**kwargs should be skipped, not treated as a parameter named 'kwargs'."""
+
+        async def handler(**kwargs):
+            pass
+
+        result = binder.bind(handler, ctx)
+        assert result.success
+        assert "kwargs" not in result.bound_args
+
+    def test_skip_args_kwargs_with_other_params(self, binder: Binder, ctx: BindContext):
+        """Handlers with *args, **kwargs alongside regular params should work."""
+
+        async def handler(socket, page: int = 1, *args, **kwargs):
+            pass
+
+        result = binder.bind(handler, ctx)
+        assert result.success
+        assert result.bound_args["socket"] is ctx.socket
+        assert result.bound_args["page"] == 5
+        assert "args" not in result.bound_args
+        assert "kwargs" not in result.bound_args

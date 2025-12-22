@@ -66,6 +66,10 @@ class Binder(Generic[T]):
             if name == "self":
                 continue
 
+            # Skip *args and **kwargs (VAR_POSITIONAL and VAR_KEYWORD)
+            if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+                continue
+
             expected = hints.get(name, Any)
 
             # 1) Try injectables first

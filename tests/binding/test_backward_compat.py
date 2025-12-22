@@ -274,3 +274,51 @@ class TestRealWorldPatterns:
         assert result.success
         assert result.bound_args["taskId"] == "task-1"
         assert result.bound_args["order"] == 0
+
+
+class TestBaseLiveViewSignatures:
+    """Test that base LiveView *args/**kwargs signatures don't break binding.
+
+    The base LiveView class uses *args, **kwargs for handle_params and handle_event
+    to allow subclasses to define their own signatures. The binder must skip these.
+    """
+
+    @pytest.fixture
+    def binder(self) -> Binder:
+        return Binder()
+
+    def test_base_handle_params_signature(self, binder: Binder):
+        """Base LiveView.handle_params uses (*args, **kwargs)."""
+        ctx = BindContext(
+            params=Params({"page": ["1"]}),
+            payload=None,
+            url=urlparse("/test"),
+            socket=MagicMock(),
+            event=None,
+        )
+
+        # This is the base LiveView.handle_params signature
+        async def handle_params(*args, **kwargs):
+            pass
+
+        result = binder.bind(handle_params, ctx)
+        assert result.success
+        assert result.bound_args == {}  # *args, **kwargs should be skipped
+
+    def test_base_handle_event_signature(self, binder: Binder):
+        """Base LiveView.handle_event uses (*args, **kwargs)."""
+        ctx = BindContext(
+            params=Params({}),
+            payload={"key": "value"},
+            url=None,
+            socket=MagicMock(),
+            event="click",
+        )
+
+        # This is the base LiveView.handle_event signature
+        async def handle_event(*args, **kwargs):
+            pass
+
+        result = binder.bind(handle_event, ctx)
+        assert result.success
+        assert result.bound_args == {}  # *args, **kwargs should be skipped
