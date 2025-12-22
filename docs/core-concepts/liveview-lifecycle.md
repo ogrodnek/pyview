@@ -205,6 +205,20 @@ async def handle_event(self, event, payload, socket: ConnectedLiveViewSocket[Con
 - Custom user interactions
 - Real-time features
 
+### Reserved Parameter Names
+
+The following parameter names are **injectable**—they're resolved from the runtime context rather than URL params or event payload:
+
+| Name | Injected Value | Available In |
+|------|----------------|--------------|
+| `socket` | The `LiveViewSocket` instance | Both |
+| `url` | Parsed URL (`ParseResult`) | `handle_params` |
+| `event` | Event name string | `handle_event` |
+| `payload` | Raw event payload dict | `handle_event` |
+| `params` | URL params (as `Params`, `dict`, or raw) | `handle_params` |
+
+> **Note:** If you have a URL parameter or payload key with the same name as a reserved name (e.g., `?socket=123`), the injectable takes precedence. Rename your URL param to avoid collisions.
+
 ### `handle_info(event, socket)`
 
 **Called:** For scheduled events and pub/sub messages
