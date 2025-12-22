@@ -35,7 +35,7 @@ Events sent from [JavaScript hooks](../features/javascript-hooks.md) using `this
 
 ### Standard Method
 
-The basic way to handle events is through the `handle_event()` method:
+The basic way to handle events is through the `handle_event()` method. PyView automatically extracts and converts parameters from the event payload based on your method signature:
 
 ```python
 from pyview import LiveView, LiveViewSocket
@@ -48,7 +48,7 @@ class CounterLiveView(LiveView[CounterContext]):
     async def mount(self, socket: LiveViewSocket[CounterContext], session):
         socket.context = {"count": 0}
 
-    async def handle_event(self, event: str, payload: dict, socket: LiveViewSocket[CounterContext]):
+    async def handle_event(self, event: str, socket: LiveViewSocket[CounterContext]):
         if event == "increment":
             socket.context["count"] += 1
         elif event == "decrement":
@@ -80,21 +80,32 @@ class CounterLiveView(BaseEventHandler, LiveView[CounterContext]):
         socket.context = {"count": 0}
 
     @event("increment")
-    async def handle_increment(self, event: str, payload: dict, socket: LiveViewSocket[CounterContext]):
-        socket.context["count"] += 1
+    async def handle_increment(self, socket: LiveViewSocket[CounterContext], amount: int = 1):
+        socket.context["count"] += amount
 
-    @event("decrement") 
-    async def handle_decrement(self, event: str, payload: dict, socket: LiveViewSocket[CounterContext]):
-        socket.context["count"] -= 1
+    @event("decrement")
+    async def handle_decrement(self, socket: LiveViewSocket[CounterContext], amount: int = 1):
+        socket.context["count"] -= amount
 
     @event("reset")
-    async def handle_reset(self, event: str, payload: dict, socket: LiveViewSocket[CounterContext]):
+    async def handle_reset(self, socket: LiveViewSocket[CounterContext]):
         socket.context["count"] = 0
 ```
 
 > **Note:** Method names are arbitrary when using `@event("name")`. The `handle_` prefix shown here is a convention for readability, not a requirement.
 
 The `BaseEventHandler` will automatically route events to the correct method.
+
+<details>
+<summary>Legacy style (still supported)</summary>
+
+```python
+@event("increment")
+async def handle_increment(self, event: str, payload: dict, socket: LiveViewSocket[CounterContext]):
+    amount = int(payload.get("amount", [1])[0])
+    socket.context["count"] += amount
+```
+</details>
 
 ### AutoEventDispatch
 
@@ -112,11 +123,11 @@ class CounterLiveView(AutoEventDispatch, TemplateView, LiveView[CounterContext])
         socket.context = {"count": 0}
 
     @event
-    async def increment(self, event, payload, socket):
+    async def increment(self, socket):
         socket.context["count"] += 1
 
     @event
-    async def decrement(self, event, payload, socket):
+    async def decrement(self, socket):
         socket.context["count"] -= 1
 
     def template(self, assigns, meta):
@@ -139,7 +150,7 @@ Notice `phx-click="{self.increment}"` - the method reference automatically conve
 
 ```python
 @event("user-clicked-save")
-async def handle_save(self, event, payload, socket):
+async def handle_save(self, socket):
     # self.handle_save stringifies to "user-clicked-save"
     pass
 ```
@@ -154,15 +165,14 @@ Simple click events typically have minimal payload:
 
 ```python
 # Template: <button phx-click="save">Save</button>
-async def handle_event(self, event, payload, socket):
+async def handle_event(self, event: str, socket):
     if event == "save":
-        # payload is usually empty: {}
         await save_data(socket.context["data"])
 ```
 
 ### Button Click with Values
 
-Use `phx-value-*` attributes to pass data:
+Use `phx-value-*` attributes to pass data. PyView automatically extracts and converts these values based on your method signature:
 
 ```html
 <!-- Template -->
@@ -171,20 +181,32 @@ Use `phx-value-*` attributes to pass data:
 ```
 
 ```python
+# New style - typed parameters are automatically extracted from phx-value-* attributes
+async def handle_event(self, event: str, socket, user_id: str, status: str = "active"):
+    if event == "delete_user":
+        await delete_user(user_id)
+    elif event == "set_status":
+        await update_user_status(user_id, status)
+```
+
+<details>
+<summary>Legacy style (still supported)</summary>
+
+```python
 async def handle_event(self, event, payload, socket):
     if event == "delete_user":
         user_id = payload["user_id"]  # From phx-value-user-id
         await delete_user(user_id)
-        
     elif event == "set_status":
-        user_id = payload["user_id"]    # From phx-value-user-id  
+        user_id = payload["user_id"]    # From phx-value-user-id
         status = payload["status"]      # From phx-value-status
         await update_user_status(user_id, status)
 ```
+</details>
 
 ### Form Change Events
 
-Form inputs send their current value:
+Form inputs send their current value. With typed parameters, values are automatically extracted and converted:
 
 ```html
 <!-- Template -->
@@ -197,13 +219,26 @@ Form inputs send their current value:
 ```
 
 ```python
+# New style - typed parameters are automatically extracted from form fields
+async def handle_event(self, event: str, socket, query: str = "", category: str = "all"):
+    if event == "search":
+        socket.context["search_query"] = query
+        socket.context["results"] = await search_items(query)
+    elif event == "filter_category":
+        socket.context["selected_category"] = category
+        socket.context["items"] = await filter_by_category(category)
+```
+
+<details>
+<summary>Legacy style (still supported)</summary>
+
+```python
 async def handle_event(self, event, payload, socket):
     if event == "search":
         # payload: {"query": ["user typed text"]}
         query = payload.get("query", [""])[0]
         socket.context["search_query"] = query
         socket.context["results"] = await search_items(query)
-        
     elif event == "filter_category":
         # payload: {"category": ["books"]}
         category = payload.get("category", ["all"])[0]
@@ -211,11 +246,12 @@ async def handle_event(self, event, payload, socket):
         socket.context["items"] = await filter_by_category(category)
 ```
 
-**Note:** Form values are always lists (e.g., `["value"]`) to support multi-select elements.
+**Note:** Form values in the raw payload are always lists (e.g., `["value"]`) to support multi-select elements. Typed parameter binding handles this automatically.
+</details>
 
 ### Form Submission Events
 
-Form submissions include all form fields:
+Form submissions include all form fields. Use typed parameters or dataclasses to cleanly extract form data:
 
 ```html
 <!-- Template -->
@@ -231,11 +267,45 @@ Form submissions include all form fields:
 ```
 
 ```python
+from dataclasses import dataclass
+
+@dataclass
+class UserForm:
+    name: str
+    email: str
+    role: str = "user"
+
+# New style - use a dataclass to group form fields
+async def handle_event(self, event: str, socket, user: UserForm):
+    if event == "create_user":
+        try:
+            created = await create_user({"name": user.name, "email": user.email, "role": user.role})
+            socket.context["users"].append(created)
+            socket.context["success"] = "User created successfully"
+        except ValidationError as e:
+            socket.context["error"] = str(e)
+    elif event == "validate":
+        errors = validate_user_data(user)
+        socket.context["errors"] = errors
+```
+
+Or use individual typed parameters:
+
+```python
+async def handle_event(self, event: str, socket, name: str, email: str, role: str = "user"):
+    if event == "create_user":
+        await create_user({"name": name, "email": email, "role": role})
+```
+
+<details>
+<summary>Legacy style (still supported)</summary>
+
+```python
 async def handle_event(self, event, payload, socket):
     if event == "create_user":
         # payload: {
         #     "name": ["John Doe"],
-        #     "email": ["john@example.com"], 
+        #     "email": ["john@example.com"],
         #     "role": ["user"]
         # }
         user_data = {
@@ -243,32 +313,25 @@ async def handle_event(self, event, payload, socket):
             "email": payload.get("email", [""])[0],
             "role": payload.get("role", ["user"])[0]
         }
-        
         try:
             user = await create_user(user_data)
             socket.context["users"].append(user)
-            socket.context["success"] = "User created successfully"
         except ValidationError as e:
             socket.context["error"] = str(e)
-            
-    elif event == "validate":
-        # Same payload structure for validation
-        # Validate without saving
-        errors = validate_user_data(payload)
-        socket.context["errors"] = errors
 ```
+</details>
 
 ## Advanced Event Handling
 
 ### Event Parameters and Values
 
-Extract specific data from events using `phx-value-*` attributes:
+Extract specific data from events using `phx-value-*` attributes. Typed parameters handle the extraction and conversion automatically:
 
 ```html
 <!-- Multi-parameter events -->
-<button phx-click="move_item" 
+<button phx-click="move_item"
         phx-value-item-id="{{item.id}}"
-        phx-value-from-list="todo" 
+        phx-value-from-list="todo"
         phx-value-to-list="done"
         phx-value-position="0">
     Mark Done
@@ -277,15 +340,24 @@ Extract specific data from events using `phx-value-*` attributes:
 
 ```python
 @event("move_item")
-async def handle_move_item(self, event, payload, socket):
-    item_id = payload["item_id"]
-    from_list = payload["from_list"] 
-    to_list = payload["to_list"]
-    position = int(payload["position"])
-    
+async def handle_move_item(self, socket, item_id: str, from_list: str, to_list: str, position: int):
     await move_item(item_id, from_list, to_list, position)
     socket.context["items"] = await reload_items()
 ```
+
+<details>
+<summary>Legacy style (still supported)</summary>
+
+```python
+@event("move_item")
+async def handle_move_item(self, event, payload, socket):
+    item_id = payload["item_id"]
+    from_list = payload["from_list"]
+    to_list = payload["to_list"]
+    position = int(payload["position"])
+    await move_item(item_id, from_list, to_list, position)
+```
+</details>
 
 ### Custom Event Data
 
@@ -317,20 +389,28 @@ Hooks.KanbanBoard = {
 
 ```python
 @event("task-moved")
+async def handle_task_moved(self, socket, taskId: str, to: str, order: int, payload: dict):
+    # Mix typed params with full payload access
+    # 'from' is a Python keyword, so access it via payload
+    from_list = payload["from"]
+    socket.context.task_repository.move_task(taskId, from_list, to, order)
+```
+
+> **Note:** The `payload` parameter is injectable—include it in your signature to get the full payload alongside typed parameters. This is useful when payload keys conflict with Python keywords.
+
+<details>
+<summary>Legacy style (still supported)</summary>
+
+```python
+@event("task-moved")
 async def handle_task_moved(self, event, payload, socket):
-    # payload: {
-    #     "taskId": "123",
-    #     "from": "todo", 
-    #     "to": "in-progress",
-    #     "order": 2
-    # }
     task_id = payload["taskId"]
     from_list = payload["from"]
-    to_list = payload["to"] 
+    to_list = payload["to"]
     order = payload["order"]
-    
     socket.context.task_repository.move_task(task_id, from_list, to_list, order)
 ```
+</details>
 
 ## Form Handling Patterns
 
@@ -353,13 +433,13 @@ class UserLiveView(LiveView[UserContext]):
         }
 
     @event("validate")
-    async def handle_validate(self, event, payload, socket):
-        # Update changeset with form data
+    async def handle_validate(self, socket, payload: dict):
+        # Changesets use the raw payload dict
         socket.context["changeset"].apply(payload)
         # Validation happens automatically
 
-    @event("save_user") 
-    async def handle_save(self, event, payload, socket):
+    @event("save_user")
+    async def handle_save(self, socket, payload: dict):
         socket.context["changeset"].apply(payload)
         
         if socket.context["changeset"].valid:
@@ -404,10 +484,10 @@ class ChatLiveView(BaseEventHandler, LiveView[ChatContext]):
         ]
 
     @event("send_message")
-    async def handle_send_message(self, event, payload, socket):
+    async def handle_send_message(self, socket, text: str):
         message = {
             "user_id": socket.context["user_id"],
-            "text": payload.get("text", [""])[0],
+            "text": text,
             "timestamp": datetime.now()
         }
         # Broadcast to all chat subscribers
@@ -424,13 +504,13 @@ class ChatLiveView(BaseEventHandler, LiveView[ChatContext]):
         socket.context = {"response": "", "streaming": False}
 
     @event("ask")
-    async def handle_ask(self, event, payload, socket):
+    async def handle_ask(self, socket, question: str):
         socket.context["streaming"] = True
         socket.context["response"] = ""
 
         # Start streaming in background
         socket.stream_runner.start_stream(
-            self.stream_response(payload["question"]),
+            self.stream_response(question),
             on_yield=lambda chunk: InfoEvent("chunk", chunk),
             on_done=InfoEvent("done"),
             on_error=lambda e: InfoEvent("error", str(e)),
@@ -454,12 +534,12 @@ The `start_stream` method returns a task ID that can be used to cancel the strea
 
 ```python
 @event("ask")
-async def handle_ask(self, event, payload, socket):
+async def handle_ask(self, socket, question: str):
     task_id = socket.stream_runner.start_stream(...)
     socket.context["current_task"] = task_id
 
 @event("cancel")
-async def handle_cancel(self, event, payload, socket):
+async def handle_cancel(self, socket):
     socket.stream_runner.cancel_stream(socket.context["current_task"])
 ```
 

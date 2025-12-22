@@ -20,7 +20,7 @@ A PyView application follows a predictable lifecycle from initial page load to u
 When a user first visits your LiveView URL, PyView renders the initial HTML:
 
 1. `mount(socket, session)` is called with an **unconnected socket**
-2. `handle_params(url, params, socket)` processes URL and/or path parameters
+2. `handle_params(socket, ...typed params...)` processes URL and/or path parameters
 3. Template is rendered to complete HTML
 4. HTML page is returned with LiveView JavaScript client
 
@@ -31,7 +31,7 @@ At this point, the user sees the initial page but real-time features aren't avai
 After the page loads, the JavaScript client establishes a WebSocket connection:
 
 1. `mount(socket, session)` is called again with a **connected socket**
-2. `handle_params(url, params, socket)` is called again
+2. `handle_params(socket, ...typed params...)` is called again
 3. Template is rendered and sent to client for future diffing
 
 This is why `mount()` often checks `is_connected(socket)`—you may want to skip expensive setup during the initial HTTP render and only run it once the WebSocket connects. See [Socket and Context](socket-and-context.md#checking-connection-status) for details on which methods are available in each state.
@@ -40,7 +40,7 @@ This is why `mount()` often checks `is_connected(socket)`—you may want to skip
 
 When users interact with your UI (clicks, form submissions, etc.):
 
-1. `handle_event(event, payload, socket)` processes the interaction
+1. `handle_event(socket, ...typed params...)` processes the interaction
 2. Template is re-rendered
 3. PyView calculates the diff from the previous render
 4. Only changes in the render tree are sent to the client
@@ -49,7 +49,7 @@ When users interact with your UI (clicks, form submissions, etc.):
 
 When the URL changes within the same LiveView (via `push_patch()` or browser navigation):
 
-1. `handle_params(url, params, socket)` is called with new parameters
+1. `handle_params(socket, ...typed params...)` is called with new parameters
 2. Template is re-rendered and diffed
 
 **Note:** `mount()` is NOT called again—state persists across navigation within the same LiveView.
@@ -100,23 +100,19 @@ async def mount(self, socket: LiveViewSocket[Context], session):
 - Scheduling periodic updates (connected only)
 - Loading data from databases
 
-### `handle_params(url, params, socket)`
+### `handle_params(socket, ...typed params...)`
 
 **Called:**
 - After `mount()` during initial load
 - When URL parameters change (navigation)
 - When using `push_patch()` or `push_navigate()`
 
-```python
-async def handle_params(self, url, params, socket: LiveViewSocket[Context]):
-    # Query parameters come from the URL query string: /users?page=2&sort=name
-    page = int(params.get("page", ["1"])[0])
-    sort = params.get("sort", ["id"])[0]
+PyView automatically extracts and converts URL parameters based on your method signature:
 
-    # Path parameters come from route placeholders: /users/{user_id}
-    user_id = params.get("user_id")
-    
-    # Update state based on URL
+```python
+async def handle_params(self, socket: LiveViewSocket[Context], page: int = 1, sort: str = "id"):
+    # Parameters are automatically extracted from URL: /users?page=2&sort=name
+    # Type conversion happens automatically (page is already an int!)
     socket.context.update({
         "current_page": page,
         "sort_by": sort,
@@ -124,35 +120,84 @@ async def handle_params(self, url, params, socket: LiveViewSocket[Context]):
     })
 ```
 
+For grouped parameters, use a dataclass:
+
+```python
+from dataclasses import dataclass
+
+@dataclass
+class PagingParams:
+    page: int = 1
+    per_page: int = 10
+    sort: str = "id"
+
+async def handle_params(self, socket: LiveViewSocket[Context], paging: PagingParams):
+    socket.context["users"] = await load_users(
+        page=paging.page,
+        per_page=paging.per_page,
+        sort=paging.sort
+    )
+```
+
+<details>
+<summary>Legacy style (still supported)</summary>
+
+```python
+async def handle_params(self, url, params, socket: LiveViewSocket[Context]):
+    page = int(params.get("page", ["1"])[0])
+    sort = params.get("sort", ["id"])[0]
+    socket.context.update({
+        "current_page": page,
+        "sort_by": sort,
+        "users": await load_users(page=page, sort=sort)
+    })
+```
+</details>
+
 **Use for:**
 - Handling query or path parameters
 - Loading data based on URL
 - Pagination, filtering, sorting
 
-### `handle_event(event, payload, socket)`
+### `handle_event(socket, ...typed params...)`
 
 **Called:** When users interact with your UI
+
+PyView automatically extracts and converts event payload values based on your method signature:
+
+```python
+async def handle_event(self, socket: ConnectedLiveViewSocket[Context], name: str, email: str):
+    # Parameters are automatically extracted from the event payload
+    # Type conversion happens automatically
+    if await save_user({"name": name, "email": email}):
+        socket.context["message"] = "User saved successfully"
+    else:
+        socket.context["error"] = "Failed to save user"
+```
+
+You can also access the event name if needed:
+
+```python
+async def handle_event(self, event: str, socket: ConnectedLiveViewSocket[Context], user_id: str):
+    if event == "delete_user":
+        await delete_user(user_id)
+        socket.context["users"] = await load_users()
+```
+
+<details>
+<summary>Legacy style (still supported)</summary>
 
 ```python
 async def handle_event(self, event, payload, socket: ConnectedLiveViewSocket[Context]):
     if event == "save_user":
-        # payload contains form data
         user_data = {
             "name": payload.get("name", [""])[0],
             "email": payload.get("email", [""])[0]
         }
-        
-        # Validate and save
         if await save_user(user_data):
             socket.context["message"] = "User saved successfully"
-        else:
-            socket.context["error"] = "Failed to save user"
-    
-    elif event == "delete_user":
-        user_id = payload["user_id"]
-        await delete_user(user_id)
-        socket.context["users"] = await load_users()
 ```
+</details>
 
 **Use for:**
 - Button clicks
