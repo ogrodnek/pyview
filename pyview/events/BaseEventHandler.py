@@ -94,6 +94,7 @@ class BaseEventHandler:
         if not result.success:
             for err in result.errors:
                 logger.warning(f"Event binding error for '{event}': {err}")
+            raise ValueError(f"Event binding failed for '{event}': {result.errors}")
 
         return await handler(self, **result.bound_args)
 
