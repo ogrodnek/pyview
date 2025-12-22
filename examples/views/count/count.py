@@ -18,11 +18,10 @@ class CountLiveView(LiveView[CountContext]):
     async def mount(self, socket: LiveViewSocket[CountContext], session):
         socket.context = CountContext({"count": 0})
 
-    async def handle_event(self, event, payload, socket: LiveViewSocket[CountContext]):
+    async def handle_event(self, event: str, socket: LiveViewSocket[CountContext]):
         if event == "decrement":
             socket.context["count"] -= 1
-
-        if event == "increment":
+        elif event == "increment":
             socket.context["count"] += 1
 
     async def handle_params(self, socket: LiveViewSocket[CountContext], c: Optional[int] = None):

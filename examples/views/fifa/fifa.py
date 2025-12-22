@@ -28,9 +28,9 @@ class FifaAudienceLiveView(LiveView[FifaContext]):
         paging = Paging(1, 10)
         socket.context = FifaContext({"audiences": list_items(paging), "paging": paging})
 
-    async def handle_event(self, event, payload, socket: ConnectedLiveViewSocket[FifaContext]):
+    async def handle_event(self, socket: ConnectedLiveViewSocket[FifaContext], perPage: int):
         paging = socket.context["paging"]
-        paging.perPage = int(payload["perPage"][0])
+        paging.perPage = perPage
         paging.page = 1
         audiences = list_items(paging)
 

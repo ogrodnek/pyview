@@ -26,13 +26,25 @@ class LiveView(Generic[T]):
     async def mount(self, socket: LiveViewSocket[T], session: Session):
         pass
 
-    async def handle_event(self, event, payload, socket: ConnectedLiveViewSocket[T]):
+    async def handle_event(self, *args, **kwargs) -> None:
+        """Handle client events (clicks, form submissions).
+
+        Common signatures:
+            handle_event(self, socket, amount: int)      # new style
+            handle_event(self, event, payload, socket)   # legacy style
+        """
         pass
 
     async def handle_info(self, event: InfoEvent, socket: ConnectedLiveViewSocket[T]):
         pass
 
-    async def handle_params(self, url: URL, params, socket: LiveViewSocket[T]):
+    async def handle_params(self, *args, **kwargs) -> None:
+        """Called when URL params change.
+
+        Common signatures:
+            handle_params(self, socket, page: int = 1)   # new style
+            handle_params(self, url, params, socket)     # legacy style
+        """
         pass
 
     async def disconnect(self, socket: ConnectedLiveViewSocket[T]):

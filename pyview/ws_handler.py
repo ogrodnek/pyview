@@ -8,7 +8,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from pyview.auth import AuthProviderFactory
-from pyview.binding import call_handle_params
+from pyview.binding import call_handle_event, call_handle_params
 from pyview.csrf import validate_csrf_token
 from pyview.instrumentation import InstrumentationProvider
 from pyview.live_routes import LiveViewLookup
@@ -200,7 +200,7 @@ class LiveSocketHandler:
                             await socket.components.handle_event(target_cid, event_name, value)
                     else:
                         # Route event to LiveView (default behavior)
-                        await socket.liveview.handle_event(event_name, value, socket)
+                        await call_handle_event(socket.liveview, event_name, value, socket)
 
                 # Time rendering
                 with self.instrumentation.time_histogram(

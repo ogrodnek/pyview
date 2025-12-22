@@ -28,7 +28,7 @@ Type-based injection:
 from .binder import Binder
 from .context import BindContext
 from .converters import ConversionError, ConverterRegistry
-from .helpers import call_handle_params
+from .helpers import call_handle_event, call_handle_params
 from .injectables import InjectableRegistry
 from .params import Params
 from .result import BindResult, ParamError
@@ -42,5 +42,6 @@ __all__ = [
     "ConversionError",
     "InjectableRegistry",
     "Binder",
+    "call_handle_event",
     "call_handle_params",
 ]
