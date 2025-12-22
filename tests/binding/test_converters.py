@@ -253,3 +253,21 @@ class TestConverterRegistry:
 
         with pytest.raises(ConversionError, match="Expected dict"):
             converter.convert("not a dict", Point)
+
+    def test_dataclass_missing_required_field_raises(self, converter: ConverterRegistry):
+        @dataclass
+        class Point:
+            x: int
+            y: int
+
+        with pytest.raises(ConversionError, match="Missing required fields for Point: x, y"):
+            converter.convert({}, Point)
+
+    def test_dataclass_missing_one_required_field_raises(self, converter: ConverterRegistry):
+        @dataclass
+        class Point:
+            x: int
+            y: int
+
+        with pytest.raises(ConversionError, match="Missing required fields for Point: y"):
+            converter.convert({"x": ["1"]}, Point)

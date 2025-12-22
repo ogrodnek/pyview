@@ -51,9 +51,10 @@ class Binder(Generic[T]):
         # Get type hints, falling back to empty for missing annotations
         # NameError: forward reference can't be resolved
         # AttributeError: accessing annotations on some objects
+        # RecursionError: circular type references
         try:
             hints = get_type_hints(func)
-        except (NameError, AttributeError) as e:
+        except (NameError, AttributeError, RecursionError) as e:
             logger.debug("Could not resolve type hints for %s: %s", func.__name__, e)
             hints = {}
 

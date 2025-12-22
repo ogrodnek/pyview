@@ -43,6 +43,7 @@ async def call_handle_params(
     if not result.success:
         for err in result.errors:
             logger.warning(f"Param binding error: {err}")
+        raise ValueError(f"Parameter binding failed: {result.errors}")
 
     return await lv.handle_params(**result.bound_args)
 
@@ -72,5 +73,6 @@ async def call_handle_event(lv, event: str, payload: dict, socket: LiveViewSocke
     if not result.success:
         for err in result.errors:
             logger.warning(f"Event binding error: {err}")
+        raise ValueError(f"Event binding failed: {result.errors}")
 
     return await lv.handle_event(**result.bound_args)

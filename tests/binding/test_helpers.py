@@ -243,3 +243,69 @@ class TestCallHandleParams:
         )
 
         assert lv.received_tags == ["python", "rust", "go"]
+
+
+class TestBindingErrorHandling:
+    """Tests for error handling when binding fails."""
+
+    @pytest.mark.asyncio
+    async def test_call_handle_event_raises_on_missing_required_param(self):
+        """Verify ValueError is raised when required param is missing."""
+
+        class MyView(LiveView):
+            async def handle_event(self, socket, count: int):
+                pass  # Should never be called
+
+        lv = MyView()
+
+        with pytest.raises(ValueError) as exc_info:
+            await call_handle_event(lv, "inc", {}, MagicMock())  # missing 'count'
+
+        assert "Event binding failed" in str(exc_info.value)
+        assert "count" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_call_handle_params_raises_on_missing_required_param(self):
+        """Verify ValueError is raised when required param is missing."""
+
+        class MyView(LiveView):
+            async def handle_params(self, socket, page: int):
+                pass  # Should never be called
+
+        lv = MyView()
+
+        with pytest.raises(ValueError) as exc_info:
+            await call_handle_params(lv, urlparse("/items"), {}, MagicMock())  # missing 'page'
+
+        assert "Parameter binding failed" in str(exc_info.value)
+        assert "page" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_call_handle_event_raises_on_conversion_error(self):
+        """Verify ValueError is raised when type conversion fails."""
+
+        class MyView(LiveView):
+            async def handle_event(self, socket, count: int):
+                pass
+
+        lv = MyView()
+
+        with pytest.raises(ValueError) as exc_info:
+            await call_handle_event(lv, "inc", {"count": "not-a-number"}, MagicMock())
+
+        assert "Event binding failed" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_call_handle_params_raises_on_conversion_error(self):
+        """Verify ValueError is raised when type conversion fails."""
+
+        class MyView(LiveView):
+            async def handle_params(self, socket, page: int):
+                pass
+
+        lv = MyView()
+
+        with pytest.raises(ValueError) as exc_info:
+            await call_handle_params(lv, urlparse("/items"), {"page": ["invalid"]}, MagicMock())
+
+        assert "Parameter binding failed" in str(exc_info.value)

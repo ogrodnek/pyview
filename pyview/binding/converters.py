@@ -68,9 +68,19 @@ class ConverterRegistry:
                 f"Expected dict for dataclass {expected.__name__}, got {type(raw).__name__}"
             )
 
-        hints = get_type_hints(expected)
+        # Get type hints, falling back to empty for missing annotations
+        # NameError: forward reference can't be resolved
+        # AttributeError: accessing annotations on some objects
+        # RecursionError: circular type references
+        try:
+            hints = get_type_hints(expected)
+        except (NameError, AttributeError, RecursionError):
+            hints = {}
+
         fields = dataclasses.fields(expected)
         kwargs: dict[str, Any] = {}
+
+        missing_fields: list[str] = []
 
         for field in fields:
             field_type = hints.get(field.name, Any)
@@ -82,7 +92,13 @@ class ConverterRegistry:
                 kwargs[field.name] = field.default_factory()
             elif self._is_optional(field_type):
                 kwargs[field.name] = None
-            # else: let dataclass raise error for missing required field
+            else:
+                missing_fields.append(field.name)
+
+        if missing_fields:
+            raise ConversionError(
+                f"Missing required fields for {expected.__name__}: {', '.join(missing_fields)}"
+            )
 
         return expected(**kwargs)
 
