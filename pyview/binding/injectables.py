@@ -69,9 +69,7 @@ class InjectableRegistry(Generic[T]):
         if annotation is Params:
             return True
         # dict or dict[...] -> inject
-        if annotation is dict or get_origin(annotation) is dict:
-            return True
-        return False
+        return annotation is dict or get_origin(annotation) is dict
 
     def _resolve_params(self, annotation: Any, ctx: BindContext[T]) -> Any:
         """Resolve params parameter based on annotation type."""

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from pyview.binding import BindContext, Params
-from pyview.binding.injectables import InjectableRegistry, _NOT_FOUND
+from pyview.binding.injectables import _NOT_FOUND, InjectableRegistry
 
 
 class TestInjectableRegistry:

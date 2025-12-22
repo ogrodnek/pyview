@@ -18,13 +18,12 @@ from typing import (
 )
 from urllib.parse import urlencode, urlparse
 
-from pyview.binding.helpers import call_handle_params
-
 from apscheduler.jobstores.base import JobLookupError
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from starlette.websockets import WebSocket
 
 from pyview.async_stream_runner import AsyncStreamRunner
+from pyview.binding.helpers import call_handle_params
 from pyview.components.manager import ComponentsManager
 from pyview.events import InfoEvent
 from pyview.meta import PyViewMeta
