@@ -129,7 +129,7 @@ class Binder(Generic[T]):
 
         return None
 
-    def _is_optional(self, expected: type) -> bool:
+    def _is_optional(self, expected: Any) -> bool:
         """Check if type is Optional."""
         origin = typing.get_origin(expected)
         if origin is typing.Union:
