@@ -1,4 +1,5 @@
 """Injectable parameter resolution for special runtime objects."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, get_args, get_origin

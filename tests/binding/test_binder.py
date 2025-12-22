@@ -1,4 +1,5 @@
 """Tests for Binder core."""
+
 from dataclasses import dataclass
 from typing import Optional, Union
 from unittest.mock import MagicMock

@@ -1,4 +1,5 @@
 """Tests for ConverterRegistry."""
+
 from dataclasses import dataclass
 from typing import Optional, Union
 

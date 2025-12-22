@@ -31,6 +31,8 @@ class IncludesLiveView(LiveView):
     async def mount(self, socket, session):
         socket.context = IncludesContext()
 
-    async def handle_params(self, socket: LiveViewSocket[IncludesContext], page: Optional[str] = None):
+    async def handle_params(
+        self, socket: LiveViewSocket[IncludesContext], page: Optional[str] = None
+    ):
         if page is not None:
             socket.context.current_page = page

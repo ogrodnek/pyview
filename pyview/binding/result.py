@@ -1,4 +1,5 @@
 """Result types for parameter binding."""
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -13,7 +14,9 @@ class ParamError:
     reason: str
 
     def __str__(self) -> str:
-        return f"Parameter '{self.name}': {self.reason} (expected {self.expected}, got {self.value!r})"
+        return (
+            f"Parameter '{self.name}': {self.reason} (expected {self.expected}, got {self.value!r})"
+        )
 
 
 @dataclass

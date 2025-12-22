@@ -1,4 +1,5 @@
 """Core binder for signature-driven parameter binding."""
+
 from __future__ import annotations
 
 import dataclasses
@@ -92,9 +93,7 @@ class Binder(Generic[T]):
                 if self._is_optional(expected):
                     bound[name] = None
                     continue
-                errors.append(
-                    ParamError(name, repr(expected), None, "missing required parameter")
-                )
+                errors.append(ParamError(name, repr(expected), None, "missing required parameter"))
                 continue
 
             # 5) Convert to expected type

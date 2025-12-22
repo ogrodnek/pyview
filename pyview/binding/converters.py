@@ -1,4 +1,5 @@
 """Type conversion for parameter binding."""
+
 import dataclasses
 from typing import Any, Union, get_args, get_origin, get_type_hints
 
@@ -63,7 +64,9 @@ class ConverterRegistry:
     def _convert_dataclass(self, raw: Any, expected: type) -> Any:
         """Convert dict to dataclass instance."""
         if not isinstance(raw, dict):
-            raise ConversionError(f"Expected dict for dataclass {expected.__name__}, got {type(raw).__name__}")
+            raise ConversionError(
+                f"Expected dict for dataclass {expected.__name__}, got {type(raw).__name__}"
+            )
 
         hints = get_type_hints(expected)
         fields = dataclasses.fields(expected)
@@ -98,9 +101,7 @@ class ConverterRegistry:
                 errors.append(str(e))
         raise ConversionError(f"No union variant matched: {errors}")
 
-    def _convert_container(
-        self, raw: Any, origin: type, args: tuple[type, ...]
-    ) -> Any:
+    def _convert_container(self, raw: Any, origin: type, args: tuple[type, ...]) -> Any:
         """Convert to list/set/tuple.
 
         Handles:
@@ -122,8 +123,7 @@ class ConverterRegistry:
                         f"Expected {len(args)} values for tuple, got {len(items)}"
                     )
                 converted = [
-                    self.convert(item, arg_type)
-                    for item, arg_type in zip(items, args, strict=True)
+                    self.convert(item, arg_type) for item, arg_type in zip(items, args, strict=True)
                 ]
             return tuple(converted)
 
@@ -151,9 +151,7 @@ class ConverterRegistry:
         try:
             return expected(raw)
         except (ValueError, TypeError) as e:
-            raise ConversionError(
-                f"Cannot convert {raw!r} to {expected.__name__}: {e}"
-            ) from e
+            raise ConversionError(f"Cannot convert {raw!r} to {expected.__name__}: {e}") from e
 
     def _convert_bool(self, raw: Any) -> bool:
         """Convert to boolean with common string values."""

@@ -1,4 +1,5 @@
 """Tests for Params container."""
+
 import pytest
 
 from pyview.binding import Params

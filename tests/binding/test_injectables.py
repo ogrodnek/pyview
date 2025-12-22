@@ -1,4 +1,5 @@
 """Tests for InjectableRegistry."""
+
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -91,9 +92,7 @@ class TestInjectableRegistry:
         result = registry.resolve("custom", Any, ctx)
         assert result == "custom_value"
 
-    def test_unknown_param_returns_not_found(
-        self, registry: InjectableRegistry, ctx: BindContext
-    ):
+    def test_unknown_param_returns_not_found(self, registry: InjectableRegistry, ctx: BindContext):
         result = registry.resolve("unknown", int, ctx)
         assert result is _NOT_FOUND
 

@@ -3,6 +3,7 @@
 These tests ensure that existing handler patterns continue to work unchanged
 after integrating the binder.
 """
+
 from unittest.mock import MagicMock
 from urllib.parse import urlparse
 

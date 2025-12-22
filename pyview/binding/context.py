@@ -1,4 +1,5 @@
 """Binding context for parameter resolution."""
+
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 from urllib.parse import ParseResult
