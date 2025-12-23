@@ -23,6 +23,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from starlette.websockets import WebSocket
 
 from pyview.async_stream_runner import AsyncStreamRunner
+from pyview.binding.helpers import call_handle_params
 from pyview.components.manager import ComponentsManager
 from pyview.events import InfoEvent
 from pyview.meta import PyViewMeta
@@ -248,7 +249,7 @@ class ConnectedLiveViewSocket(Generic[T]):
 
         # Parse string to ParseResult for type consistency
         parsed_url = urlparse(to)
-        await self.liveview.handle_params(parsed_url, params_for_handler, self)
+        await call_handle_params(self.liveview, parsed_url, params_for_handler, self)
         try:
             await self.websocket.send_text(json.dumps(message))
         except Exception:

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 from pyview import ConnectedLiveViewSocket, LiveView, LiveViewSocket, is_connected
 
@@ -35,11 +36,9 @@ class CountLiveViewPubSub(LiveView[Count]):
 
         await socket.broadcast("count", socket.context.count)
 
-    async def handle_params(self, url, params, socket: LiveViewSocket[Count]):
-        # check if "c" is in params
-        # and if so set self.count to the value
-        if "c" in params:
-            socket.context.count = int(params["c"][0])
+    async def handle_params(self, socket: LiveViewSocket[Count], c: Optional[int] = None):
+        if c is not None:
+            socket.context.count = c
 
     async def handle_info(self, event, socket: LiveViewSocket[Count]):
         socket.context.count = event.payload

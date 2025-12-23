@@ -183,3 +183,40 @@ class TestEventDecoratorVariants:
         handler1 = view._event_handlers["name1"]
         handler2 = view._event_handlers["name2"]
         assert handler1 is handler2  # Same function object
+
+
+class TestEventBindingErrors:
+    """Test error handling when event binding fails."""
+
+    @pytest.mark.asyncio
+    async def test_raises_on_missing_required_param(self):
+        """Test that missing required typed params raise ValueError."""
+
+        class View(AutoEventDispatch):
+            @event
+            async def save(self, socket, user_id: int):
+                return f"saved {user_id}"
+
+        view = View()
+
+        with pytest.raises(ValueError) as exc_info:
+            await view.handle_event("save", {}, None)  # missing user_id
+
+        assert "Event binding failed" in str(exc_info.value)
+        assert "save" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_raises_on_conversion_error(self):
+        """Test that type conversion errors raise ValueError."""
+
+        class View(AutoEventDispatch):
+            @event
+            async def update(self, socket, count: int):
+                return f"count is {count}"
+
+        view = View()
+
+        with pytest.raises(ValueError) as exc_info:
+            await view.handle_event("update", {"count": "not-a-number"}, None)
+
+        assert "Event binding failed" in str(exc_info.value)

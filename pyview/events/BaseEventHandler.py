@@ -1,8 +1,12 @@
 import logging
 from typing import TYPE_CHECKING, Any, Callable
 
+from pyview.binding import BindContext, Binder, Params
+
 if TYPE_CHECKING:
     from pyview.live_view import InfoEvent
+
+logger = logging.getLogger(__name__)
 
 
 def event(*event_names):
@@ -70,10 +74,29 @@ class BaseEventHandler:
     async def handle_event(self, event: str, payload: dict, socket):
         handler = self._event_handlers.get(event)
 
-        if handler:
-            return await handler(self, event, payload, socket)
-        else:
-            logging.warning(f"Unhandled event: {event} {payload}")
+        if not handler:
+            logger.warning(f"Unhandled event: {event} {payload}")
+            return
+
+        # Create bind context for event handling
+        ctx = BindContext(
+            params=Params({}),
+            payload=payload,
+            url=None,
+            socket=socket,
+            event=event,
+        )
+
+        # Bind parameters and invoke handler
+        binder = Binder()
+        result = binder.bind(handler, ctx)
+
+        if not result.success:
+            for err in result.errors:
+                logger.warning(f"Event binding error for '{event}': {err}")
+            raise ValueError(f"Event binding failed for '{event}': {result.errors}")
+
+        return await handler(self, **result.bound_args)
 
     async def handle_info(self, event: "InfoEvent", socket):
         handler = self._info_handlers.get(event.name)

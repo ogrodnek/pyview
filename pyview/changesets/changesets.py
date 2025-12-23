@@ -53,7 +53,11 @@ class ChangeSet(Generic[Base]):
             self.valid = True
         except ValidationError as e:
             for error in e.errors():
-                loc = str(error["loc"][0])
+                # Model-level validators have empty loc tuple - show on current field
+                if not error["loc"]:
+                    loc = k
+                else:
+                    loc = str(error["loc"][0])
                 if loc in self.changes:
                     self.errors[loc] = error["msg"]
             self.valid = False

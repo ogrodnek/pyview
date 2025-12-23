@@ -1,8 +1,15 @@
+from dataclasses import dataclass
 from typing import TypedDict
 
 from pyview import ConnectedLiveViewSocket, LiveView, LiveViewSocket
 
 from .data import FifaAudience, Paging, list_items
+
+
+@dataclass
+class PagingParams:
+    page: int = 1
+    perPage: int = 10
 
 
 class FifaContext(TypedDict):
@@ -21,9 +28,9 @@ class FifaAudienceLiveView(LiveView[FifaContext]):
         paging = Paging(1, 10)
         socket.context = FifaContext({"audiences": list_items(paging), "paging": paging})
 
-    async def handle_event(self, event, payload, socket: ConnectedLiveViewSocket[FifaContext]):
+    async def handle_event(self, socket: ConnectedLiveViewSocket[FifaContext], perPage: int):
         paging = socket.context["paging"]
-        paging.perPage = int(payload["perPage"][0])
+        paging.perPage = perPage
         paging.page = 1
         audiences = list_items(paging)
 
@@ -31,12 +38,9 @@ class FifaAudienceLiveView(LiveView[FifaContext]):
 
         await socket.push_patch("/fifa", {"page": paging.page, "perPage": paging.perPage})
 
-    async def handle_params(self, url, params, socket: LiveViewSocket[FifaContext]):
+    async def handle_params(self, socket: LiveViewSocket[FifaContext], paging_params: PagingParams):
         paging = socket.context["paging"]
-        if "page" in params:
-            paging.page = int(params["page"][0])
-        if "perPage" in params:
-            paging.perPage = int(params["perPage"][0])
-
+        paging.page = paging_params.page
+        paging.perPage = paging_params.perPage
         audiences = list_items(paging)
         socket.context["audiences"] = audiences

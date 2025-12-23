@@ -8,6 +8,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from pyview.auth import AuthProviderFactory
+from pyview.binding import call_handle_event, call_handle_params
 from pyview.csrf import validate_csrf_token
 from pyview.instrumentation import InstrumentationProvider
 from pyview.live_routes import LiveViewLookup
@@ -115,7 +116,7 @@ class LiveSocketHandler:
                 merged_params = {**query_params, **path_params}
 
                 # Pass merged parameters to handle_params
-                await lv.handle_params(url, merged_params, socket)
+                await call_handle_params(lv, url, merged_params, socket)
 
                 rendered = await _render(socket)
                 socket.prev_rendered = rendered
@@ -199,7 +200,7 @@ class LiveSocketHandler:
                             await socket.components.handle_event(target_cid, event_name, value)
                     else:
                         # Route event to LiveView (default behavior)
-                        await socket.liveview.handle_event(event_name, value, socket)
+                        await call_handle_event(socket.liveview, event_name, value, socket)
 
                 # Time rendering
                 with self.instrumentation.time_histogram(
@@ -240,7 +241,7 @@ class LiveSocketHandler:
 
                 merged_params = {**query_params, **path_params}
 
-                await lv.handle_params(url, merged_params, socket)
+                await call_handle_params(lv, url, merged_params, socket)
                 rendered = await _render(socket)
                 diff = socket.diff(rendered)
 
@@ -320,7 +321,7 @@ class LiveSocketHandler:
                     query_params = parse_qs(url.query)
                     merged_params = {**query_params, **path_params}
 
-                    await lv.handle_params(url, merged_params, socket)
+                    await call_handle_params(lv, url, merged_params, socket)
 
                     rendered = await _render(socket)
                     socket.prev_rendered = rendered
