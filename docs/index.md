@@ -47,6 +47,7 @@ See PyView in action: [examples.pyview.rocks](https://examples.pyview.rocks/)
 
 - **[File Uploads](features/file-uploads/index.md)** — Direct and external (S3) uploads
 - **[Streams](streams-usage.md)** — Efficient rendering of large collections
+- **[Sessions & Authentication](features/authentication.md)** — Login, sessions, protected routes
 - **[Single-File Apps](single-file-apps.md)** — Quick prototypes with PEP 723
 
 ## Example Projects
