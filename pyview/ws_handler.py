@@ -1,7 +1,7 @@
 import json
 import logging
 from contextlib import suppress
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from urllib.parse import parse_qs, urlparse
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -14,7 +14,11 @@ from pyview.instrumentation import InstrumentationProvider
 from pyview.live_routes import LiveViewLookup
 from pyview.live_socket import ConnectedLiveViewSocket, LiveViewSocket
 from pyview.phx_message import parse_message
+from pyview.render_hooks import HookContext, RenderHookRunner
 from pyview.session import deserialize_session
+
+if TYPE_CHECKING:
+    from pyview.css import CSSRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -51,9 +55,17 @@ class LiveSocketMetrics:
 
 
 class LiveSocketHandler:
-    def __init__(self, routes: LiveViewLookup, instrumentation: InstrumentationProvider):
+    def __init__(
+        self,
+        routes: LiveViewLookup,
+        instrumentation: InstrumentationProvider,
+        render_hooks: RenderHookRunner,
+        css_registry: "CSSRegistry",
+    ):
         self.routes = routes
         self.instrumentation = instrumentation
+        self.render_hooks = render_hooks
+        self.css_registry = css_registry
         self.metrics = LiveSocketMetrics(instrumentation)
         self.manager = ConnectionManager()
         self.sessions = 0
@@ -75,6 +87,28 @@ class LiveSocketHandler:
     async def check_auth(self, websocket: WebSocket, lv):
         if not await AuthProviderFactory.get(lv).has_required_auth(websocket):
             raise AuthException()
+
+    async def render_with_hooks(self, socket: ConnectedLiveViewSocket) -> dict:
+        """
+        Render with hooks applied.
+
+        Used for initial connection and navigation where CSS injection is needed.
+        """
+        lv = socket.liveview
+
+        # Create hook context
+        hook_ctx = HookContext(view=lv, socket=socket, is_connected=True)
+
+        # Run before_render hooks (registers CSS, prepares content to inject)
+        await self.render_hooks.run_before_render(hook_ctx)
+
+        # Render the view
+        rendered = await _render(socket)
+
+        # Run transform_tree hooks (injects CSS into rendered tree)
+        rendered = self.render_hooks.run_transform_tree(rendered, hook_ctx)
+
+        return rendered
 
     async def handle(self, websocket: WebSocket):
         await self.manager.connect(websocket)
@@ -328,7 +362,8 @@ class LiveSocketHandler:
 
                     await call_handle_params(lv, url, merged_params, socket)
 
-                    rendered = await _render(socket)
+                    # Use render_with_hooks for navigation to inject CSS for new view
+                    rendered = await self.render_with_hooks(socket)
                     socket.prev_rendered = rendered
 
                     resp = [

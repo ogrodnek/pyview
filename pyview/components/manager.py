@@ -7,6 +7,7 @@ The manager is attached to a ConnectedLiveViewSocket and handles:
 - Lifecycle orchestration (mount, update)
 - Event routing to specific components
 - Component rendering
+- Component CSS tracking
 
 Key design: Components are identified by (module, id) tuple.
 Same module + id = same component instance across re-renders.
@@ -21,6 +22,7 @@ from .base import ComponentMeta, ComponentSocket, LiveComponent
 from .slots import Slots
 
 if TYPE_CHECKING:
+    from pyview.css import CSSRegistry
     from pyview.meta import PyViewMeta
 
 logger = logging.getLogger(__name__)
@@ -364,3 +366,36 @@ class ComponentsManager:
     def has_pending_lifecycle(self) -> bool:
         """Check if there are components waiting for mount/update."""
         return bool(self._pending_mounts) or bool(self._pending_updates)
+
+    def collect_component_css(
+        self, css_registry: CSSRegistry, loaded_css: set[str]
+    ) -> list[str]:
+        """
+        Collect CSS link tags for all registered components.
+
+        Registers CSS for each component class and returns link tags
+        for CSS that hasn't been loaded yet.
+
+        Args:
+            css_registry: The CSS registry to use for registration/lookup
+            loaded_css: Set of already-loaded CSS URLs (modified in place)
+
+        Returns:
+            List of CSS link tag HTML strings to inject
+        """
+        link_tags = []
+
+        # Get unique component classes that were seen this render
+        seen_classes: set[type] = set()
+        for cid in self._seen_this_render:
+            if cid in self._components:
+                seen_classes.add(type(self._components[cid]))
+
+        for component_class in seen_classes:
+            entry = css_registry.register_for_class(component_class)
+            if entry and entry.url not in loaded_css:
+                loaded_css.add(entry.url)
+                link_tags.append(entry.link_tag)
+                logger.debug(f"Collected component CSS: {entry.url}")
+
+        return link_tags
