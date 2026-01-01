@@ -109,6 +109,44 @@ class TestConverterRegistry:
         with pytest.raises(ConversionError, match="No union variant matched"):
             converter.convert("hello", Union[int, float])
 
+    # --- Pipe union syntax (X | Y) conversions ---
+
+    def test_pipe_optional_none(self, converter: ConverterRegistry):
+        assert converter.convert(None, int | None) is None
+
+    def test_pipe_optional_empty_string(self, converter: ConverterRegistry):
+        assert converter.convert("", int | None) is None
+
+    def test_pipe_optional_empty_string_list(self, converter: ConverterRegistry):
+        assert converter.convert([""], int | None) is None
+
+    def test_pipe_optional_with_value(self, converter: ConverterRegistry):
+        assert converter.convert("42", int | None) == 42
+
+    def test_pipe_optional_float(self, converter: ConverterRegistry):
+        assert converter.convert("3.14", float | None) == pytest.approx(3.14)
+        assert converter.convert("", float | None) is None
+
+    def test_pipe_optional_str(self, converter: ConverterRegistry):
+        assert converter.convert("hello", str | None) == "hello"
+        assert converter.convert("", str | None) == ""  # Empty string is valid str
+        assert converter.convert(None, str | None) is None
+
+    def test_pipe_union_first_match(self, converter: ConverterRegistry):
+        assert converter.convert("42", int | str) == 42
+
+    def test_pipe_union_fallback(self, converter: ConverterRegistry):
+        assert converter.convert("hello", int | str) == "hello"
+
+    def test_pipe_union_three_types(self, converter: ConverterRegistry):
+        assert converter.convert("3.14", int | float | str) == pytest.approx(3.14)
+        assert converter.convert("42", int | float | str) == 42
+        assert converter.convert("hello", int | float | str) == "hello"
+
+    def test_pipe_union_no_match_raises(self, converter: ConverterRegistry):
+        with pytest.raises(ConversionError, match="No union variant matched"):
+            converter.convert("hello", int | float)
+
     # --- Container list conversions ---
 
     def test_list_from_list(self, converter: ConverterRegistry):

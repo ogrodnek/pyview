@@ -5,7 +5,6 @@ from __future__ import annotations
 import dataclasses
 import inspect
 import logging
-import typing
 from typing import Any, Callable, Generic, TypeVar, get_type_hints
 
 from .context import BindContext
@@ -95,7 +94,7 @@ class Binder(Generic[T]):
                 if param.default is not inspect.Parameter.empty:
                     bound[name] = param.default
                     continue
-                if self._is_optional(expected):
+                if self.converter.is_optional(expected):
                     bound[name] = None
                     continue
                 errors.append(ParamError(name, repr(expected), None, "missing required parameter"))
@@ -133,10 +132,3 @@ class Binder(Generic[T]):
             return ctx.payload[name]
 
         return None
-
-    def _is_optional(self, expected: Any) -> bool:
-        """Check if type is Optional."""
-        origin = typing.get_origin(expected)
-        if origin is typing.Union:
-            return type(None) in typing.get_args(expected)
-        return False

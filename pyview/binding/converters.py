@@ -1,6 +1,7 @@
 """Type conversion for parameter binding."""
 
 import dataclasses
+import types
 from typing import Any, Union, get_args, get_origin, get_type_hints
 
 
@@ -15,8 +16,8 @@ class ConverterRegistry:
 
     Supports:
     - Primitives: int, float, str, bool
-    - Optional[T]: Returns None for missing/empty values
-    - Union[T1, T2, ...]: Tries each variant in order
+    - Optional[T] and T | None: Returns None for missing/empty values
+    - Union[T1, T2, ...] and T1 | T2: Tries each variant in order
     - Containers: list[T], set[T], tuple[T, ...]
     """
 
@@ -38,12 +39,12 @@ class ConverterRegistry:
 
         # Handle None/missing
         if raw is None:
-            if self._is_optional(expected):
+            if self.is_optional(expected):
                 return None
             raise ConversionError("Value is required")
 
-        # Handle Optional / Union
-        if origin is Union:
+        # Handle Optional / Union (both typing.Union and types.UnionType for X | Y syntax)
+        if origin is Union or origin is types.UnionType:
             return self._convert_union(raw, args)
 
         # Handle list/set/tuple
@@ -90,7 +91,7 @@ class ConverterRegistry:
                 kwargs[field.name] = field.default
             elif field.default_factory is not dataclasses.MISSING:
                 kwargs[field.name] = field.default_factory()
-            elif self._is_optional(field_type):
+            elif self.is_optional(field_type):
                 kwargs[field.name] = None
             else:
                 missing_fields.append(field.name)
@@ -182,9 +183,9 @@ class ConverterRegistry:
             return False
         raise ConversionError(f"Cannot convert {raw!r} to bool")
 
-    def _is_optional(self, expected: Any) -> bool:
-        """Check if type is Optional[T] (Union[T, None])."""
+    def is_optional(self, expected: Any) -> bool:
+        """Check if type is Optional[T] (Union[T, None] or T | None)."""
         origin = get_origin(expected)
-        if origin is Union:
+        if origin is Union or origin is types.UnionType:
             return type(None) in get_args(expected)
         return False
