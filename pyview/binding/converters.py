@@ -39,12 +39,12 @@ class ConverterRegistry:
 
         # Handle None/missing
         if raw is None:
-            if self._is_optional(expected):
+            if self.is_optional(expected):
                 return None
             raise ConversionError("Value is required")
 
         # Handle Optional / Union (both typing.Union and types.UnionType for X | Y syntax)
-        if origin is Union or isinstance(expected, types.UnionType):
+        if origin is Union or origin is types.UnionType:
             return self._convert_union(raw, args)
 
         # Handle list/set/tuple
@@ -91,7 +91,7 @@ class ConverterRegistry:
                 kwargs[field.name] = field.default
             elif field.default_factory is not dataclasses.MISSING:
                 kwargs[field.name] = field.default_factory()
-            elif self._is_optional(field_type):
+            elif self.is_optional(field_type):
                 kwargs[field.name] = None
             else:
                 missing_fields.append(field.name)
@@ -183,9 +183,9 @@ class ConverterRegistry:
             return False
         raise ConversionError(f"Cannot convert {raw!r} to bool")
 
-    def _is_optional(self, expected: Any) -> bool:
+    def is_optional(self, expected: Any) -> bool:
         """Check if type is Optional[T] (Union[T, None] or T | None)."""
         origin = get_origin(expected)
-        if origin is Union or isinstance(expected, types.UnionType):
+        if origin is Union or origin is types.UnionType:
             return type(None) in get_args(expected)
         return False

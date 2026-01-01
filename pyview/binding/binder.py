@@ -94,7 +94,7 @@ class Binder(Generic[T]):
                 if param.default is not inspect.Parameter.empty:
                     bound[name] = param.default
                     continue
-                if self.converter._is_optional(expected):
+                if self.converter.is_optional(expected):
                     bound[name] = None
                     continue
                 errors.append(ParamError(name, repr(expected), None, "missing required parameter"))

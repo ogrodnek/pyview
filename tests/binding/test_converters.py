@@ -143,6 +143,10 @@ class TestConverterRegistry:
         assert converter.convert("42", int | float | str) == 42
         assert converter.convert("hello", int | float | str) == "hello"
 
+    def test_pipe_union_no_match_raises(self, converter: ConverterRegistry):
+        with pytest.raises(ConversionError, match="No union variant matched"):
+            converter.convert("hello", int | float)
+
     # --- Container list conversions ---
 
     def test_list_from_list(self, converter: ConverterRegistry):
