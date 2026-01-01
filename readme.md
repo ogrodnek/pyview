@@ -6,6 +6,8 @@
 
 PyView enables dynamic, real-time web apps, using server-rendered HTML.
 
+**Documentation**: <a href="https://pyview.rocks" target="_blank">https://pyview.rocks</a>
+
 **Source Code**: <a href="https://github.com/ogrodnek/pyview" target="_blank">https://github.com/ogrodnek/pyview</a>
 
 # Installation
