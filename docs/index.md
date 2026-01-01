@@ -31,7 +31,7 @@ See PyView in action: [examples.pyview.rocks](https://examples.pyview.rocks/)
 - **[LiveView Lifecycle](core-concepts/liveview-lifecycle.md)** — mount, handle_event, handle_params, handle_info
 - **[Socket and Context](core-concepts/socket-and-context.md)** — State management, pub/sub, navigation
 - **[Event Handling](core-concepts/event-handling.md)** — Clicks, forms, typed parameters, decorators
-- **[Live Components](core-concepts/live-components.md)** — Stateful, reusable UI components (Python 3.14+)
+- **[LiveComponents](core-concepts/live-components.md)** — Stateful, reusable UI components (Python 3.14+)
 - **[Routing](core-concepts/routing.md)** — URL patterns, path parameters, route organization
 
 ### Templating

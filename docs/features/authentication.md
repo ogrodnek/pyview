@@ -32,6 +32,7 @@ from typing import TypedDict, Optional
 class DashboardContext(TypedDict):
     user_id: Optional[str]
     username: Optional[str]
+    notifications: list
 
 
 class DashboardLiveView(LiveView[DashboardContext]):
@@ -143,7 +144,7 @@ class AdminLiveView(LiveView[AdminContext]):
 
 ```python
 @requires("authenticated", status_code=401)
-class ProtectedLiveView(LiveView[Context]):
+class ProtectedLiveView(LiveView):
     pass
 ```
 
@@ -219,7 +220,7 @@ class APIKeyAuthProvider(AuthProvider):
 
 
 # Apply to a LiveView
-class APIProtectedView(LiveView[Context]):
+class APIProtectedView(LiveView):
     pass
 
 AuthProviderFactory.set(APIProtectedView, APIKeyAuthProvider("secret-key"))
