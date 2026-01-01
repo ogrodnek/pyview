@@ -14,6 +14,7 @@ from pyview.instrumentation import InstrumentationProvider
 from pyview.live_routes import LiveViewLookup
 from pyview.live_socket import ConnectedLiveViewSocket, LiveViewSocket
 from pyview.phx_message import parse_message
+from pyview.pubsub import PubSubProvider
 from pyview.session import deserialize_session
 
 logger = logging.getLogger(__name__)
@@ -51,9 +52,15 @@ class LiveSocketMetrics:
 
 
 class LiveSocketHandler:
-    def __init__(self, routes: LiveViewLookup, instrumentation: InstrumentationProvider):
+    def __init__(
+        self,
+        routes: LiveViewLookup,
+        instrumentation: InstrumentationProvider,
+        pubsub: PubSubProvider,
+    ):
         self.routes = routes
         self.instrumentation = instrumentation
+        self.pubsub = pubsub
         self.metrics = LiveSocketMetrics(instrumentation)
         self.manager = ConnectionManager()
         self.sessions = 0
@@ -98,7 +105,7 @@ class LiveSocketHandler:
                 lv, path_params = self.routes.get(url.path)
                 await self.check_auth(websocket, lv)
                 socket = ConnectedLiveViewSocket(
-                    websocket, topic, lv, self.scheduler, self.instrumentation
+                    websocket, topic, lv, self.scheduler, self.instrumentation, self.pubsub
                 )
 
                 session = {}
@@ -308,7 +315,12 @@ class LiveSocketHandler:
 
                     # Create new socket for new LiveView
                     socket = ConnectedLiveViewSocket(
-                        socket.websocket, topic, lv, self.scheduler, self.instrumentation
+                        socket.websocket,
+                        topic,
+                        lv,
+                        self.scheduler,
+                        self.instrumentation,
+                        self.pubsub,
                     )
 
                     session = {}

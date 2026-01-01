@@ -1,0 +1,11 @@
+# Core dependencies
+pyview-web
+
+# Redis pub/sub backend
+redis>=5.0.0
+
+# PostgreSQL pub/sub backend
+asyncpg>=0.29.0
+
+# ASGI server
+uvicorn[standard]>=0.24.0

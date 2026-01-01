@@ -16,6 +16,7 @@ from pyview.csrf import generate_csrf_token
 from pyview.instrumentation import InstrumentationProvider, NoOpInstrumentation
 from pyview.live_socket import UnconnectedSocket
 from pyview.meta import PyViewMeta
+from pyview.pubsub import InMemoryPubSub, PubSubProvider
 from pyview.session import serialize_session
 
 from .live_routes import LiveViewLookup
@@ -32,8 +33,15 @@ from .ws_handler import LiveSocketHandler
 class PyView(Starlette):
     rootTemplate: RootTemplate
     instrumentation: InstrumentationProvider
+    pubsub: PubSubProvider
 
-    def __init__(self, *args, instrumentation: Optional[InstrumentationProvider] = None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        instrumentation: Optional[InstrumentationProvider] = None,
+        pubsub: Optional[PubSubProvider] = None,
+        **kwargs,
+    ):
         # Extract user's lifespan if provided, then always use our composed lifespan
         user_lifespan = kwargs.pop("lifespan", None)
         kwargs["lifespan"] = self._create_lifespan(user_lifespan)
@@ -41,8 +49,9 @@ class PyView(Starlette):
         super().__init__(*args, **kwargs)
         self.rootTemplate = defaultRootTemplate()
         self.instrumentation = instrumentation or NoOpInstrumentation()
+        self.pubsub = pubsub or InMemoryPubSub()
         self.view_lookup = LiveViewLookup()
-        self.live_handler = LiveSocketHandler(self.view_lookup, self.instrumentation)
+        self.live_handler = LiveSocketHandler(self.view_lookup, self.instrumentation, self.pubsub)
 
         self.routes.append(WebSocketRoute("/live/websocket", self.live_handler.handle))
         self.add_middleware(GZipMiddleware)
@@ -56,18 +65,19 @@ class PyView(Starlette):
 
         @asynccontextmanager
         async def lifespan(app):
-            # Startup: Start the scheduler
+            # Startup
             app.live_handler.start_scheduler()
+            await app.pubsub.start()
 
-            # Run user's lifespan if they provided one
-            if user_lifespan:
-                async with user_lifespan(app):
+            try:
+                if user_lifespan:
+                    async with user_lifespan(app):
+                        yield
+                else:
                     yield
-            else:
-                yield
-
-            # Shutdown: Stop the scheduler
-            await app.live_handler.shutdown_scheduler()
+            finally:
+                await app.pubsub.stop()
+                await app.live_handler.shutdown_scheduler()
 
         return lifespan
 
