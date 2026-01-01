@@ -87,7 +87,7 @@ class LiveSocketHandler:
 
         try:
             data = await websocket.receive_text()
-            [joinRef, mesageRef, topic, event, payload] = json.loads(data)
+            [joinRef, messageRef, topic, event, payload] = json.loads(data)
             if event == "phx_join":
                 if not validate_csrf_token(payload["params"]["_csrf_token"], topic):
                     raise AuthException("Invalid CSRF token")
@@ -123,7 +123,7 @@ class LiveSocketHandler:
 
                 resp = [
                     joinRef,
-                    mesageRef,
+                    messageRef,
                     topic,
                     "phx_reply",
                     {
@@ -156,12 +156,12 @@ class LiveSocketHandler:
     async def handle_connected(self, myJoinId, socket: ConnectedLiveViewSocket):
         while True:
             message = await socket.websocket.receive()
-            [joinRef, mesageRef, topic, event, payload] = parse_message(message)
+            [joinRef, messageRef, topic, event, payload] = parse_message(message)
 
             if event == "heartbeat":
                 resp = [
                     None,
-                    mesageRef,
+                    messageRef,
                     "phoenix",
                     "phx_reply",
                     {"response": {}, "status": "ok"},
@@ -216,7 +216,7 @@ class LiveSocketHandler:
 
                 resp = [
                     joinRef,
-                    mesageRef,
+                    messageRef,
                     topic,
                     "phx_reply",
                     {"response": {"diff": diff | hook_events}, "status": "ok"},
@@ -247,7 +247,7 @@ class LiveSocketHandler:
 
                 resp = [
                     joinRef,
-                    mesageRef,
+                    messageRef,
                     topic,
                     "phx_reply",
                     {"response": {"diff": diff}, "status": "ok"},
@@ -265,7 +265,7 @@ class LiveSocketHandler:
 
                 resp = [
                     joinRef,
-                    mesageRef,
+                    messageRef,
                     topic,
                     "phx_reply",
                     {
@@ -286,7 +286,7 @@ class LiveSocketHandler:
 
                     resp = [
                         joinRef,
-                        mesageRef,
+                        messageRef,
                         topic,
                         "phx_reply",
                         {"response": {}, "status": "ok"},
@@ -328,7 +328,7 @@ class LiveSocketHandler:
 
                     resp = [
                         joinRef,
-                        mesageRef,
+                        messageRef,
                         topic,
                         "phx_reply",
                         {
@@ -347,7 +347,7 @@ class LiveSocketHandler:
 
                 resp = [
                     joinRef,
-                    mesageRef,
+                    messageRef,
                     topic,
                     "phx_reply",
                     {"response": {}, "status": "ok"},
@@ -380,7 +380,7 @@ class LiveSocketHandler:
 
                 resp = [
                     joinRef,
-                    mesageRef,
+                    messageRef,
                     topic,
                     "phx_reply",
                     {"response": {"diff": diff}, "status": "ok"},
@@ -394,7 +394,7 @@ class LiveSocketHandler:
 
                 resp = [
                     joinRef,
-                    mesageRef,
+                    messageRef,
                     topic,
                     "phx_reply",
                     {"response": {}, "status": "ok"},
