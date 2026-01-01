@@ -1,3 +1,9 @@
+---
+title: File Uploads
+sidebar:
+  label: Overview
+---
+
 # File Uploads
 
 Need to let users upload files? You're in the right place. PyView gives you a complete upload system with progress tracking, validation, drag-and-drop, and image previews—all wired up to work seamlessly with LiveView's real-time updates.

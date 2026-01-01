@@ -1,27 +1,21 @@
-# Simple workflow for deploying static content to GitHub Pages
-name: Deploy static content to Pages
+# Deploy Starlight docs to GitHub Pages
+name: Deploy docs to Pages
 
 on:
-  # Runs on pushes targeting the default branch
   push:
     branches: ["main"]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow one concurrent deployment
 concurrency:
   group: "pages"
   cancel-in-progress: true
 
 jobs:
-  # Single deploy job since we're just deploying
   build:
     environment:
       name: github-pages
@@ -30,24 +24,29 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: docs-site/package-lock.json
+
+      - name: Install dependencies
+        working-directory: docs-site
+        run: npm ci
+
+      - name: Build Starlight site
+        working-directory: docs-site
+        run: npm run build
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
-      - name: Set up python
-        id: setup-python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-      - name: Install dependencies
-        run: uv sync --only-group docs
-      - name: Build site (_site directory name is used for Jekyll compatiblity)
-        run: uv run mkdocs build --config-file ./mkdocs.yml --site-dir ./_site
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs-site/dist
 
   deploy:
     environment:

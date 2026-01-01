@@ -1,3 +1,7 @@
+---
+title: Getting Started
+---
+
 # Getting Started
 
 Let's get you up and running with a real-time web app in about five minutes.

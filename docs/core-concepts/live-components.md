@@ -1,3 +1,9 @@
+---
+title: LiveComponents
+sidebar:
+  order: 5
+---
+
 # LiveComponents
 
 LiveComponents are stateful, reusable UI components that manage their own state and handle their own events. They're useful when you need multiple independent instances of the same UI pattern, each with isolated state.

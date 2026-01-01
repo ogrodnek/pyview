@@ -1,3 +1,7 @@
+---
+title: T-String Templates
+---
+
 # T-String Templates
 
 > **Requires Python 3.14+**

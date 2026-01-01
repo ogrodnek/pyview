@@ -1,3 +1,9 @@
+---
+title: Routing
+sidebar:
+  order: 4
+---
+
 # Routing
 
 PyView uses Starlette's routing under the hood—no need to learn a new system if you're already familiar with it. You get flexible URL patterns with automatic type conversion for path parameters.

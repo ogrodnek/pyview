@@ -1,3 +1,9 @@
+---
+title: Socket and Context
+sidebar:
+  order: 2
+---
+
 # Socket and Context Management
 
 The LiveViewSocket is your connection to the client and the container for your application state.

@@ -1,3 +1,9 @@
+---
+title: LiveView Lifecycle
+sidebar:
+  order: 1
+---
+
 # LiveView Lifecycle
 
 Understanding the LiveView lifecycle is essential for building effective PyView applications. This guide explains each phase, when it occurs, and how to use it effectively.

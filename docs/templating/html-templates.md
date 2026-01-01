@@ -1,3 +1,7 @@
+---
+title: HTML Templates
+---
+
 # HTML Templates (Ibis)
 
 > **Note:** PyView supports two templating approaches. See [Templating Overview](overview.md) to compare options, or check out [T-String Templates](t-string-templates.md) for the Python 3.14+ alternative.

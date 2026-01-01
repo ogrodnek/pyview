@@ -1,3 +1,7 @@
+---
+title: External Uploads
+---
+
 # External Uploads
 
 External uploads let files go directly from the browser to cloud storage (S3, GCS, Azure) without passing through your server. This is the right choice for large files, high-traffic scenarios, or when you're already storing files in the cloud.

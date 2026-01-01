@@ -1,3 +1,7 @@
+---
+title: Authentication
+---
+
 # Sessions and Authentication
 
 PyView works with Starlette's session and authentication systems—you're not locked into any particular auth pattern. This guide covers accessing session data, protecting routes, and implementing custom authentication.

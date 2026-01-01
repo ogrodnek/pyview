@@ -1,0 +1,24 @@
+{
+  "name": "pyview-docs",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.32.0",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@fontsource-variable/space-grotesk": "^5.2.10",
+    "astro": "^5.0.0",
+    "sharp": "^0.33.0",
+    "unist-util-visit": "^5.0.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.16"
+  }
+}
