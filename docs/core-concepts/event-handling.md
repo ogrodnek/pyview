@@ -1,5 +1,7 @@
 ---
 title: Event Handling
+sidebar:
+  order: 3
 ---
 
 # Event Handling

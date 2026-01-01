@@ -1,5 +1,7 @@
 ---
 title: LiveView Lifecycle
+sidebar:
+  order: 1
 ---
 
 # LiveView Lifecycle

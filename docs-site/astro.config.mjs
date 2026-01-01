@@ -25,6 +25,12 @@ export default defineConfig({
       sidebar: [
         { label: 'Home', slug: '' },
         { label: 'Getting Started', slug: 'getting-started' },
+        {
+          label: 'Live Examples',
+          link: 'https://examples.pyview.rocks',
+          badge: 'Live',
+          attrs: { target: '_blank' },
+        },
         { label: 'Single-File Apps', slug: 'single-file-apps' },
         { label: 'Streams', slug: 'streams-usage' },
         {

@@ -1,5 +1,7 @@
 ---
 title: Routing
+sidebar:
+  order: 4
 ---
 
 # Routing

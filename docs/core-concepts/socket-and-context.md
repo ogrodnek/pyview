@@ -1,5 +1,7 @@
 ---
 title: Socket and Context
+sidebar:
+  order: 2
 ---
 
 # Socket and Context Management

@@ -1,5 +1,7 @@
 ---
 title: LiveComponents
+sidebar:
+  order: 5
 ---
 
 # LiveComponents

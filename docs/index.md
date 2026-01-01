@@ -4,7 +4,7 @@ title: Home
 
 # PyView
 
-<img src="https://pyview.rocks/images/pyview_logo_512.png" width="128px" align="right" />
+<img src="/images/pyview_logo_512.png" width="128px" align="right" />
 
 PyView brings the [Phoenix LiveView](https://github.com/phoenixframework/phoenix_live_view) paradigm to Python: build dynamic, real-time web applications using server-rendered HTML. Keep your state on the server, let the browser do what it does best, and remember what it felt like when building for the web was fun.
 

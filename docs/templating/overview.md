@@ -1,5 +1,7 @@
 ---
 title: Templating Overview
+sidebar:
+  order: 1
 ---
 
 # Templating
