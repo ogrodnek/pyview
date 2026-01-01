@@ -8,8 +8,8 @@ from starlette.websockets import WebSocketDisconnect
 def parse_message(message: Message) -> tuple[str, str, str, str, dict]:
     if "text" in message:
         data = message["text"]
-        [joinRef, mesageRef, topic, event, payload] = json.loads(data)
-        return joinRef, mesageRef, topic, event, payload
+        [joinRef, messageRef, topic, event, payload] = json.loads(data)
+        return joinRef, messageRef, topic, event, payload
 
     if "bytes" in message:
         data = message["bytes"]
