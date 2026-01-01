@@ -1,3 +1,7 @@
+---
+title: Templating Overview
+---
+
 # Templating
 
 PyView currently offers two approaches to templating: a lightweight templating language based on [ibis](https://www.dmulholl.com/docs/ibis/master/) (similar to Jinja2), and Python 3.14+ [t-string templates](https://peps.python.org/pep-0750/).

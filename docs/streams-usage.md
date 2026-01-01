@@ -1,3 +1,7 @@
+---
+title: Streams
+---
+
 # PyView Streams Usage Guide
 
 This guide shows how to use streams in pyview for efficient rendering of large collections.

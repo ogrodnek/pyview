@@ -1,3 +1,7 @@
+---
+title: Direct Uploads
+---
+
 # Direct Uploads
 
 Direct uploads send files through your server, giving you full control to validate, transform, or scan files before storing them. This is the right choice for many applications— it's simple to set up and covers common use cases like profile photos, documents, and small media files.

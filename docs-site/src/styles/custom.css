@@ -1,0 +1,21 @@
+/* Custom fonts (variable - single file, faster load) */
+@import '@fontsource-variable/space-grotesk';
+@import '@fontsource-variable/jetbrains-mono';
+
+/* PyView pink accent color (#ff66c7 ≈ HSL 322°, 100%, 70%) */
+
+/* Dark mode */
+:root {
+  --sl-font: 'Space Grotesk Variable', sans-serif;
+  --sl-font-mono: 'JetBrains Mono Variable', monospace;
+  --sl-color-accent-low: hsl(322, 80%, 28%);
+  --sl-color-accent: hsl(322, 100%, 70%);
+  --sl-color-accent-high: hsl(322, 100%, 85%);
+}
+
+/* Light mode */
+:root[data-theme='light'] {
+  --sl-color-accent-high: hsl(322, 80%, 40%);
+  --sl-color-accent: hsl(322, 80%, 55%);
+  --sl-color-accent-low: hsl(322, 90%, 88%);
+}

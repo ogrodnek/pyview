@@ -8,7 +8,13 @@ code:
   uv run code -n .
 
 docs:
-  uv run mkdocs serve
+  cd docs-site && npm run dev
+
+docs-build:
+  cd docs-site && npm run build
+
+docs-preview:
+  cd docs-site && npm run preview
 
 docker:
   docker build -t pyview .

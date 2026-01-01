@@ -1,3 +1,7 @@
+---
+title: Single-File Apps
+---
+
 # Single-File PyView Apps
 
 PyView supports single-file applications using [PEP 723](https://peps.python.org/pep-0723/) inline script metadata. Combined with [uv](https://docs.astral.sh/uv/), you can create and run a complete LiveView app in a single file with no setup.

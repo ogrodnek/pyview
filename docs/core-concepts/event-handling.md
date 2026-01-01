@@ -1,3 +1,7 @@
+---
+title: Event Handling
+---
+
 # Event Handling
 
 Event handling is at the core of PyView's interactivity. This guide covers how to handle user interactions, process form data, and manage different types of events in your LiveView applications.
