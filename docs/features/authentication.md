@@ -300,5 +300,5 @@ app.add_live_view("/dashboard", DashboardLiveView)
 
 ## Related
 
-- [LiveView Lifecycle](liveview-lifecycle.md) — The `mount()` method where you access sessions
-- [Routing](routing.md) — Adding regular routes alongside LiveViews
+- [LiveView Lifecycle](../core-concepts/liveview-lifecycle.md) — The `mount()` method where you access sessions
+- [Routing](../core-concepts/routing.md) — Adding regular routes alongside LiveViews

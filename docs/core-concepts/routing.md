@@ -15,7 +15,7 @@ app = PyView()
 
 app.add_live_view("/", CounterLiveView)
 app.add_live_view("/users", UserListLiveView)
-app.add_live_view("/users/{id:int}", UserDetailLiveView)
+app.add_live_view("/users/{id}", UserDetailLiveView)
 ```
 
 ## Path Parameters
@@ -32,16 +32,6 @@ app.add_live_view("/posts/{slug:str}", PostLiveView)
 # Matches /files/documents/report.pdf (captures full path)
 app.add_live_view("/files/{path:path}", FileLiveView)
 ```
-
-### Available Converters
-
-| Converter | Description | Example |
-|-----------|-------------|---------|
-| `str` | Any string (default) | `/users/{name}` |
-| `int` | Integer values | `/users/{id:int}` |
-| `float` | Floating point | `/items/{price:float}` |
-| `path` | Full path including slashes | `/files/{filepath:path}` |
-| `uuid` | UUID strings | `/sessions/{id:uuid}` |
 
 ## Accessing Path Parameters
 
@@ -63,12 +53,11 @@ Path parameters take precedence over query parameters if there's a name conflict
 ### Multiple Path Parameters
 
 ```python
-# Route: /orgs/{org}/projects/{project_id:int}
-app.add_live_view("/orgs/{org}/projects/{project_id:int}", ProjectLiveView)
+# Route: /orgs/{org}/projects/{project_id}
+app.add_live_view("/orgs/{org}/projects/{project_id}", ProjectLiveView)
 
 class ProjectLiveView(LiveView[ProjectContext]):
     async def handle_params(self, socket, org: str, project_id: int):
-        # org = "acme", project_id = 42 for /orgs/acme/projects/42
         project = await load_project(org, project_id)
         socket.context["project"] = project
 ```
@@ -79,7 +68,7 @@ When multiple routes could match a URL, static routes take precedence over param
 
 ```python
 app.add_live_view("/users/new", NewUserLiveView)      # Static - matched first
-app.add_live_view("/users/{id:int}", UserDetailLiveView)  # Parameterized
+app.add_live_view("/users/{id}", UserDetailLiveView)  # Parameterized
 ```
 
 A request to `/users/new` goes to `NewUserLiveView`, while `/users/123` goes to `UserDetailLiveView`.

@@ -2,12 +2,6 @@
 
 This guide walks you through installing PyView and creating your first LiveView application.
 
-## Installation
-
-```bash
-pip install pyview-web
-```
-
 PyView requires Python 3.11 or later. For t-string templates and LiveComponents, you'll need Python 3.14+.
 
 ## Quick Start with Cookiecutter
@@ -15,11 +9,8 @@ PyView requires Python 3.11 or later. For t-string templates and LiveComponents,
 The fastest way to start a new project:
 
 ```bash
-pip install cookiecutter
 cookiecutter gh:ogrodnek/pyview-cookiecutter
 ```
-
-This creates a project with sensible defaults, including a sample LiveView, templates, and dev server configuration.
 
 ## Project Structure
 
@@ -29,7 +20,7 @@ A typical PyView project looks like this:
 my_app/
 ├── app.py                 # Application entry point
 ├── views/
-│   ├── __init__.py
+│   ├── counter/__init__.py
 │   ├── counter.py         # LiveView class
 │   ├── counter.html       # Template (or use t-strings in .py)
 │   └── counter.css        # Optional, auto-included

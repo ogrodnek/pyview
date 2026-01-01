@@ -6,14 +6,10 @@ title: Home
 
 <img src="https://pyview.rocks/images/pyview_logo_512.png" width="128px" align="right" />
 
-PyView brings the [Phoenix LiveView](https://github.com/phoenixframework/phoenix_live_view) paradigm to Python: build dynamic, real-time web applications using server-rendered HTML. No JavaScript required (unless you want it).
-
-**How it works:** Your server renders HTML, then maintains a WebSocket connection. When users interact with the page, events flow to your Python code. You update state, and only the changed parts of the page are sent back. Simple, fast, productive.
-
+PyView brings the [Phoenix LiveView](https://github.com/phoenixframework/phoenix_live_view) paradigm to Python: build dynamic, real-time web applications using server-rendered HTML.
 ## Quick Start
 
 ```bash
-pip install pyview-web
 cookiecutter gh:ogrodnek/pyview-cookiecutter
 ```
 
