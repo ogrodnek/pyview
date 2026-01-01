@@ -1,96 +1,140 @@
 # Getting Started
 
-This guide walks you through installing PyView and creating your first LiveView application.
+Let's get you up and running with a real-time web app in about five minutes.
 
 PyView requires Python 3.11 or later. For t-string templates and LiveComponents, you'll need Python 3.14+.
 
 ## Quick Start with Cookiecutter
 
-The fastest way to start a new project:
+The fastest way to start a new project is with [cookiecutter](https://cookiecutter.readthedocs.io/):
 
 ```bash
 cookiecutter gh:ogrodnek/pyview-cookiecutter
 ```
 
-## Project Structure
+This gives you a complete project with:
 
-A typical PyView project looks like this:
+- A working **counter example** to play with immediately
+- [Poetry](https://python-poetry.org/) for dependency management
+- [Just](https://just.systems/) command runner for common tasks
+- Docker setup for deployment
 
-```
-my_app/
-├── app.py                 # Application entry point
-├── views/
-│   ├── counter/__init__.py
-│   ├── counter.py         # LiveView class
-│   ├── counter.html       # Template (or use t-strings in .py)
-│   └── counter.css        # Optional, auto-included
-└── static/                # Static files
-```
+> **Alternative:** Prefer [uv](https://docs.astral.sh/uv/) and want a nice component library? Try [pyview-cookiecutter-uv](https://github.com/ogrodnek/pyview-cookiecutter-uv), which uses uv for dependency management and includes [WebAwesome](https://www.webawesome.com/) components.
 
-## Your First LiveView
-
-Let's build a simple counter. Create `views/counter.py`:
-
-```python
-from pyview import LiveView, LiveViewSocket
-from typing import TypedDict
-
-
-class CountContext(TypedDict):
-    count: int
-
-
-class CounterLiveView(LiveView[CountContext]):
-    async def mount(self, socket: LiveViewSocket[CountContext], session):
-        socket.context = {"count": 0}
-
-    async def handle_event(self, event, payload, socket: LiveViewSocket[CountContext]):
-        if event == "increment":
-            socket.context["count"] += 1
-        elif event == "decrement":
-            socket.context["count"] -= 1
-```
-
-Create the template `views/counter.html`:
-
-```html
-<div>
-    <h1>Count: {{count}}</h1>
-    <button phx-click="decrement">-</button>
-    <button phx-click="increment">+</button>
-</div>
-```
-
-## Setting Up the Application
-
-Create `app.py`:
-
-```python
-from pyview import PyView
-from views.counter import CounterLiveView
-
-app = PyView()
-app.add_live_view("/", CounterLiveView)
-```
-
-## Running the Dev Server
+## Install and Run
 
 ```bash
-uvicorn app:app --reload
+cd myapp
+poetry install
+just
 ```
 
 Visit `http://localhost:8000` and click the buttons. The count updates instantly without page reloads—that's LiveView in action.
+
+Try adding `?c=10` to the URL to see how `handle_params` can initialize state from query parameters.
 
 ## What Just Happened?
 
 1. **Initial page load**: The server renders HTML and sends it to the browser
 2. **WebSocket connection**: The JavaScript client connects back to the server
 3. **User clicks a button**: `phx-click="increment"` sends an event over WebSocket
-4. **Server handles event**: `handle_event()` updates the context
+4. **Server handles event**: The event handler updates the context
 5. **Diff sent to client**: Only the changed `{{count}}` value is sent back
 6. **DOM updates**: The page updates without a full reload
 
 This is the LiveView pattern: server-rendered HTML with real-time updates over WebSocket.
+
+## Project Structure
+
+Here's what the cookiecutter generated:
+
+```
+myapp/
+├── src/myapp/
+│   ├── app.py              # Application entry point
+│   └── views/
+│       ├── __init__.py
+│       └── count/
+│           ├── __init__.py
+│           ├── count.py    # LiveView class
+│           └── count.html  # Template
+├── tests/
+├── pyproject.toml          # Poetry config
+├── justfile                # Command runner
+└── Dockerfile              # Production deployment
+```
+
+## Creating a New View
+
+Let's add a temperature converter. The `just add-view` command scaffolds a new view:
+
+```bash
+just add-view temperature
+```
+
+This creates `src/myapp/views/temperature/` with starter files and automatically exports the view. Open `temperature.py` and update it:
+
+```python
+from pyview import LiveView, LiveViewSocket
+from pyview.events import event, BaseEventHandler
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass
+class TempContext:
+    celsius: float = 0
+    fahrenheit: float = 32
+
+
+class TemperatureLiveView(BaseEventHandler, LiveView[TempContext]):
+    async def mount(self, socket: LiveViewSocket[TempContext], session):
+        socket.context = TempContext()
+
+    @event("update_celsius")
+    async def handle_celsius(self, socket: LiveViewSocket[TempContext], value: Optional[float] = None):
+        if value is None:
+            return
+        socket.context.celsius = value
+        socket.context.fahrenheit = round(value * 9/5 + 32, 1)
+
+    @event("update_fahrenheit")
+    async def handle_fahrenheit(self, socket: LiveViewSocket[TempContext], value: Optional[float] = None):
+        if value is None:
+            return
+        socket.context.fahrenheit = value
+        socket.context.celsius = round((value - 32) * 5/9, 1)
+```
+
+Now update `temperature.html`:
+
+```html
+<div>
+    <h1>Temperature Converter</h1>
+    <div>
+        <label>Celsius</label>
+        <input type="number" value="{{celsius}}" phx-keyup="update_celsius" />
+    </div>
+    <div>
+        <label>Fahrenheit</label>
+        <input type="number" value="{{fahrenheit}}" phx-keyup="update_fahrenheit" />
+    </div>
+</div>
+```
+
+Register the route in `app.py`:
+
+```python
+from .views import CountLiveView
+from .views.temperature import TemperatureLiveView
+
+routes = [
+    ("/", CountLiveView),
+    ("/temperature", TemperatureLiveView),
+]
+```
+
+Restart the server and visit `http://localhost:8000/temperature`. Type in either field and watch the other update in real-time.
 
 ## Single-File Apps
 

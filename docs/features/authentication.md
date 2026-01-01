@@ -1,6 +1,6 @@
 # Sessions and Authentication
 
-PyView integrates with Starlette's session and authentication systems. This guide covers accessing session data, protecting routes, and implementing custom authentication.
+PyView works with Starlette's session and authentication systems—you're not locked into any particular auth pattern. This guide covers accessing session data, protecting routes, and implementing custom authentication.
 
 ## Sessions
 
@@ -26,12 +26,12 @@ The session is available as the second parameter to `mount()`:
 
 ```python
 from pyview import LiveView, LiveViewSocket
-from typing import TypedDict
+from typing import TypedDict, Optional
 
 
 class DashboardContext(TypedDict):
-    user_id: str | None
-    username: str | None
+    user_id: Optional[str]
+    username: Optional[str]
 
 
 class DashboardLiveView(LiveView[DashboardContext]):
@@ -52,9 +52,13 @@ class DashboardLiveView(LiveView[DashboardContext]):
 
 ### Session Persistence
 
-Sessions are read-only within LiveViews. To modify session data (login, logout, preferences), use a regular Starlette route:
+Here's the key pattern: sessions are read-only within LiveViews. Your LiveView reads session data, but to modify it (login, logout, updating preferences), use regular Starlette routes.
+
+A clean way to organize this is to put auth routes in their own module:
 
 ```python
+# auth.py
+from starlette.applications import Starlette
 from starlette.routing import Route
 from starlette.responses import RedirectResponse
 
@@ -73,11 +77,25 @@ async def logout(request):
     request.session.clear()
     return RedirectResponse("/", status_code=303)
 
-app.routes.append(Route("/auth/login", login, methods=["POST"]))
-app.routes.append(Route("/auth/logout", logout, methods=["POST"]))
+routes = [
+    Route("/login", login, methods=["POST"]),
+    Route("/logout", logout, methods=["POST"]),
+]
+
+auth_app = Starlette(routes=routes)
 ```
 
-Your LiveView reads the session; regular routes modify it.
+Then mount it in your main app:
+
+```python
+# app.py
+from auth import auth_app
+
+app = PyView()
+app.mount("/auth", auth_app)
+```
+
+Now your auth endpoints are at `/auth/login` and `/auth/logout`, and your main app stays clean.
 
 ## Authentication with `@requires`
 
@@ -175,6 +193,7 @@ For advanced cases, implement the `AuthProvider` protocol:
 
 ```python
 from starlette.websockets import WebSocket
+from starlette.responses import Response
 from pyview.auth import AuthProvider, AuthProviderFactory
 from pyview import LiveView
 
@@ -225,21 +244,17 @@ openssl rand -base64 32
 
 ## Complete Example
 
-Here's a full example with login, logout, and protected routes:
+Here's a full example with login, logout, and protected routes, organized into separate modules:
 
 ```python
-from starlette.middleware.sessions import SessionMiddleware
-from starlette.middleware.authentication import AuthenticationMiddleware
+# auth.py
+from starlette.applications import Starlette
 from starlette.authentication import AuthCredentials, AuthenticationBackend, SimpleUser
 from starlette.routing import Route
 from starlette.responses import RedirectResponse, HTMLResponse
-from pyview import PyView, LiveView, LiveViewSocket
-from pyview.auth import requires
-from typing import TypedDict
 
 
-# Auth backend
-class SessionAuth(AuthenticationBackend):
+class SessionAuthBackend(AuthenticationBackend):
     async def authenticate(self, conn):
         user_id = conn.session.get("user_id")
         if not user_id:
@@ -247,18 +262,6 @@ class SessionAuth(AuthenticationBackend):
         return AuthCredentials(["authenticated"]), SimpleUser(conn.session.get("username", ""))
 
 
-# Protected LiveView
-class DashboardContext(TypedDict):
-    username: str
-
-
-@requires("authenticated", redirect="/login")
-class DashboardLiveView(LiveView[DashboardContext]):
-    async def mount(self, socket: LiveViewSocket[DashboardContext], session):
-        socket.context = {"username": session.get("username", "User")}
-
-
-# Login page (regular route)
 async def login_page(request):
     error = request.query_params.get("error", "")
     return HTMLResponse(f"""
@@ -278,23 +281,53 @@ async def login(request):
         request.session["user_id"] = "1"
         request.session["username"] = form["username"]
         return RedirectResponse("/dashboard", status_code=303)
-    return RedirectResponse("/login?error=1", status_code=303)
+    return RedirectResponse("/auth/login?error=1", status_code=303)
 
 
 async def logout(request):
     request.session.clear()
-    return RedirectResponse("/login", status_code=303)
+    return RedirectResponse("/auth/login", status_code=303)
 
 
-# App setup
+routes = [
+    Route("/login", login_page, methods=["GET"]),
+    Route("/login", login, methods=["POST"]),
+    Route("/logout", logout, methods=["POST"]),
+]
+
+auth_app = Starlette(routes=routes)
+```
+
+```python
+# views/dashboard.py
+from pyview import LiveView, LiveViewSocket
+from pyview.auth import requires
+from typing import TypedDict
+
+
+class DashboardContext(TypedDict):
+    username: str
+
+
+@requires("authenticated", redirect="/auth/login")
+class DashboardLiveView(LiveView[DashboardContext]):
+    async def mount(self, socket: LiveViewSocket[DashboardContext], session):
+        socket.context = {"username": session.get("username", "User")}
+```
+
+```python
+# app.py
+from starlette.middleware.sessions import SessionMiddleware
+from starlette.middleware.authentication import AuthenticationMiddleware
+from pyview import PyView
+from auth import auth_app, SessionAuthBackend
+from views.dashboard import DashboardLiveView
+
 app = PyView()
 app.add_middleware(SessionMiddleware, secret_key="change-me-in-production")
-app.add_middleware(AuthenticationMiddleware, backend=SessionAuth())
+app.add_middleware(AuthenticationMiddleware, backend=SessionAuthBackend())
 
-app.routes.append(Route("/login", login_page, methods=["GET"]))
-app.routes.append(Route("/auth/login", login, methods=["POST"]))
-app.routes.append(Route("/auth/logout", logout, methods=["POST"]))
-
+app.mount("/auth", auth_app)
 app.add_live_view("/dashboard", DashboardLiveView)
 ```
 
