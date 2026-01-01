@@ -142,4 +142,40 @@ describe('remarkRewriteMdLinks', () => {
 
     expect(tree.children[0].children[0].url).toBe('/about/');
   });
+
+  it('rewrites index.md to directory path', () => {
+    const tree = {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [
+            { type: 'link', url: 'features/file-uploads/index.md', children: [] },
+          ],
+        },
+      ],
+    };
+
+    remarkRewriteMdLinks()(tree);
+
+    expect(tree.children[0].children[0].url).toBe('features/file-uploads/');
+  });
+
+  it('rewrites index.md with anchor to directory path', () => {
+    const tree = {
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [
+            { type: 'link', url: 'features/file-uploads/index.md#overview', children: [] },
+          ],
+        },
+      ],
+    };
+
+    remarkRewriteMdLinks()(tree);
+
+    expect(tree.children[0].children[0].url).toBe('features/file-uploads/#overview');
+  });
 });
