@@ -55,6 +55,14 @@ export default defineConfig({
             },
           ],
         },
+        {
+          label: 'Deployment',
+          items: [
+            { label: 'Overview', slug: 'deployment' },
+            { label: 'Docker', slug: 'deployment/docker' },
+            { label: 'Fly.io', slug: 'deployment/fly-io' },
+          ],
+        },
       ],
     }),
   ],
