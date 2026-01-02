@@ -138,7 +138,7 @@ services:
 CMD ["uvicorn", "--host", "0.0.0.0", "--workers", "4", "myapp.app:app"]
 ```
 
-LiveView state is per-process. With multiple workers, you need sticky sessions so WebSocket connections reach the same worker that handled the initial request.
+PyView state is per-process. With multiple workers, you need sticky sessions so WebSocket connections reach the same worker that handled the initial request.
 
 ### Security
 

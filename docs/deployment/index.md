@@ -47,10 +47,10 @@ For production, consider:
 
 ### Scaling Considerations
 
-LiveView maintains stateful WebSocket connections. Each connection is tied to a specific server process. This means:
+PyView maintains stateful WebSocket connections. Each connection is tied to a specific server process. This means:
 
 - **Sticky sessions required** - Load balancers must route a user's WebSocket to the same backend that served their initial HTTP request
-- **In-memory state** - By default, LiveView state lives in the process. If a process crashes, connected clients reconnect and remount (state is lost)
+- **In-memory state** - By default, state lives in the process. If a process crashes, connected clients reconnect and remount (state is lost)
 - **PubSub** - The built-in PubSub works within a single process. For multi-process setups, you'd need an external broker (Redis, etc.)
 
 For most applications, a single process handles many concurrent connections efficiently. Start simple and scale when needed.
