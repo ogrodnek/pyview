@@ -19,27 +19,33 @@ from pyview import LiveView, LiveViewSocket
 from pyview.template import TemplateView
 from string.templatelib import Template
 from pyview.meta import PyViewMeta
+from pyview.events import AutoEventDispatch, event
 from typing import TypedDict
 
 class CountContext(TypedDict):
     count: int
 
-class CounterLiveView(TemplateView, LiveView[CountContext]):
+class CounterLiveView(AutoEventDispatch, TemplateView, LiveView[CountContext]):
     async def mount(self, socket: LiveViewSocket[CountContext], session):
         socket.context = CountContext({"count": 0})
 
-    async def handle_event(self, event, payload, socket):
-        if event == "increment":
-            socket.context["count"] += 1
-        elif event == "decrement":
-            socket.context["count"] -= 1
+    @event
+    async def increment(self, event, payload, socket):
+      socket.context["count"] += 1
+
+    @event
+    async def decrement(self, event, payload, socket):
+      socket.context["count"] -= 1
+
+    def button(self, action, text: str) -> Template:
+      return t"""<button phx-click={action}>{text}</button>"""
 
     def template(self, assigns: CountContext, meta: PyViewMeta) -> Template:
         count = assigns["count"]
         return t"""<div>
             <h1>Count: {count}</h1>
-            <button phx-click="increment">+</button>
-            <button phx-click="decrement">-</button>
+            {self.button(self.increment, "+")}
+            {self.button(self.decrement, "-")}
         </div>"""
 ```
 
