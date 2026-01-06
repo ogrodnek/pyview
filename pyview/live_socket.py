@@ -24,6 +24,7 @@ from starlette.websockets import WebSocket
 
 from pyview.async_stream_runner import AsyncStreamRunner
 from pyview.binding.helpers import call_handle_params
+from pyview.binding.params import _as_list
 from pyview.components.manager import ComponentsManager
 from pyview.events import InfoEvent
 from pyview.meta import PyViewMeta
@@ -257,7 +258,7 @@ class ConnectedLiveViewSocket(Generic[T]):
 
         # Convert explicit params to list format (matching query param format)
         # and merge with path params (path params take precedence)
-        params_for_handler = {k: [v] for k, v in params.items()}
+        params_for_handler = {k: _as_list(v) for k, v in params.items()}
         merged_params = {**params_for_handler, **path_params}
 
         await call_handle_params(self.liveview, parsed_url, merged_params, self)
