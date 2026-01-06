@@ -333,9 +333,11 @@ class TestPushPatchPathParams:
         # Create socket with routes
         mock_websocket = MagicMock()
         mock_websocket.send_text = MagicMock(return_value=None)
+
         # Make send_text a coroutine
         async def mock_send_text(text):
             pass
+
         mock_websocket.send_text = mock_send_text
 
         socket = ConnectedLiveViewSocket(
@@ -368,8 +370,10 @@ class TestPushPatchPathParams:
         routes.add("/analysis/{job_id}/summary", lambda: lv)
 
         mock_websocket = MagicMock()
+
         async def mock_send_text(text):
             pass
+
         mock_websocket.send_text = mock_send_text
 
         socket = ConnectedLiveViewSocket(
@@ -398,8 +402,10 @@ class TestPushPatchPathParams:
         lv = MyView()
 
         mock_websocket = MagicMock()
+
         async def mock_send_text(text):
             pass
+
         mock_websocket.send_text = mock_send_text
 
         # Create socket without routes (backwards compat)
