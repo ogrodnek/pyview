@@ -98,7 +98,7 @@ class LiveSocketHandler:
                 lv, path_params = self.routes.get(url.path)
                 await self.check_auth(websocket, lv)
                 socket = ConnectedLiveViewSocket(
-                    websocket, topic, lv, self.scheduler, self.instrumentation
+                    websocket, topic, lv, self.scheduler, self.instrumentation, self.routes
                 )
 
                 session = {}
@@ -308,7 +308,7 @@ class LiveSocketHandler:
 
                     # Create new socket for new LiveView
                     socket = ConnectedLiveViewSocket(
-                        socket.websocket, topic, lv, self.scheduler, self.instrumentation
+                        socket.websocket, topic, lv, self.scheduler, self.instrumentation, self.routes
                     )
 
                     session = {}

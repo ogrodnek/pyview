@@ -309,3 +309,110 @@ class TestBindingErrorHandling:
             await call_handle_params(lv, urlparse("/items"), {"page": ["invalid"]}, MagicMock())
 
         assert "Parameter binding failed" in str(exc_info.value)
+
+
+class TestPushPatchPathParams:
+    """Tests for push_patch extracting and merging path params."""
+
+    @pytest.mark.asyncio
+    async def test_push_patch_merges_path_params(self):
+        """Verify push_patch extracts and merges path params with query params."""
+        from pyview.live_routes import LiveViewLookup
+        from pyview.live_socket import ConnectedLiveViewSocket
+
+        class MyView(LiveView):
+            async def handle_params(self, socket, item_id: str, page: int = 1):
+                self.received_item_id = item_id
+                self.received_page = page
+
+        # Set up routes with a path parameter
+        routes = LiveViewLookup()
+        lv = MyView()
+        routes.add("/items/{item_id}", lambda: lv)
+
+        # Create socket with routes
+        mock_websocket = MagicMock()
+        mock_websocket.send_text = MagicMock(return_value=None)
+        # Make send_text a coroutine
+        async def mock_send_text(text):
+            pass
+        mock_websocket.send_text = mock_send_text
+
+        socket = ConnectedLiveViewSocket(
+            websocket=mock_websocket,
+            topic="lv:test",
+            liveview=lv,
+            scheduler=MagicMock(),
+            instrumentation=MagicMock(),
+            routes=routes,
+        )
+
+        # Call push_patch - should merge path param {item_id} with query param {page}
+        await socket.push_patch("/items/123", {"page": 2})
+
+        assert lv.received_item_id == "123"  # path param extracted
+        assert lv.received_page == 2  # query param passed
+
+    @pytest.mark.asyncio
+    async def test_push_patch_path_params_only(self):
+        """Verify push_patch works with only path params (no query params)."""
+        from pyview.live_routes import LiveViewLookup
+        from pyview.live_socket import ConnectedLiveViewSocket
+
+        class MyView(LiveView):
+            async def handle_params(self, socket, job_id: str):
+                self.received_job_id = job_id
+
+        routes = LiveViewLookup()
+        lv = MyView()
+        routes.add("/analysis/{job_id}/summary", lambda: lv)
+
+        mock_websocket = MagicMock()
+        async def mock_send_text(text):
+            pass
+        mock_websocket.send_text = mock_send_text
+
+        socket = ConnectedLiveViewSocket(
+            websocket=mock_websocket,
+            topic="lv:test",
+            liveview=lv,
+            scheduler=MagicMock(),
+            instrumentation=MagicMock(),
+            routes=routes,
+        )
+
+        # Call push_patch with no explicit query params
+        await socket.push_patch("/analysis/456/summary")
+
+        assert lv.received_job_id == "456"  # path param extracted
+
+    @pytest.mark.asyncio
+    async def test_push_patch_without_routes(self):
+        """Verify push_patch works when routes is None (backwards compat)."""
+        from pyview.live_socket import ConnectedLiveViewSocket
+
+        class MyView(LiveView):
+            async def handle_params(self, socket, page: int = 1):
+                self.received_page = page
+
+        lv = MyView()
+
+        mock_websocket = MagicMock()
+        async def mock_send_text(text):
+            pass
+        mock_websocket.send_text = mock_send_text
+
+        # Create socket without routes (backwards compat)
+        socket = ConnectedLiveViewSocket(
+            websocket=mock_websocket,
+            topic="lv:test",
+            liveview=lv,
+            scheduler=MagicMock(),
+            instrumentation=MagicMock(),
+            routes=None,
+        )
+
+        # Should still work, just without path params
+        await socket.push_patch("/items", {"page": 3})
+
+        assert lv.received_page == 3
