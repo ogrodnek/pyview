@@ -24,6 +24,7 @@ from starlette.websockets import WebSocket
 
 from pyview.async_stream_runner import AsyncStreamRunner
 from pyview.binding.helpers import call_handle_params
+from pyview.binding.params import _as_list
 from pyview.components.manager import ComponentsManager
 from pyview.events import InfoEvent
 from pyview.meta import PyViewMeta
@@ -36,6 +37,7 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .instrumentation import InstrumentationProvider
+    from .live_routes import LiveViewLookup
     from .live_view import LiveView
 
 
@@ -106,11 +108,13 @@ class ConnectedLiveViewSocket(Generic[T]):
         liveview: LiveView,
         scheduler: AsyncIOScheduler,
         instrumentation: InstrumentationProvider,
+        routes: Optional[LiveViewLookup] = None,
     ):
         self.websocket = websocket
         self.topic = topic
         self.liveview = liveview
         self.instrumentation = instrumentation
+        self.routes = routes
         self.scheduled_jobs = set()
         self.connected = True
         self.pub_sub = PubSub(pub_sub_hub, topic)
@@ -243,13 +247,21 @@ class ConnectedLiveViewSocket(Generic[T]):
             },
         ]
 
-        # TODO another way to marshall this
-        # Create a copy to avoid mutating the caller's dict
-        params_for_handler = {k: [v] for k, v in params.items()}
-
         # Parse string to ParseResult for type consistency
         parsed_url = urlparse(to)
-        await call_handle_params(self.liveview, parsed_url, params_for_handler, self)
+
+        # Extract path params from route pattern
+        path_params: dict[str, Any] = {}
+        if self.routes:
+            with suppress(ValueError):
+                _, path_params = self.routes.get(parsed_url.path)
+
+        # Convert explicit params to list format (matching query param format)
+        # and merge with path params (path params take precedence)
+        params_for_handler = {k: _as_list(v) for k, v in params.items()}
+        merged_params = {**params_for_handler, **path_params}
+
+        await call_handle_params(self.liveview, parsed_url, merged_params, self)
         try:
             await self.websocket.send_text(json.dumps(message))
         except Exception:
