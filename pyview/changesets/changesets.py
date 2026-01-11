@@ -257,6 +257,62 @@ class ChangeSet(Generic[Base]):
 
         return annotation
 
+    def get_field_annotation(self, path: str) -> Any:
+        """Get the type annotation for a field path.
+
+        Args:
+            path: Field path (e.g., "name", "address.city")
+
+        Returns:
+            Type annotation or None if path is invalid
+        """
+        field_info = self.get_field_info(path)
+        if field_info is not None:
+            return field_info.annotation
+        return None
+
+    def field(self, path: str) -> "FormField":
+        """Get a FormField view for a single field.
+
+        FormField provides a convenient interface for rendering form fields
+        in templates, with access to value, errors, and metadata.
+
+        Args:
+            path: Field path (e.g., "name", "address.city", "tags.0")
+
+        Returns:
+            FormField instance
+
+        Example:
+            >>> cs = change_set(User, {"name": "John"})
+            >>> f = cs.field("name")
+            >>> f.value
+            "John"
+            >>> f.label
+            "Name"
+        """
+        from pyview.forms.field import FormField
+
+        field_info = self.get_field_info(path)
+        annotation = field_info.annotation if field_info else None
+
+        # Get errors for this path (may be string or list)
+        error_value = self.errors.get(path)
+        if error_value is None:
+            errors: tuple[str, ...] = ()
+        elif isinstance(error_value, str):
+            errors = (error_value,)
+        else:
+            errors = tuple(error_value)
+
+        return FormField(
+            name=path,
+            value=self[path],
+            errors=errors,
+            field_info=field_info,
+            annotation=annotation,
+        )
+
 
 def change_set(cls: type[Base], initial: Optional[dict[str, Any]] = None) -> ChangeSet[Base]:
     """Create a new ChangeSet for a Pydantic model class.
