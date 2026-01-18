@@ -184,17 +184,32 @@ class TestLiveViewTemplate:
                 self.html = html
             def __html__(self):
                 return self.html
-        
+
         content = SafeHTML("<strong>Bold</strong>")
         template = t"<div>{content}</div>"
         result = LiveViewTemplate.process(template)
-        
+
         expected = {
             "s": ["<div>", "</div>"],
             "0": "<strong>Bold</strong>"
         }
         assert result == expected
-    
+
+    def test_markup_str_subclass_not_escaped(self):
+        """Test that str subclasses with __html__ are not escaped (like markupsafe.Markup)."""
+        from markupsafe import Markup
+
+        # Markup is a str subclass with __html__ method
+        content = Markup("<strong>Bold</strong>")
+        template = t"<div>{content}</div>"
+        result = LiveViewTemplate.process(template)
+
+        expected = {
+            "s": ["<div>", "</div>"],
+            "0": "<strong>Bold</strong>"  # Should NOT be escaped
+        }
+        assert result == expected
+
     def test_html_escaping(self):
         """Test HTML character escaping."""
         dangerous = '<script>alert("xss")</script>'
