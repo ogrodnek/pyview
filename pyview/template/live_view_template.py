@@ -159,7 +159,8 @@ class LiveViewTemplate:
                 elif hasattr(formatted_value, "__html__"):
                     # Handle objects that can render as HTML (like Markup)
                     # NOTE: This must come before isinstance(str) because Markup is a str subclass
-                    parts[key] = str(formatted_value.__html__())
+                    html_method = getattr(formatted_value, "__html__")
+                    parts[key] = str(html_method())
 
                 elif isinstance(formatted_value, str):
                     # Simple string interpolation (HTML escaped)
