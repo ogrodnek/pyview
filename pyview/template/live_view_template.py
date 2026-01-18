@@ -156,6 +156,12 @@ class LiveViewTemplate:
                     # Handle nested templates
                     parts[key] = LiveViewTemplate.process(formatted_value, socket)
 
+                elif hasattr(formatted_value, "__html__"):
+                    # Handle objects that can render as HTML (like Markup)
+                    # NOTE: This must come before isinstance(str) because Markup is a str subclass
+                    html_method = getattr(formatted_value, "__html__")
+                    parts[key] = str(html_method())
+
                 elif isinstance(formatted_value, str):
                     # Simple string interpolation (HTML escaped)
                     parts[key] = LiveViewTemplate.escape_html(formatted_value)
@@ -171,10 +177,6 @@ class LiveViewTemplate:
                 elif isinstance(formatted_value, list):
                     # Handle list comprehensions
                     parts[key] = LiveViewTemplate._process_list(formatted_value, socket)
-
-                elif hasattr(formatted_value, "__html__"):
-                    # Handle objects that can render as HTML (like Markup)
-                    parts[key] = str(formatted_value.__html__())
 
                 else:
                     # Default: convert to string and escape
