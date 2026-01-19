@@ -11,6 +11,11 @@ def calc_diff(old_tree: dict[str, Any], new_tree: dict[str, Any]) -> dict[str, A
                 diff[key] = new_tree[key]
                 continue
 
+            # Handle component CID (int) -> comprehension (dict) transition
+            if isinstance(old_tree[key], int):
+                diff[key] = new_tree[key]
+                continue
+
             # Handle special case of for loop (comprehension)
             old_static = old_tree[key].get("s", [])
             new_static = new_tree[key]["s"]
