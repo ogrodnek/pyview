@@ -17,7 +17,11 @@ logger = logging.getLogger(__name__)
 
 
 async def call_handle_params(
-    lv, url: ParseResult, params: dict[str, list[str]], socket: LiveViewSocket
+    lv,
+    url: ParseResult,
+    params: dict[str, list[str]],
+    socket: LiveViewSocket,
+    action: str | None = None,
 ):
     """Bind params and call handle_params with signature-matched args.
 
@@ -26,6 +30,7 @@ async def call_handle_params(
         url: Parsed URL
         params: Raw dict[str, list[str]] from parse_qs
         socket: The socket instance
+        action: Route action name (for routes with actions defined)
 
     Returns:
         Result of lv.handle_params()
@@ -36,6 +41,7 @@ async def call_handle_params(
         url=url,
         socket=socket,
         event=None,
+        action=action,
     )
     binder = Binder()
     result = binder.bind(lv.handle_params, ctx)

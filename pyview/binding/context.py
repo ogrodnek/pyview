@@ -22,6 +22,7 @@ class BindContext(Generic[T]):
         url: Parsed URL (for handle_params)
         socket: LiveView socket instance
         event: Event name (for handle_event)
+        action: Route action name (for handle_params with route actions)
         extra: Additional injectable values
     """
 
@@ -30,4 +31,5 @@ class BindContext(Generic[T]):
     url: Optional[ParseResult]
     socket: Optional["LiveViewSocket[T]"]
     event: Optional[str]
+    action: Optional[str] = None
     extra: dict[str, Any] = field(default_factory=dict)

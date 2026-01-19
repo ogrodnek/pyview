@@ -71,11 +71,11 @@ class PyView(Starlette):
 
         return lifespan
 
-    def add_live_view(self, path: str, view: type[LiveView]):
+    def add_live_view(self, path: str, view: type[LiveView], action: str | None = None):
         async def lv(request: Request):
             return await liveview_container(self.rootTemplate, self.view_lookup, request)
 
-        self.view_lookup.add(path, view)
+        self.view_lookup.add(path, view, action)
         auth = AuthProviderFactory.get(view)
         self.routes.append(Route(path, auth.wrap(lv), methods=["GET"]))
 
@@ -83,7 +83,7 @@ class PyView(Starlette):
 async def liveview_container(template: RootTemplate, view_lookup: LiveViewLookup, request: Request):
     url = request.url
     path = url.path
-    lv, path_params = view_lookup.get(path)
+    lv, path_params, action = view_lookup.get(path)
     s = UnconnectedSocket()
 
     session = request.session if "session" in request.scope else {}
@@ -98,7 +98,7 @@ async def liveview_container(template: RootTemplate, view_lookup: LiveViewLookup
     merged_params = {**query_params, **path_params}
 
     # Pass merged parameters to handle_params
-    await call_handle_params(lv, urlparse(url._url), merged_params, s)
+    await call_handle_params(lv, urlparse(url._url), merged_params, s, action)
 
     # Pass socket to meta for component registration
     meta = PyViewMeta(socket=s)

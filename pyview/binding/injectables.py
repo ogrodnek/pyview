@@ -48,6 +48,8 @@ class InjectableRegistry(Generic[T]):
             return ctx.payload
         if name == "url":
             return ctx.url
+        if name == "action":
+            return ctx.action
         if name == "params":
             # Only inject if typed as Params, dict, or untyped (Any)
             # Otherwise treat "params" as a regular URL param name

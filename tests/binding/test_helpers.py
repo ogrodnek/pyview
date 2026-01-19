@@ -422,3 +422,119 @@ class TestPushPatchPathParams:
         await socket.push_patch("/items", {"page": 3})
 
         assert lv.received_page == 3
+
+
+class TestActionInjection:
+    """Tests for action parameter injection in handle_params."""
+
+    @pytest.mark.asyncio
+    async def test_action_injected_into_handle_params(self):
+        """Verify action is passed to handle_params when route has action defined."""
+        from pyview.live_routes import LiveViewLookup
+        from pyview.live_socket import ConnectedLiveViewSocket
+
+        class MyView(LiveView):
+            async def handle_params(self, socket, action: str, id: int = None):
+                self.received_action = action
+                self.received_id = id
+
+        routes = LiveViewLookup()
+        lv = MyView()
+        routes.add("/articles", lambda: lv, action="index")
+        routes.add("/articles/{id:int}/edit", lambda: lv, action="edit")
+
+        mock_websocket = MagicMock()
+
+        async def mock_send_text(text):
+            pass
+
+        mock_websocket.send_text = mock_send_text
+
+        socket = ConnectedLiveViewSocket(
+            websocket=mock_websocket,
+            topic="lv:test",
+            liveview=lv,
+            scheduler=MagicMock(),
+            instrumentation=MagicMock(),
+            routes=routes,
+        )
+
+        # Test index action
+        await socket.push_patch("/articles")
+        assert lv.received_action == "index"
+        assert lv.received_id is None
+
+        # Test edit action with path param
+        await socket.push_patch("/articles/42/edit")
+        assert lv.received_action == "edit"
+        assert lv.received_id == 42
+
+    @pytest.mark.asyncio
+    async def test_action_is_none_when_not_defined(self):
+        """Verify action is None when route has no action defined."""
+        from pyview.live_routes import LiveViewLookup
+        from pyview.live_socket import ConnectedLiveViewSocket
+
+        class MyView(LiveView):
+            async def handle_params(self, socket, action: str = None):
+                self.received_action = action
+
+        routes = LiveViewLookup()
+        lv = MyView()
+        routes.add("/legacy", lambda: lv)  # No action
+
+        mock_websocket = MagicMock()
+
+        async def mock_send_text(text):
+            pass
+
+        mock_websocket.send_text = mock_send_text
+
+        socket = ConnectedLiveViewSocket(
+            websocket=mock_websocket,
+            topic="lv:test",
+            liveview=lv,
+            scheduler=MagicMock(),
+            instrumentation=MagicMock(),
+            routes=routes,
+        )
+
+        await socket.push_patch("/legacy")
+        assert lv.received_action is None
+
+    @pytest.mark.asyncio
+    async def test_action_works_with_other_params(self):
+        """Verify action works alongside path params and query params."""
+        from pyview.live_routes import LiveViewLookup
+        from pyview.live_socket import ConnectedLiveViewSocket
+
+        class MyView(LiveView):
+            async def handle_params(self, socket, action: str, category: str, page: int = 1):
+                self.received_action = action
+                self.received_category = category
+                self.received_page = page
+
+        routes = LiveViewLookup()
+        lv = MyView()
+        routes.add("/browse/{category}", lambda: lv, action="browse")
+
+        mock_websocket = MagicMock()
+
+        async def mock_send_text(text):
+            pass
+
+        mock_websocket.send_text = mock_send_text
+
+        socket = ConnectedLiveViewSocket(
+            websocket=mock_websocket,
+            topic="lv:test",
+            liveview=lv,
+            scheduler=MagicMock(),
+            instrumentation=MagicMock(),
+            routes=routes,
+        )
+
+        await socket.push_patch("/browse/electronics", {"page": 5})
+        assert lv.received_action == "browse"
+        assert lv.received_category == "electronics"
+        assert lv.received_page == 5

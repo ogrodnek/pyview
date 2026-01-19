@@ -95,7 +95,7 @@ class LiveSocketHandler:
                 self.myJoinId = topic
 
                 url = urlparse(payload["url"])
-                lv, path_params = self.routes.get(url.path)
+                lv, path_params, action = self.routes.get(url.path)
                 await self.check_auth(websocket, lv)
                 socket = ConnectedLiveViewSocket(
                     websocket, topic, lv, self.scheduler, self.instrumentation, self.routes
@@ -116,7 +116,7 @@ class LiveSocketHandler:
                 merged_params = {**query_params, **path_params}
 
                 # Pass merged parameters to handle_params
-                await call_handle_params(lv, url, merged_params, socket)
+                await call_handle_params(lv, url, merged_params, socket, action)
 
                 rendered = await _render(socket)
                 socket.prev_rendered = rendered
@@ -233,15 +233,15 @@ class LiveSocketHandler:
                 # Extract and merge parameters
                 query_params = parse_qs(url.query)
                 path_params = {}
+                action = None
 
-                # We need to get path params for the new URL
+                # Get path params and action for the new URL
                 with suppress(ValueError):
-                    # TODO: I don't think this is actually going to work...
-                    _, path_params = self.routes.get(url.path)
+                    _, path_params, action = self.routes.get(url.path)
 
                 merged_params = {**query_params, **path_params}
 
-                await call_handle_params(lv, url, merged_params, socket)
+                await call_handle_params(lv, url, merged_params, socket, action)
                 rendered = await _render(socket)
                 diff = socket.diff(rendered)
 
@@ -303,7 +303,7 @@ class LiveSocketHandler:
                         else str(url_str_raw)
                     )
                     url = urlparse(url_str)
-                    lv, path_params = self.routes.get(url.path)
+                    lv, path_params, action = self.routes.get(url.path)
                     await self.check_auth(socket.websocket, lv)
 
                     # Create new socket for new LiveView
@@ -326,7 +326,7 @@ class LiveSocketHandler:
                     query_params = parse_qs(url.query)
                     merged_params = {**query_params, **path_params}
 
-                    await call_handle_params(lv, url, merged_params, socket)
+                    await call_handle_params(lv, url, merged_params, socket, action)
 
                     rendered = await _render(socket)
                     socket.prev_rendered = rendered

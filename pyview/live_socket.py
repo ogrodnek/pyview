@@ -250,18 +250,19 @@ class ConnectedLiveViewSocket(Generic[T]):
         # Parse string to ParseResult for type consistency
         parsed_url = urlparse(to)
 
-        # Extract path params from route pattern
+        # Extract path params and action from route pattern
         path_params: dict[str, Any] = {}
+        action: str | None = None
         if self.routes:
             with suppress(ValueError):
-                _, path_params = self.routes.get(parsed_url.path)
+                _, path_params, action = self.routes.get(parsed_url.path)
 
         # Convert explicit params to list format (matching query param format)
         # and merge with path params (path params take precedence)
         params_for_handler = {k: _as_list(v) for k, v in params.items()}
         merged_params = {**params_for_handler, **path_params}
 
-        await call_handle_params(self.liveview, parsed_url, merged_params, self)
+        await call_handle_params(self.liveview, parsed_url, merged_params, self, action)
         try:
             await self.websocket.send_text(json.dumps(message))
         except Exception:
