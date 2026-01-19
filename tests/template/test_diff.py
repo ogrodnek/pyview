@@ -143,3 +143,33 @@ def test_dict_missing_both_s_and_d():
 
     # Should return full new structure
     assert calc_diff(old, new) == {"0": {"s": ["<div>", "</div>"], "d": [["A"]]}}
+
+
+def test_component_cid_to_comprehension():
+    """
+    Test when old tree has component CID (int) and new tree has comprehension (dict).
+    This can happen when a component is conditionally replaced with a loop.
+    """
+    # Old: component at position "0" with CID = 1
+    old = {"0": 1}
+
+    # New: comprehension at position "0"
+    new = {"0": {"s": ["<span>", "</span>"], "d": [["Item1"], ["Item2"]]}}
+
+    # Should return the full new structure since types are incompatible
+    assert calc_diff(old, new) == {"0": {"s": ["<span>", "</span>"], "d": [["Item1"], ["Item2"]]}}
+
+
+def test_comprehension_to_component_cid():
+    """
+    Test when old tree has comprehension (dict) and new tree has component CID (int).
+    This can happen when a loop is conditionally replaced with a component.
+    """
+    # Old: comprehension at position "0"
+    old = {"0": {"s": ["<span>", "</span>"], "d": [["Item1"], ["Item2"]]}}
+
+    # New: component at position "0" with CID = 2
+    new = {"0": 2}
+
+    # Should return the new CID
+    assert calc_diff(old, new) == {"0": 2}
