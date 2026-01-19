@@ -1,6 +1,6 @@
 [project]
 name = "pyview-web"
-version = "0.8.1"
+version = "0.8.2"
 description = "LiveView in Python"
 authors = [{ name = "Larry Ogrodnek", email = "ogrodnek@gmail.com" }]
 license = { text = "MIT" }
