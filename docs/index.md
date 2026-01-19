@@ -33,6 +33,7 @@ See PyView in action: [examples.pyview.rocks](https://examples.pyview.rocks/)
 - **[Event Handling](core-concepts/event-handling.md)** — Clicks, forms, typed parameters, decorators
 - **[LiveComponents](core-concepts/live-components.md)** — Stateful, reusable UI components (Python 3.14+)
 - **[Routing](core-concepts/routing.md)** — URL patterns, path parameters, route organization
+- **[Route Actions](core-concepts/route-actions.md)** — Group routes to share a LiveView instance
 
 ### Templating
 

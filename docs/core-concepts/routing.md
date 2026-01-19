@@ -183,3 +183,5 @@ app.rootTemplate = defaultRootTemplate(css=css)
 ```
 
 See [Socket and Context - Navigation](socket-and-context.md#navigation) for navigating between routes programmatically.
+
+See [Route Actions](route-actions.md) for grouping multiple routes under the same LiveView instance.
