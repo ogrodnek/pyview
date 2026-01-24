@@ -1,5 +1,5 @@
 from pyview.components import ComponentMeta, ComponentsManager, ComponentSocket, LiveComponent
-from pyview.js import JsCommand
+from pyview.js import JsCommand, JsCommands, js
 from pyview.live_socket import (
     ConnectedLiveViewSocket,
     LiveViewSocket,
@@ -17,6 +17,8 @@ __all__ = [
     "PyView",
     "defaultRootTemplate",
     "JsCommand",
+    "JsCommands",
+    "js",
     "RootTemplateContext",
     "RootTemplate",
     "is_connected",

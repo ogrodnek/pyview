@@ -34,6 +34,7 @@ from .views import (
 if sys.version_info >= (3, 14):
     from .views.components import SlotsDemo, StatefulComponentsDemo, StatelessComponentsDemo
     from .views.count.count_tstring import CounterTStringLiveView
+    from .views.js_commands.js_commands_tstring import JsCommandsTStringLiveView
     from .views.streams.streams_tstring import StreamsTStringLiveView
 
 app = PyView()
@@ -157,6 +158,7 @@ routes = [
 if sys.version_info >= (3, 14):
     routes.append(("/counter_tstring", CounterTStringLiveView))
     routes.append(("/streams_tstring", StreamsTStringLiveView))
+    routes.append(("/js_commands_tstring", JsCommandsTStringLiveView))
     routes.append(("/components/stateless", StatelessComponentsDemo))
     routes.append(("/components/stateful", StatefulComponentsDemo))
     routes.append(("/components/slots", SlotsDemo))
