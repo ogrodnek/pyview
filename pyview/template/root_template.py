@@ -44,8 +44,9 @@ def _defaultRootTemplate(
     contentWrapper: ContentWrapper,
     default_title: Optional[str] = None,
     title_suffix: Optional[str] = " | LiveView",
-    head_content: Markup = Markup(""),
+    head_content: Optional[Markup] = None,
 ) -> str:
+    head_content = head_content or Markup("")
     suffix = title_suffix or ""
     # Use context title if provided, otherwise use default_title, otherwise "LiveView"
     title = context.get("title") or default_title
