@@ -18,6 +18,7 @@ ContentWrapper = Callable[[RootTemplateContext, Markup], Markup]
 
 def defaultRootTemplate(
     css: Optional[Markup] = None,
+    head_content: Optional[Markup] = None,
     content_wrapper: Optional[ContentWrapper] = None,
     title: Optional[str] = None,
     title_suffix: Optional[str] = " | LiveView",
@@ -26,7 +27,12 @@ def defaultRootTemplate(
 
     def template(context: RootTemplateContext) -> str:
         return _defaultRootTemplate(
-            context, css or Markup(""), content_wrapper, title, title_suffix
+            context,
+            css or Markup(""),
+            head_content or Markup(""),
+            content_wrapper,
+            title,
+            title_suffix,
         )
 
     return template
@@ -35,6 +41,7 @@ def defaultRootTemplate(
 def _defaultRootTemplate(
     context: RootTemplateContext,
     css: Markup,
+    head_content: Markup,
     contentWrapper: ContentWrapper,
     default_title: Optional[str] = None,
     title_suffix: Optional[str] = " | LiveView",
@@ -72,6 +79,7 @@ def _defaultRootTemplate(
       <meta http-equiv="X-UA-Compatible" content="IE=edge">
       <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
       {css}
+      {head_content}
       <script defer type="text/javascript" src="/static/assets/app.js"></script>
       {additional_head_elements}
     </head>

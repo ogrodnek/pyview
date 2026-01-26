@@ -86,8 +86,7 @@
           var key, value;
           for (key in options) {
             value = options[key];
-            if (value !== void 0 && options.hasOwnProperty(key))
-              Settings[key] = value;
+            if (value !== void 0 && options.hasOwnProperty(key)) Settings[key] = value;
           }
           return this;
         };
@@ -99,8 +98,7 @@
           var progress = NProgress2.render(!started), bar = progress.querySelector(Settings.barSelector), speed = Settings.speed, ease = Settings.easing;
           progress.offsetWidth;
           queue(function(next) {
-            if (Settings.positionUsing === "")
-              Settings.positionUsing = NProgress2.getPositioningCSS();
+            if (Settings.positionUsing === "") Settings.positionUsing = NProgress2.getPositioningCSS();
             css(bar, barPositionCSS(n, speed, ease));
             if (n === 1) {
               css(progress, {
@@ -128,23 +126,19 @@
           return typeof NProgress2.status === "number";
         };
         NProgress2.start = function() {
-          if (!NProgress2.status)
-            NProgress2.set(0);
+          if (!NProgress2.status) NProgress2.set(0);
           var work = function() {
             setTimeout(function() {
-              if (!NProgress2.status)
-                return;
+              if (!NProgress2.status) return;
               NProgress2.trickle();
               work();
             }, Settings.trickleSpeed);
           };
-          if (Settings.trickle)
-            work();
+          if (Settings.trickle) work();
           return this;
         };
         NProgress2.done = function(force) {
-          if (!force && !NProgress2.status)
-            return this;
+          if (!force && !NProgress2.status) return this;
           return NProgress2.inc(0.3 + 0.5 * Math.random()).set(1);
         };
         NProgress2.inc = function(amount) {
@@ -186,8 +180,7 @@
           };
         })();
         NProgress2.render = function(fromStart) {
-          if (NProgress2.isRendered())
-            return document.getElementById("nprogress");
+          if (NProgress2.isRendered()) return document.getElementById("nprogress");
           addClass(document.documentElement, "nprogress-busy");
           var progress = document.createElement("div");
           progress.id = "nprogress";
@@ -228,10 +221,8 @@
           }
         };
         function clamp(n, min, max) {
-          if (n < min)
-            return min;
-          if (n > max)
-            return max;
+          if (n < min) return min;
+          if (n > max) return max;
           return n;
         }
         function toBarPerc(n) {
@@ -249,7 +240,7 @@
           barCSS.transition = "all " + speed + "ms " + ease;
           return barCSS;
         }
-        var queue = function() {
+        var queue = /* @__PURE__ */ (function() {
           var pending = [];
           function next() {
             var fn = pending.shift();
@@ -259,11 +250,10 @@
           }
           return function(fn) {
             pending.push(fn);
-            if (pending.length == 1)
-              next();
+            if (pending.length == 1) next();
           };
-        }();
-        var css = function() {
+        })();
+        var css = /* @__PURE__ */ (function() {
           var cssPrefixes = ["Webkit", "O", "Moz", "ms"], cssProps = {};
           function camelCase(string) {
             return string.replace(/^-ms-/, "ms-").replace(/-([\da-z])/gi, function(match, letter) {
@@ -272,13 +262,11 @@
           }
           function getVendorProp(name) {
             var style = document.body.style;
-            if (name in style)
-              return name;
+            if (name in style) return name;
             var i = cssPrefixes.length, capName = name.charAt(0).toUpperCase() + name.slice(1), vendorName;
             while (i--) {
               vendorName = cssPrefixes[i] + capName;
-              if (vendorName in style)
-                return vendorName;
+              if (vendorName in style) return vendorName;
             }
             return name;
           }
@@ -295,28 +283,25 @@
             if (args.length == 2) {
               for (prop in properties) {
                 value = properties[prop];
-                if (value !== void 0 && properties.hasOwnProperty(prop))
-                  applyCss(element, prop, value);
+                if (value !== void 0 && properties.hasOwnProperty(prop)) applyCss(element, prop, value);
               }
             } else {
               applyCss(element, args[1], args[2]);
             }
           };
-        }();
+        })();
         function hasClass(element, name) {
           var list = typeof element == "string" ? element : classList(element);
           return list.indexOf(" " + name + " ") >= 0;
         }
         function addClass(element, name) {
           var oldList = classList(element), newList = oldList + name;
-          if (hasClass(oldList, name))
-            return;
+          if (hasClass(oldList, name)) return;
           element.className = newList.substring(1);
         }
         function removeClass(element, name) {
           var oldList = classList(element), newList;
-          if (!hasClass(element, name))
-            return;
+          if (!hasClass(element, name)) return;
           newList = oldList.replace(" " + name + " ", " ");
           element.className = newList.substring(1, newList.length - 1);
         }
@@ -335,8 +320,7 @@
   (function() {
     var PolyfillEvent = eventConstructor();
     function eventConstructor() {
-      if (typeof window.CustomEvent === "function")
-        return window.CustomEvent;
+      if (typeof window.CustomEvent === "function") return window.CustomEvent;
       function CustomEvent2(event, params) {
         params = params || { bubbles: false, cancelable: false, detail: void 0 };
         var evt = document.createEvent("CustomEvent");
@@ -358,10 +342,8 @@
       form.method = element.getAttribute("data-method") === "get" ? "get" : "post";
       form.action = to;
       form.style.display = "hidden";
-      if (target)
-        form.target = target;
-      else if (targetModifierKey)
-        form.target = "_blank";
+      if (target) form.target = target;
+      else if (targetModifierKey) form.target = "_blank";
       form.appendChild(csrf);
       form.appendChild(method);
       document.body.appendChild(form);
@@ -369,8 +351,7 @@
     }
     window.addEventListener("click", function(e) {
       var element = e.target;
-      if (e.defaultPrevented)
-        return;
+      if (e.defaultPrevented) return;
       while (element && element.getAttribute) {
         var phoenixLinkEvent = new PolyfillEvent("phoenix.link.click", {
           "bubbles": true,
@@ -616,14 +597,12 @@
       });
       this.onClose(() => {
         this.rejoinTimer.reset();
-        if (this.socket.hasLogger())
-          this.socket.log("channel", `close ${this.topic} ${this.joinRef()}`);
+        if (this.socket.hasLogger()) this.socket.log("channel", `close ${this.topic} ${this.joinRef()}`);
         this.state = CHANNEL_STATES.closed;
         this.socket.remove(this);
       });
       this.onError((reason) => {
-        if (this.socket.hasLogger())
-          this.socket.log("channel", `error ${this.topic}`, reason);
+        if (this.socket.hasLogger()) this.socket.log("channel", `error ${this.topic}`, reason);
         if (this.isJoining()) {
           this.joinPush.reset();
         }
@@ -633,8 +612,7 @@
         }
       });
       this.joinPush.receive("timeout", () => {
-        if (this.socket.hasLogger())
-          this.socket.log("channel", `timeout ${this.topic} (${this.joinRef()})`, this.joinPush.timeout);
+        if (this.socket.hasLogger()) this.socket.log("channel", `timeout ${this.topic} (${this.joinRef()})`, this.joinPush.timeout);
         let leavePush = new Push(this, CHANNEL_EVENTS.leave, closure({}), this.timeout);
         leavePush.send();
         this.state = CHANNEL_STATES.errored;
@@ -780,8 +758,7 @@
       this.joinPush.cancelTimeout();
       this.state = CHANNEL_STATES.leaving;
       let onClose = () => {
-        if (this.socket.hasLogger())
-          this.socket.log("channel", `leave ${this.topic}`);
+        if (this.socket.hasLogger()) this.socket.log("channel", `leave ${this.topic}`);
         this.trigger(CHANNEL_EVENTS.close, "leave");
       };
       let leavePush = new Push(this, CHANNEL_EVENTS.leave, closure({}), timeout);
@@ -815,8 +792,7 @@
         return false;
       }
       if (joinRef && joinRef !== this.joinRef()) {
-        if (this.socket.hasLogger())
-          this.socket.log("channel", "dropping outdated message", { topic, event, payload, joinRef });
+        if (this.socket.hasLogger()) this.socket.log("channel", "dropping outdated message", { topic, event, payload, joinRef });
         return false;
       } else {
         return true;
@@ -1583,8 +1559,7 @@
       clearTimeout(this.heartbeatTimeoutTimer);
     }
     onConnOpen() {
-      if (this.hasLogger())
-        this.log("transport", `${this.transport.name} connected to ${this.endPointURL()}`);
+      if (this.hasLogger()) this.log("transport", `${this.transport.name} connected to ${this.endPointURL()}`);
       this.closeWasClean = false;
       this.disconnecting = false;
       this.establishedConnections++;
@@ -1669,12 +1644,10 @@
       }, 150 * tries);
     }
     onConnClose(event) {
-      if (this.conn)
-        this.conn.onclose = () => {
-        };
+      if (this.conn) this.conn.onclose = () => {
+      };
       let closeCode = event && event.code;
-      if (this.hasLogger())
-        this.log("transport", "close", event);
+      if (this.hasLogger()) this.log("transport", "close", event);
       this.triggerChanError();
       this.clearHeartbeats();
       if (!this.closeWasClean && closeCode !== 1e3) {
@@ -1686,8 +1659,7 @@
      * @private
      */
     onConnError(error) {
-      if (this.hasLogger())
-        this.log("transport", error);
+      if (this.hasLogger()) this.log("transport", error);
       let transportBefore = this.transport;
       let establishedBefore = this.establishedConnections;
       this.stateChangeCallbacks.error.forEach(([, callback]) => {
@@ -1811,8 +1783,7 @@
           this.pendingHeartbeatRef = null;
           this.heartbeatTimer = setTimeout(() => this.sendHeartbeat(), this.heartbeatIntervalMs);
         }
-        if (this.hasLogger())
-          this.log("receive", `${payload.status || ""} ${topic} ${event} ${ref && "(" + ref + ")" || ""}`, payload);
+        if (this.hasLogger()) this.log("receive", `${payload.status || ""} ${topic} ${event} ${ref && "(" + ref + ")" || ""}`, payload);
         for (let i = 0; i < this.channels.length; i++) {
           const channel = this.channels[i];
           if (!channel.isMember(topic, event, payload, join_ref)) {
@@ -1829,8 +1800,7 @@
     leaveOpenTopic(topic) {
       let dupChannel = this.channels.find((c) => c.topic === topic && (c.isJoined() || c.isJoining()));
       if (dupChannel) {
-        if (this.hasLogger())
-          this.log("transport", `leaving duplicate topic "${topic}"`);
+        if (this.hasLogger()) this.log("transport", `leaving duplicate topic "${topic}"`);
         dupChannel.leave();
       }
     }
@@ -4695,7 +4665,7 @@ removing illegal node: "${(childNode.outerHTML || childNode.nodeValue).trim()}"
     }
   };
   var serializeForm = (form, metadata, onlyNames = []) => {
-    const _a2 = metadata, { submitter } = _a2, meta = __objRest(_a2, ["submitter"]);
+    const _a4 = metadata, { submitter } = _a4, meta = __objRest(_a4, ["submitter"]);
     let injectedElement;
     if (submitter && submitter.name) {
       const input = document.createElement("input");
@@ -6742,6 +6712,8 @@ removing illegal node: "${(childNode.outerHTML || childNode.nodeValue).trim()}"
   var import_nprogress = __toESM(require_nprogress());
   var _a;
   var Hooks2 = (_a = window.Hooks) != null ? _a : {};
+  var _a2;
+  var userConfig = (_a2 = window.LiveViewConfig) != null ? _a2 : {};
   var scrollAt = () => {
     let scrollTop2 = document.documentElement.scrollTop || document.body.scrollTop;
     let scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
@@ -6766,10 +6738,12 @@ removing illegal node: "${(childNode.outerHTML || childNode.nodeValue).trim()}"
     }
   };
   var csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
+  var _a3, _b, _c;
   var liveSocket = new LiveSocket("/live", Socket, {
-    hooks: Hooks2,
-    params: { _csrf_token: csrfToken },
-    uploaders: window.Uploaders || {}
+    hooks: __spreadValues(__spreadValues({}, Hooks2), (_a3 = userConfig.hooks) != null ? _a3 : {}),
+    params: __spreadValues({ _csrf_token: csrfToken }, (_b = userConfig.params) != null ? _b : {}),
+    uploaders: __spreadValues(__spreadValues({}, window.Uploaders || {}), (_c = userConfig.uploaders) != null ? _c : {}),
+    dom: userConfig.dom
   });
   window.addEventListener("phx:page-loading-start", (info) => import_nprogress.default.start());
   window.addEventListener("phx:page-loading-stop", (info) => import_nprogress.default.done());
