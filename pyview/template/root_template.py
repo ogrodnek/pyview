@@ -18,10 +18,10 @@ ContentWrapper = Callable[[RootTemplateContext, Markup], Markup]
 
 def defaultRootTemplate(
     css: Optional[Markup] = None,
-    head_content: Optional[Markup] = None,
     content_wrapper: Optional[ContentWrapper] = None,
     title: Optional[str] = None,
     title_suffix: Optional[str] = " | LiveView",
+    head_content: Optional[Markup] = None,
 ) -> RootTemplate:
     content_wrapper = content_wrapper or (lambda c, m: m)
 
@@ -29,10 +29,10 @@ def defaultRootTemplate(
         return _defaultRootTemplate(
             context,
             css or Markup(""),
-            head_content or Markup(""),
             content_wrapper,
             title,
             title_suffix,
+            head_content or Markup(""),
         )
 
     return template
@@ -41,10 +41,10 @@ def defaultRootTemplate(
 def _defaultRootTemplate(
     context: RootTemplateContext,
     css: Markup,
-    head_content: Markup,
     contentWrapper: ContentWrapper,
     default_title: Optional[str] = None,
     title_suffix: Optional[str] = " | LiveView",
+    head_content: Markup = Markup(""),
 ) -> str:
     suffix = title_suffix or ""
     # Use context title if provided, otherwise use default_title, otherwise "LiveView"
