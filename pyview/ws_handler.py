@@ -255,6 +255,33 @@ class LiveSocketHandler:
                 await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
                 continue
 
+            if event == "cids_will_destroy":
+                # Client notifies that these CIDs are being removed from DOM
+                # Actual cleanup handled by prune_stale_components() during render
+                resp = [
+                    joinRef,
+                    messageRef,
+                    topic,
+                    "phx_reply",
+                    {"response": {}, "status": "ok"},
+                ]
+                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+                continue
+
+            if event == "cids_destroyed":
+                # Client confirms CIDs have been fully removed from DOM
+                # Return the CIDs so client can prune its render cache
+                cids = payload.get("cids", [])
+                resp = [
+                    joinRef,
+                    messageRef,
+                    topic,
+                    "phx_reply",
+                    {"response": {"cids": cids}, "status": "ok"},
+                ]
+                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+                continue
+
             if event == "allow_upload":
                 allow_upload_response = await socket.upload_manager.process_allow_upload(
                     payload, socket.context
