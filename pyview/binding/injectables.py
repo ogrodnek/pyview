@@ -42,6 +42,8 @@ class InjectableRegistry(Generic[T]):
         # Name-based injection
         if name == "socket":
             return ctx.socket
+        if name == "session":
+            return ctx.extra.get("session", _NOT_FOUND)
         if name == "event":
             return ctx.event
         if name == "payload":

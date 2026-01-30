@@ -1,4 +1,5 @@
 from pyview.components import ComponentMeta, ComponentsManager, ComponentSocket, LiveComponent
+from pyview.depends import Depends
 from pyview.js import JsCommand
 from pyview.live_socket import (
     ConnectedLiveViewSocket,
@@ -29,4 +30,6 @@ __all__ = [
     "ComponentMeta",
     "ComponentSocket",
     "ComponentsManager",
+    # Dependency injection
+    "Depends",
 ]
