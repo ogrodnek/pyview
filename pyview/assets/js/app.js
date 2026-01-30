@@ -27,6 +27,7 @@ import { LiveSocket } from "phoenix_live_view";
 import NProgress from "nprogress";
 
 let Hooks = window.Hooks ?? {};
+let userConfig = window.LiveViewConfig ?? {};
 
 let scrollAt = () => {
   let scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
@@ -59,9 +60,10 @@ let csrfToken = document
   .querySelector("meta[name='csrf-token']")
   .getAttribute("content");
 let liveSocket = new LiveSocket("/live", Socket, {
-  hooks: Hooks,
-  params: { _csrf_token: csrfToken },
-  uploaders: window.Uploaders || {},
+  hooks: { ...Hooks, ...(userConfig.hooks ?? {}) },
+  params: { _csrf_token: csrfToken, ...(userConfig.params ?? {}) },
+  uploaders: { ...(window.Uploaders || {}), ...(userConfig.uploaders ?? {}) },
+  dom: userConfig.dom,
 });
 
 // Show progress bar on live navigation and form submits
