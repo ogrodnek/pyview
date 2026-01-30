@@ -61,10 +61,12 @@ class SettingsLiveView(LiveView[SettingsContext]):
 
 ## Session Access in Dependencies
 
-Dependencies can access the session by declaring a `session` parameter:
+Use the `Session` type to inject the session dict into your dependencies:
 
 ```python
-async def get_current_user(session):
+from pyview import Depends, LiveView, Session
+
+async def get_current_user(session: Session):
     """Load the current user from session."""
     user_id = session.get("user_id")
     if not user_id:
@@ -79,20 +81,24 @@ class ProfileLiveView(LiveView[ProfileContext]):
         socket.context = {"user": user}
 ```
 
-This is particularly useful for services that need authentication context.
+The `Session` type is injected based on the type annotation—you can name the parameter whatever you like (`session`, `sess`, `s`, etc.). This is cleaner than name-based injection and works consistently in dependency functions.
+
+This pattern is particularly useful for services that need authentication context.
 
 ## Dependency Chains
 
 Dependencies can depend on other dependencies. PyView resolves them in the right order:
 
 ```python
+from pyview import Depends, LiveView, Session
+
 async def get_database():
     return await create_connection()
 
 async def get_user_repository(db=Depends(get_database)):
     return UserRepository(db)
 
-async def get_current_user(session, users=Depends(get_user_repository)):
+async def get_current_user(session: Session, users=Depends(get_user_repository)):
     user_id = session.get("user_id")
     return await users.find(user_id) if user_id else None
 
@@ -148,9 +154,10 @@ class MyView(LiveView):
 `Depends()` works in event handlers too:
 
 ```python
+from pyview import Depends, LiveView, Session
 from pyview.events import BaseEventHandler, event
 
-async def get_notification_service(session):
+async def get_notification_service(session: Session):
     return NotificationService(session.get("user_id"))
 
 class NotificationLiveView(BaseEventHandler, LiveView[NotificationContext]):
@@ -206,7 +213,24 @@ async def test_get_current_user_no_session():
 
 ## Available Injectables
 
-Beyond `Depends()`, certain parameter names are automatically injected:
+### Type-based injection
+
+Use type annotations to inject these values—parameter names don't matter:
+
+| Type | Description |
+|------|-------------|
+| `Session` | Session dict (read-only in LiveViews) |
+
+```python
+from pyview import Session
+
+async def get_user(sess: Session):  # Name doesn't matter, type does
+    return sess.get("user_id")
+```
+
+### Name-based injection
+
+These are injected based on parameter name (for backward compatibility):
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -220,13 +244,15 @@ Beyond `Depends()`, certain parameter names are automatically injected:
 ```python
 class MyLiveView(LiveView):
     async def mount(self, socket, session):
-        # socket and session are automatically injected
+        # socket and session are automatically injected by name
         pass
 
     async def handle_params(self, url, socket, page: int = 1):
         # url is injected, page is extracted from query params
         pass
 ```
+
+> **Tip:** For dependency functions, prefer `Session` type over the `session` name—it's more explicit and works regardless of what you name the parameter.
 
 ## When to Use Depends
 

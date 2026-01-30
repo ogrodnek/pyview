@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, get_args, get_origin
+from typing import TYPE_CHECKING, Annotated, Any, Generic, TypeVar, get_args, get_origin
+
+from pyview.depends import _SessionInjector
 
 from .converters import ConverterRegistry
 from .params import Params
@@ -39,7 +41,11 @@ class InjectableRegistry(Generic[T]):
         Returns:
             The injectable value, or None if not resolvable
         """
-        # Name-based injection
+        # Type-based injection (check annotation first)
+        if self._is_session_annotation(annotation):
+            return ctx.extra.get("session", _NOT_FOUND)
+
+        # Name-based injection (backward compatibility)
         if name == "socket":
             return ctx.socket
         if name == "session":
@@ -62,6 +68,14 @@ class InjectableRegistry(Generic[T]):
             return ctx.extra[name]
 
         return _NOT_FOUND
+
+    def _is_session_annotation(self, annotation: Any) -> bool:
+        """Check if annotation is the Session type (Annotated with _SessionInjector)."""
+        if get_origin(annotation) is Annotated:
+            args = get_args(annotation)
+            if len(args) >= 2:
+                return isinstance(args[1], _SessionInjector)
+        return False
 
     def _is_params_annotation(self, annotation: Any) -> bool:
         """Check if annotation indicates params injection vs URL param named 'params'."""
