@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.parse import ParseResult
 
 from .binder import Binder
@@ -16,8 +16,40 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+async def call_mount(
+    lv, socket: "LiveViewSocket", session: dict[str, Any]
+) -> None:
+    """Bind and call mount with Depends() support.
+
+    Args:
+        lv: The LiveView instance
+        socket: The socket instance
+        session: Session dict
+
+    Returns:
+        Result of lv.mount()
+    """
+    ctx = BindContext(
+        params=Params({}),
+        payload=None,
+        url=None,
+        socket=socket,
+        event=None,
+        extra={"session": session},
+    )
+    binder = Binder()
+    result = await binder.abind(lv.mount, ctx)
+
+    if not result.success:
+        for err in result.errors:
+            logger.warning(f"Mount binding error: {err}")
+        raise ValueError(f"Mount binding failed: {result.errors}")
+
+    return await lv.mount(**result.bound_args)
+
+
 async def call_handle_params(
-    lv, url: ParseResult, params: dict[str, list[str]], socket: LiveViewSocket
+    lv, url: ParseResult, params: dict[str, list[str]], socket: "LiveViewSocket"
 ):
     """Bind params and call handle_params with signature-matched args.
 
@@ -38,7 +70,7 @@ async def call_handle_params(
         event=None,
     )
     binder = Binder()
-    result = binder.bind(lv.handle_params, ctx)
+    result = await binder.abind(lv.handle_params, ctx)
 
     if not result.success:
         for err in result.errors:
@@ -48,7 +80,7 @@ async def call_handle_params(
     return await lv.handle_params(**result.bound_args)
 
 
-async def call_handle_event(lv, event: str, payload: dict, socket: LiveViewSocket):
+async def call_handle_event(lv, event: str, payload: dict, socket: "LiveViewSocket"):
     """Bind event payload and call handle_event with signature-matched args.
 
     Args:
@@ -68,7 +100,7 @@ async def call_handle_event(lv, event: str, payload: dict, socket: LiveViewSocke
         event=event,
     )
     binder = Binder()
-    result = binder.bind(lv.handle_event, ctx)
+    result = await binder.abind(lv.handle_event, ctx)
 
     if not result.success:
         for err in result.errors:
