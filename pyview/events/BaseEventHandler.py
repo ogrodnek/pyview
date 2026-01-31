@@ -87,9 +87,9 @@ class BaseEventHandler:
             event=event,
         )
 
-        # Bind parameters and invoke handler
+        # Bind parameters and invoke handler (abind for async Depends() support)
         binder = Binder()
-        result = binder.bind(handler, ctx)
+        result = await binder.abind(handler, ctx)
 
         if not result.success:
             for err in result.errors:

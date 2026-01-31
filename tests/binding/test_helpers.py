@@ -328,7 +328,7 @@ class TestPushPatchPathParams:
         # Set up routes with a path parameter
         routes = LiveViewLookup()
         lv = MyView()
-        routes.add("/items/{item_id}", lambda: lv)
+        routes.add("/items/{item_id}", MyView)
 
         # Create socket with routes
         mock_websocket = MagicMock()
@@ -367,7 +367,7 @@ class TestPushPatchPathParams:
 
         routes = LiveViewLookup()
         lv = MyView()
-        routes.add("/analysis/{job_id}/summary", lambda: lv)
+        routes.add("/analysis/{job_id}/summary", MyView)
 
         mock_websocket = MagicMock()
 

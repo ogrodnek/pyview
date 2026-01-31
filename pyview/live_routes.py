@@ -1,4 +1,4 @@
-from typing import Any, Callable
+from typing import Any
 
 from starlette.routing import compile_path
 
@@ -7,13 +7,14 @@ from pyview.live_view import LiveView
 
 class LiveViewLookup:
     def __init__(self):
-        self.routes = []  # [(path_format, path_regex, param_convertors, lv)]
+        self.routes = []  # [(path_format, path_regex, param_convertors, lv_class)]
 
-    def add(self, path: str, lv: Callable[[], LiveView]):
+    def add(self, path: str, lv: type[LiveView]):
+        """Add a route mapping path to a LiveView class."""
         path_regex, path_format, param_convertors = compile_path(path)
         self.routes.append((path_format, path_regex, param_convertors, lv))
 
-    def get(self, path: str) -> tuple[LiveView, dict[str, Any]]:
+    def get(self, path: str) -> tuple[type[LiveView], dict[str, Any]]:
         # Find all matching routes
         matches = []
 
@@ -36,7 +37,7 @@ class LiveViewLookup:
 
         if matches:
             lv, params, _ = matches[0]
-            return lv(), params
+            return lv, params  # Return class, not instance
 
         # Check for trailing slash
         if path.endswith("/"):

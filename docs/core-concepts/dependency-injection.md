@@ -154,15 +154,15 @@ class MyView(LiveView):
 `Depends()` works in event handlers too:
 
 ```python
-from pyview import Depends, LiveView, Session
+from pyview import Depends, LiveView
 from pyview.events import BaseEventHandler, event
 
-async def get_notification_service(session: Session):
-    return NotificationService(session.get("user_id"))
+async def get_notification_service():
+    return NotificationService()
 
 class NotificationLiveView(BaseEventHandler, LiveView[NotificationContext]):
     async def mount(self, socket, session):
-        socket.context = {"notifications": []}
+        socket.context = {"notifications": [], "user_id": session.get("user_id")}
 
     @event("mark_read")
     async def handle_mark_read(
@@ -171,9 +171,11 @@ class NotificationLiveView(BaseEventHandler, LiveView[NotificationContext]):
         notification_id: str,
         service=Depends(get_notification_service),
     ):
-        await service.mark_read(notification_id)
+        await service.mark_read(notification_id, socket.context["user_id"])
         socket.context["notifications"] = await service.get_unread()
 ```
+
+> **Note:** `Session` is only available in `__init__` and `mount()` dependencies—not in event handlers. This matches Phoenix LiveView's model: read session at mount time, then store what you need in `socket.context` for use during events.
 
 ## Testing
 
