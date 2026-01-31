@@ -10,7 +10,7 @@ from starlette.responses import HTMLResponse
 from starlette.routing import Route, WebSocketRoute
 
 from pyview.auth import AuthProviderFactory
-from pyview.binding import call_handle_params, call_mount, instantiate_view
+from pyview.binding import call_handle_params, call_mount, create_view
 from pyview.components.lifecycle import run_nested_component_lifecycle
 from pyview.csrf import generate_csrf_token
 from pyview.instrumentation import InstrumentationProvider, NoOpInstrumentation
@@ -87,8 +87,8 @@ async def liveview_container(template: RootTemplate, view_lookup: LiveViewLookup
 
     session = request.session if "session" in request.scope else {}
 
-    # Instantiate with Depends() support
-    lv = instantiate_view(lv_class, session)
+    # Create with Depends() support
+    lv = create_view(lv_class, session)
 
     s = UnconnectedSocket()
     await call_mount(lv, s, session)

@@ -43,9 +43,9 @@ async def run_nested_component_lifecycle(
         return {}
 
     # Import t-string support (guarded by version check above)
-    from string.templatelib import Template
+    from string.templatelib import Template  # noqa: PLC0415
 
-    from pyview.template.live_view_template import LiveViewTemplate
+    from pyview.template.live_view_template import LiveViewTemplate  # noqa: PLC0415
 
     # Track which CIDs we've already discovered nested components for
     discovered_cids: set[int] = set()

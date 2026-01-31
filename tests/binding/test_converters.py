@@ -1,7 +1,7 @@
 """Tests for ConverterRegistry."""
 
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 import pytest
 
@@ -217,8 +217,6 @@ class TestConverterRegistry:
         assert converter.convert(obj, CustomType) is obj
 
     def test_any_passthrough(self, converter: ConverterRegistry):
-        from typing import Any
-
         assert converter.convert("hello", Any) == "hello"
         assert converter.convert(123, Any) == 123
 

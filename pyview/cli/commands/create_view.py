@@ -1,3 +1,4 @@
+import re
 import tomllib
 from pathlib import Path
 from typing import Optional
@@ -7,8 +8,6 @@ import click
 
 def snake_case(name: str) -> str:
     """Convert PascalCase or camelCase to snake_case."""
-    import re
-
     s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 

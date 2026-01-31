@@ -15,6 +15,8 @@ from urllib.parse import urlparse
 import pytest
 
 from pyview.binding.helpers import call_handle_event, call_handle_params
+from pyview.live_routes import LiveViewLookup
+from pyview.live_socket import ConnectedLiveViewSocket
 from pyview.live_view import LiveView
 
 
@@ -317,8 +319,6 @@ class TestPushPatchPathParams:
     @pytest.mark.asyncio
     async def test_push_patch_merges_path_params(self):
         """Verify push_patch extracts and merges path params with query params."""
-        from pyview.live_routes import LiveViewLookup
-        from pyview.live_socket import ConnectedLiveViewSocket
 
         class MyView(LiveView):
             async def handle_params(self, socket, item_id: str, page: int = 1):
@@ -358,8 +358,6 @@ class TestPushPatchPathParams:
     @pytest.mark.asyncio
     async def test_push_patch_path_params_only(self):
         """Verify push_patch works with only path params (no query params)."""
-        from pyview.live_routes import LiveViewLookup
-        from pyview.live_socket import ConnectedLiveViewSocket
 
         class MyView(LiveView):
             async def handle_params(self, socket, job_id: str):
@@ -393,7 +391,6 @@ class TestPushPatchPathParams:
     @pytest.mark.asyncio
     async def test_push_patch_without_routes(self):
         """Verify push_patch works when routes is None (backwards compat)."""
-        from pyview.live_socket import ConnectedLiveViewSocket
 
         class MyView(LiveView):
             async def handle_params(self, socket, page: int = 1):

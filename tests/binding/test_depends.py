@@ -1,7 +1,7 @@
 """Tests for Depends() dependency injection.
 
 These tests verify that Depends() works end-to-end through call_mount
-and instantiate_view, including dependency chains, caching, and Session
+and create_view, including dependency chains, caching, and Session
 type injection.
 """
 
@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from pyview import Depends, Session
-from pyview.binding.helpers import call_mount, instantiate_view
+from pyview.binding.helpers import call_mount, create_view
 from pyview.live_view import LiveView
 
 
@@ -126,7 +126,7 @@ class TestDependsInInit:
             def __init__(self, prefs=Depends(get_user_prefs)):
                 self.prefs = prefs
 
-        lv = instantiate_view(MyView, session={"prefs": {"theme": "dark"}})
+        lv = create_view(MyView, session={"prefs": {"theme": "dark"}})
 
         assert lv.prefs == {"theme": "dark"}
 
@@ -141,7 +141,7 @@ class TestDependsInInit:
                 self.config = config
 
         with pytest.raises(ValueError) as exc_info:
-            instantiate_view(MyView, session={})
+            create_view(MyView, session={})
 
         assert "get_async_config" in str(exc_info.value)
         assert "async" in str(exc_info.value).lower()

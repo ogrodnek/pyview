@@ -8,7 +8,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from pyview.auth import AuthProviderFactory
-from pyview.binding import call_handle_event, call_handle_params, call_mount, instantiate_view
+from pyview.binding import call_handle_event, call_handle_params, call_mount, create_view
 from pyview.csrf import validate_csrf_token
 from pyview.instrumentation import InstrumentationProvider
 from pyview.live_routes import LiveViewLookup
@@ -102,8 +102,8 @@ class LiveSocketHandler:
                 if "session" in payload:
                     session = deserialize_session(payload["session"])
 
-                # Instantiate with Depends() support
-                lv = instantiate_view(lv_class, session)
+                # Create with Depends() support
+                lv = create_view(lv_class, session)
 
                 socket = ConnectedLiveViewSocket(
                     websocket, topic, lv, self.scheduler, self.instrumentation, self.routes
@@ -341,8 +341,8 @@ class LiveSocketHandler:
                     if "session" in payload:
                         session = deserialize_session(payload["session"])
 
-                    # Instantiate with Depends() support
-                    lv = instantiate_view(lv_class, session)
+                    # Create with Depends() support
+                    lv = create_view(lv_class, session)
 
                     # Create new socket for new LiveView
                     socket = ConnectedLiveViewSocket(

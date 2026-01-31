@@ -5,15 +5,14 @@ from __future__ import annotations
 import dataclasses
 import inspect
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, get_type_hints
+from typing import Any, Callable, Generic, TypeVar, get_type_hints
+
+from pyview.depends import Depends
 
 from .context import BindContext
 from .converters import ConversionError, ConverterRegistry
 from .injectables import _NOT_FOUND, InjectableRegistry
 from .result import BindResult, ParamError
-
-if TYPE_CHECKING:
-    from pyview.depends import Depends
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +50,6 @@ class Binder(Generic[T]):
         Returns:
             BindResult with bound_args dict and any errors
         """
-        from pyview.depends import Depends
-
         sig = inspect.signature(func)
 
         # Get type hints, falling back to empty for missing annotations
@@ -191,9 +188,6 @@ class Binder(Generic[T]):
         Returns:
             BindResult with bound_args dict and any errors
         """
-        # Import here to avoid circular import
-        from pyview.depends import Depends
-
         sig = inspect.signature(func)
 
         try:

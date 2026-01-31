@@ -5,7 +5,7 @@ These tests verify the base class interfaces and default behaviors
 without requiring Python 3.14 (no t-strings needed).
 """
 
-from typing import TypedDict, TypeVar
+from typing import TypedDict, TypeVar, get_origin
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -240,8 +240,6 @@ class TestLiveComponentWithEventDecorators:
 
     def test_component_is_generic(self):
         """Test that LiveComponent accepts type parameter."""
-        from typing import get_origin
-
         # LiveComponent should be generic
         assert get_origin(LiveComponent[CounterContext]) is LiveComponent
 

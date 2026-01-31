@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T", bound="LiveView")
 
 
-def instantiate_view(cls: type[T], session: dict[str, Any]) -> T:
-    """Instantiate a LiveView class with Depends() support in __init__.
+def create_view(cls: type[T], session: dict[str, Any]) -> T:
+    """Create a LiveView instance with Depends() support in __init__.
 
     Args:
         cls: The LiveView class to instantiate

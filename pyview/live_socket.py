@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import sys
 import uuid
 from contextlib import suppress
 from typing import (
@@ -142,8 +143,6 @@ class ConnectedLiveViewSocket(Generic[T]):
         Returns:
             Rendered tree in Phoenix wire format
         """
-        import sys
-
         # Start new render cycle - track which components are seen during parent render
         self.components.begin_render()
 
@@ -153,7 +152,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         if sys.version_info < (3, 14):
             return rendered
 
-        from pyview.components.lifecycle import run_nested_component_lifecycle
+        from pyview.components.lifecycle import run_nested_component_lifecycle  # noqa: PLC0415
 
         # Run component lifecycle and get rendered trees in one pass
         rendered_trees = await run_nested_component_lifecycle(self, self.meta)
