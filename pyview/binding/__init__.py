@@ -28,7 +28,7 @@ Type-based injection:
 from .binder import Binder
 from .context import BindContext
 from .converters import ConversionError, ConverterRegistry
-from .helpers import call_handle_event, call_handle_params, call_mount
+from .helpers import call_handle_event, call_handle_params, call_mount, create_view
 from .injectables import InjectableRegistry
 from .params import Params
 from .result import BindResult, ParamError
@@ -45,4 +45,5 @@ __all__ = [
     "call_handle_event",
     "call_handle_params",
     "call_mount",
+    "create_view",
 ]

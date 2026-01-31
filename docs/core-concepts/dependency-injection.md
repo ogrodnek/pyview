@@ -61,7 +61,7 @@ class SettingsLiveView(LiveView[SettingsContext]):
 
 ## Session Access in Dependencies
 
-Use the `Session` type to inject the session dict into your dependencies:
+Use the `Session` type to inject the session dict into your dependencies. This is useful for loading user context into your view:
 
 ```python
 from pyview import Depends, LiveView, Session
@@ -75,15 +75,10 @@ async def get_current_user(session: Session):
 
 class ProfileLiveView(LiveView[ProfileContext]):
     async def mount(self, socket, user=Depends(get_current_user)):
-        if not user:
-            socket.redirect("/login")
-            return
-        socket.context = {"user": user}
+        socket.context = {"user": user, "name": user.name if user else "Guest"}
 ```
 
-The `Session` type is injected based on the type annotation—you can name the parameter whatever you like (`session`, `sess`, `s`, etc.). This is cleaner than name-based injection and works consistently in dependency functions.
-
-This pattern is particularly useful for services that need authentication context.
+> **Note:** For restricting access to routes, see [Authentication](/core-concepts/authentication).
 
 ## Dependency Chains
 
@@ -104,7 +99,6 @@ async def get_current_user(session: Session, users=Depends(get_user_repository))
 
 class DashboardLiveView(LiveView[DashboardContext]):
     async def mount(self, socket, user=Depends(get_current_user)):
-        # user is resolved, which resolved users, which resolved db
         socket.context = {"user": user}
 ```
 
@@ -130,8 +124,7 @@ class FeedLiveView(LiveView[FeedContext]):
         users=Depends(get_users),  # get_database called once
         posts=Depends(get_posts),  # reuses cached connection
     ):
-        # Both repositories share the same database connection
-        pass
+        ...
 ```
 
 To disable caching for a specific dependency (get a fresh value each time):
@@ -154,15 +147,15 @@ class MyView(LiveView):
 `Depends()` works in event handlers too:
 
 ```python
-from pyview import Depends, LiveView, Session
+from pyview import Depends, LiveView
 from pyview.events import BaseEventHandler, event
 
-async def get_notification_service(session: Session):
-    return NotificationService(session.get("user_id"))
+async def get_notification_service():
+    return NotificationService()
 
 class NotificationLiveView(BaseEventHandler, LiveView[NotificationContext]):
     async def mount(self, socket, session):
-        socket.context = {"notifications": []}
+        socket.context = {"notifications": [], "user_id": session.get("user_id")}
 
     @event("mark_read")
     async def handle_mark_read(
@@ -171,34 +164,29 @@ class NotificationLiveView(BaseEventHandler, LiveView[NotificationContext]):
         notification_id: str,
         service=Depends(get_notification_service),
     ):
-        await service.mark_read(notification_id)
+        await service.mark_read(notification_id, socket.context["user_id"])
         socket.context["notifications"] = await service.get_unread()
 ```
 
 ## Testing
 
-Dependencies make testing straightforward. Override them by passing values directly:
+Dependencies make testing straightforward. Pass mock values directly—`Depends()` is bypassed:
 
 ```python
-import pytest
-from myapp.views import ItemsLiveView
-from pyview.testing import mount_live_view
+from unittest.mock import MagicMock
 
-@pytest.fixture
-def mock_db():
-    return MockDatabase(items=[
-        {"id": 1, "name": "Test Item"}
-    ])
+async def test_items_mount():
+    view = ItemsLiveView()
+    socket = MagicMock()
+    socket.context = {}
+    mock_db = MockDatabase(items=[{"id": 1, "name": "Test Item"}])
 
-async def test_items_mount(mock_db):
-    # Pass the dependency directly - Depends() is bypassed
-    socket = await mount_live_view(ItemsLiveView)
-    await socket.view.mount(socket, db=mock_db)
+    await view.mount(socket, session={}, db=mock_db)
 
     assert socket.context["items"] == [{"id": 1, "name": "Test Item"}]
 ```
 
-For more control, you can also test the dependency functions directly:
+You can also test dependency functions directly:
 
 ```python
 async def test_get_current_user():
@@ -210,6 +198,18 @@ async def test_get_current_user_no_session():
     user = await get_current_user({})
     assert user is None
 ```
+
+## Supported Methods
+
+`Depends()` works in these LiveView methods:
+
+| Method | Async Deps | Session Available |
+|--------|------------|-------------------|
+| `__init__` | No (sync only) | Yes |
+| `mount` | Yes | Yes |
+| `handle_params` | Yes | Yes |
+| `handle_event` | Yes | No |
+| `@event` handlers | Yes | No |
 
 ## Available Injectables
 
@@ -230,7 +230,7 @@ async def get_user(sess: Session):  # Name doesn't matter, type does
 
 ### Name-based injection
 
-These are injected based on parameter name (for backward compatibility):
+These are injected based on parameter name:
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -244,12 +244,10 @@ These are injected based on parameter name (for backward compatibility):
 ```python
 class MyLiveView(LiveView):
     async def mount(self, socket, session):
-        # socket and session are automatically injected by name
-        pass
+        ...
 
     async def handle_params(self, url, socket, page: int = 1):
-        # url is injected, page is extracted from query params
-        pass
+        ...
 ```
 
 > **Tip:** For dependency functions, prefer `Session` type over the `session` name—it's more explicit and works regardless of what you name the parameter.
@@ -274,3 +272,17 @@ class MyLiveView(LiveView):
 ```
 
 Use `Depends()` when you want cleaner signatures, automatic dependency resolution, or easier testing.
+
+## Migration from 0.8.x
+
+In version 0.9.0, route registration changed from factory functions to classes:
+
+```python
+# Before (0.8.x)
+routes.add("/items", lambda: ItemsView())
+
+# After (0.9.0)
+routes.add("/items", ItemsView)
+```
+
+This change enables `Depends()` support in `__init__`, allowing dependencies to be injected when the view is instantiated.

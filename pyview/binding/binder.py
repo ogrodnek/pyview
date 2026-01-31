@@ -2,19 +2,17 @@
 
 from __future__ import annotations
 
-import asyncio
 import dataclasses
 import inspect
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, get_type_hints
+from typing import Any, Callable, Generic, TypeVar, get_type_hints
+
+from pyview.depends import _DependsMarker
 
 from .context import BindContext
 from .converters import ConversionError, ConverterRegistry
 from .injectables import _NOT_FOUND, InjectableRegistry
 from .result import BindResult, ParamError
-
-if TYPE_CHECKING:
-    from pyview.depends import Depends
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +39,9 @@ class Binder(Generic[T]):
 
     def bind(self, func: Callable[..., Any], ctx: BindContext[T]) -> BindResult:
         """Bind context values to function signature.
+
+        Supports Depends() for sync dependencies. Raises TypeError if an
+        async dependency is encountered.
 
         Args:
             func: The function to bind parameters for
@@ -75,13 +76,21 @@ class Binder(Generic[T]):
 
             expected = hints.get(name, Any)
 
-            # 1) Try injectables first
+            # 1) Check for Depends first
+            if isinstance(param.default, _DependsMarker):
+                try:
+                    bound[name] = self._resolve_depends_sync(param.default, ctx)
+                except Exception as e:
+                    errors.append(ParamError(name, "Depends", None, str(e)))
+                continue
+
+            # 2) Try injectables
             injected = self.injectables.resolve(name, expected, ctx)
             if injected is not _NOT_FOUND:
                 bound[name] = injected
                 continue
 
-            # 2) Check for dataclass parameter - gather fields from params
+            # 3) Check for dataclass parameter - gather fields from params
             if dataclasses.is_dataclass(expected) and isinstance(expected, type):
                 raw = self._resolve_dataclass_fields(expected, ctx)
                 try:
@@ -90,10 +99,10 @@ class Binder(Generic[T]):
                     errors.append(ParamError(name, repr(expected), raw, str(e)))
                 continue
 
-            # 3) Pull raw value from params or payload
+            # 4) Pull raw value from params or payload
             raw = self._resolve_raw(name, ctx)
 
-            # 4) Handle missing values
+            # 5) Handle missing values
             if raw is None:
                 if param.default is not inspect.Parameter.empty:
                     bound[name] = param.default
@@ -104,13 +113,39 @@ class Binder(Generic[T]):
                 errors.append(ParamError(name, repr(expected), None, "missing required parameter"))
                 continue
 
-            # 5) Convert to expected type
+            # 6) Convert to expected type
             try:
                 bound[name] = self.converter.convert(raw, expected)
             except ConversionError as e:
                 errors.append(ParamError(name, repr(expected), raw, str(e)))
 
         return BindResult(bound, errors)
+
+    def _resolve_depends_sync(self, dep: _DependsMarker, ctx: BindContext[T]) -> Any:
+        """Resolve a sync-only Depends() dependency.
+
+        Raises TypeError if the dependency is async.
+        """
+        if inspect.iscoroutinefunction(dep.dependency):
+            raise TypeError(
+                f"Async dependency '{dep.dependency.__name__}' cannot be used in sync context. "
+                "Use an async method like mount() for async dependencies."
+            )
+
+        if dep.use_cache and dep.dependency in ctx.cache:
+            return ctx.cache[dep.dependency]
+
+        # Recursively bind the dependency function's parameters
+        result = self.bind(dep.dependency, ctx)
+        if not result.success:
+            raise ValueError(f"Dependency binding failed: {result.errors}")
+
+        value = dep.dependency(**result.bound_args)
+
+        if dep.use_cache:
+            ctx.cache[dep.dependency] = value
+
+        return value
 
     def _resolve_dataclass_fields(self, expected: type, ctx: BindContext[T]) -> dict[str, Any]:
         """Gather dataclass fields from params."""
@@ -150,9 +185,6 @@ class Binder(Generic[T]):
         Returns:
             BindResult with bound_args dict and any errors
         """
-        # Import here to avoid circular import
-        from pyview.depends import Depends
-
         sig = inspect.signature(func)
 
         try:
@@ -174,7 +206,7 @@ class Binder(Generic[T]):
             expected = hints.get(name, Any)
 
             # Check for Depends first
-            if isinstance(param.default, Depends):
+            if isinstance(param.default, _DependsMarker):
                 try:
                     bound[name] = await self._resolve_depends(param.default, ctx)
                 except Exception as e:
@@ -218,7 +250,7 @@ class Binder(Generic[T]):
 
         return BindResult(bound, errors)
 
-    async def _resolve_depends(self, dep: "Depends", ctx: BindContext[T]) -> Any:
+    async def _resolve_depends(self, dep: _DependsMarker, ctx: BindContext[T]) -> Any:
         """Resolve a Depends() dependency.
 
         Args:
@@ -228,7 +260,6 @@ class Binder(Generic[T]):
         Returns:
             The resolved dependency value
         """
-        # Check cache first
         if dep.use_cache and dep.dependency in ctx.cache:
             return ctx.cache[dep.dependency]
 
@@ -238,12 +269,11 @@ class Binder(Generic[T]):
             raise ValueError(f"Dependency binding failed: {result.errors}")
 
         # Call the dependency (sync or async)
-        if asyncio.iscoroutinefunction(dep.dependency):
+        if inspect.iscoroutinefunction(dep.dependency):
             value = await dep.dependency(**result.bound_args)
         else:
             value = dep.dependency(**result.bound_args)
 
-        # Cache the result
         if dep.use_cache:
             ctx.cache[dep.dependency] = value
 

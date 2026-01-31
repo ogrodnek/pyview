@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import ParseResult
 
 from .binder import Binder
@@ -12,13 +12,47 @@ from .params import Params
 
 if TYPE_CHECKING:
     from pyview.live_socket import LiveViewSocket
+    from pyview.live_view import LiveView
 
 logger = logging.getLogger(__name__)
 
+T = TypeVar("T", bound="LiveView")
 
-async def call_mount(
-    lv, socket: "LiveViewSocket", session: dict[str, Any]
-) -> None:
+
+def create_view(cls: type[T], session: dict[str, Any]) -> T:
+    """Create a LiveView instance with Depends() support in __init__.
+
+    Args:
+        cls: The LiveView class to instantiate
+        session: Session dict (available to sync dependencies)
+
+    Returns:
+        Instance of the LiveView class
+
+    Raises:
+        TypeError: If an async dependency is used in __init__
+        ValueError: If dependency binding fails
+    """
+    ctx = BindContext(
+        params=Params({}),
+        payload=None,
+        url=None,
+        socket=None,
+        event=None,
+        extra={"session": session},
+    )
+    binder = Binder()
+    result = binder.bind(cls.__init__, ctx)
+
+    if not result.success:
+        for err in result.errors:
+            logger.warning(f"Init binding error for {cls.__name__}: {err}")
+        raise ValueError(f"Init binding failed for {cls.__name__}: {result.errors}")
+
+    return cls(**result.bound_args)
+
+
+async def call_mount(lv, socket: LiveViewSocket, session: dict[str, Any]) -> None:
     """Bind and call mount with Depends() support.
 
     Args:
@@ -49,7 +83,7 @@ async def call_mount(
 
 
 async def call_handle_params(
-    lv, url: ParseResult, params: dict[str, list[str]], socket: "LiveViewSocket"
+    lv, url: ParseResult, params: dict[str, list[str]], socket: LiveViewSocket
 ):
     """Bind params and call handle_params with signature-matched args.
 
@@ -80,7 +114,7 @@ async def call_handle_params(
     return await lv.handle_params(**result.bound_args)
 
 
-async def call_handle_event(lv, event: str, payload: dict, socket: "LiveViewSocket"):
+async def call_handle_event(lv, event: str, payload: dict, socket: LiveViewSocket):
     """Bind event payload and call handle_event with signature-matched args.
 
     Args:

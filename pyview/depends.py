@@ -26,8 +26,12 @@ Testing:
         await view.mount(socket=mock_socket, user_service=mock_service)
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Annotated, Any, Callable
+from typing import TYPE_CHECKING, Annotated, Any, Callable, Coroutine, TypeVar, overload
+
+_T = TypeVar("_T")
 
 
 class _SessionInjector:
@@ -36,29 +40,36 @@ class _SessionInjector:
     pass
 
 
-# Type-based session injection.
-# Use this type annotation to receive the session dict:
-#
-#     async def get_user(session: Session) -> User:
-#         return await User.get(session["user_id"])
-#
-# This is cleaner than name-based injection for dependency functions.
+# Type marker for session injection.
 Session = Annotated[dict[str, Any], _SessionInjector()]
 
 
 @dataclass(frozen=True)
-class Depends:
-    """
-    Declare a dependency to be injected.
+class _DependsMarker:
+    """Runtime marker for dependency injection.
 
-    Args:
-        dependency: A callable (sync or async) that returns the dependency value.
-        use_cache: If True (default), cache the result for this request.
-                   The same dependency called multiple times returns the cached value.
-
-    The dependency callable can itself declare Depends() parameters,
-    forming a dependency chain that is resolved automatically.
+    This is the actual class used at runtime. The public `Depends` name
+    is typed as a function returning T for better type inference.
     """
 
     dependency: Callable[..., Any]
     use_cache: bool = True
+
+
+if TYPE_CHECKING:
+    # At type-check time, Depends() returns the dependency's return type.
+    # This allows: `token: AuthToken = Depends(get_auth_token)` to type-check.
+    # The first overload handles async functions (unwraps Coroutine).
+    @overload
+    def Depends(
+        dependency: Callable[..., Coroutine[Any, Any, _T]], use_cache: bool = True
+    ) -> _T: ...
+    @overload
+    def Depends(dependency: Callable[..., _T], use_cache: bool = True) -> _T: ...
+
+    # Implementation stub required by @overload (never actually called)
+    def Depends(dependency: Callable[..., Any], use_cache: bool = True) -> Any: ...
+
+else:
+    # At runtime, Depends is the actual dataclass
+    Depends = _DependsMarker
