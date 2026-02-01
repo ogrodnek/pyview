@@ -137,7 +137,6 @@ class TestComponentsManagerSlots:
         assert cid == 1
         assert manager.component_count == 1
 
-    @pytest.mark.asyncio
     async def test_slots_not_passed_to_mount(self):
         """Test that slots are extracted and not passed in assigns."""
         parent = MockParentSocket()
@@ -165,7 +164,6 @@ class TestComponentsManagerSlots:
         assert "slots" not in received_assigns
         assert received_assigns == {"label": "test"}
 
-    @pytest.mark.asyncio
     async def test_render_component_receives_slots(self):
         """Test that rendered components receive slots in meta."""
         parent = MockParentSocket()
@@ -193,7 +191,6 @@ class TestComponentsManagerSlots:
         assert "default" in received_meta.slots
         assert "header" in received_meta.slots
 
-    @pytest.mark.asyncio
     async def test_render_component_without_slots(self):
         """Test that components without slots get empty slots dict."""
         parent = MockParentSocket()
@@ -218,7 +215,6 @@ class TestComponentsManagerSlots:
         assert received_meta is not None
         assert received_meta.slots == {}
 
-    @pytest.mark.asyncio
     async def test_slots_updated_on_re_register(self):
         """Test that slots are updated when component is re-registered."""
         parent = MockParentSocket()
@@ -285,7 +281,6 @@ class TestComponentsManagerSlots:
 class TestSlotsInComponentTemplate:
     """Tests for using slots in component templates."""
 
-    @pytest.mark.asyncio
     async def test_component_renders_default_slot(self):
         """Test that a component can render the default slot."""
         parent = MockParentSocket()
@@ -309,7 +304,6 @@ class TestSlotsInComponentTemplate:
         assert "<div class='card'>" in "".join(result.strings)
         assert "</div>" in "".join(result.strings)
 
-    @pytest.mark.asyncio
     async def test_component_renders_named_slots(self):
         """Test that a component can render named slots."""
         parent = MockParentSocket()
@@ -338,7 +332,6 @@ class TestSlotsInComponentTemplate:
         assert "<footer>" in "".join(result.strings)
         assert "</footer>" in "".join(result.strings)
 
-    @pytest.mark.asyncio
     async def test_component_with_missing_slot(self):
         """Test that missing slots return empty when accessed with .get()."""
         parent = MockParentSocket()
@@ -367,7 +360,6 @@ class TestSlotsInComponentTemplate:
 class TestNestedComponentsInSlots:
     """Tests for live components nested inside slots (connected flow)."""
 
-    @pytest.mark.asyncio
     async def test_nested_component_in_slot_connected_flow(self):
         """Test that nested components in slots work in the connected (WebSocket) flow.
 
@@ -463,7 +455,6 @@ class TestNestedComponentsInSlots:
 class TestSingleRenderPerCycle:
     """Tests that components are only rendered once per render cycle."""
 
-    @pytest.mark.asyncio
     async def test_component_template_called_once(self):
         """Verify each component's template() is only called once during lifecycle."""
         from pyview.components.manager import ComponentsManager
@@ -523,7 +514,6 @@ class TestSingleRenderPerCycle:
         # Verify we got trees for both components
         assert len(rendered_trees) == 2, f"Expected 2 rendered trees, got {len(rendered_trees)}"
 
-    @pytest.mark.asyncio
     async def test_no_pending_updates_after_lifecycle(self):
         """Verify no spurious updates are queued after lifecycle completes."""
         from pyview.components.manager import ComponentsManager
@@ -579,7 +569,6 @@ class TestSingleRenderPerCycle:
         assert len(socket.components._pending_updates) == 0, \
             f"Expected 0 pending updates, got {len(socket.components._pending_updates)}"
 
-    @pytest.mark.asyncio
     async def test_stale_components_not_rendered(self):
         """Verify stale components from previous renders don't get rendered or resurrect children."""
         from pyview.components.manager import ComponentsManager

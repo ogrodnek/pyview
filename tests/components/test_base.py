@@ -61,7 +61,6 @@ class TestComponentSocket:
         socket = ComponentSocket(context={}, cid=42, manager=MagicMock())
         assert socket.myself == 42
 
-    @pytest.mark.asyncio
     async def test_send_parent(self):
         """Test send_parent calls manager.send_to_parent."""
         manager = MagicMock()
@@ -72,7 +71,6 @@ class TestComponentSocket:
 
         manager.send_to_parent.assert_called_once_with("my_event", {"key": "value"})
 
-    @pytest.mark.asyncio
     async def test_send_parent_default_payload(self):
         """Test send_parent with no payload uses empty dict."""
         manager = MagicMock()
@@ -101,7 +99,6 @@ class TestLiveComponent:
         component = Counter()
         assert isinstance(component, LiveComponent)
 
-    @pytest.mark.asyncio
     async def test_default_mount(self):
         """Test default mount does nothing (doesn't raise)."""
 
@@ -115,7 +112,6 @@ class TestLiveComponent:
         # Should not raise - mount now receives assigns
         await component.mount(socket, {"initial": 0})
 
-    @pytest.mark.asyncio
     async def test_default_update_is_noop(self):
         """Test default update does nothing (doesn't pollute context)."""
 
@@ -138,7 +134,6 @@ class TestLiveComponent:
         assert socket.context["existing"] == "value"
         assert "new_key" not in socket.context
 
-    @pytest.mark.asyncio
     async def test_default_handle_event(self):
         """Test default handle_event does nothing (doesn't raise)."""
 
@@ -164,7 +159,6 @@ class TestLiveComponent:
         with pytest.raises(NotImplementedError):
             component.template({}, meta)
 
-    @pytest.mark.asyncio
     async def test_custom_mount(self):
         """Test custom mount implementation with assigns."""
 
@@ -183,7 +177,6 @@ class TestLiveComponent:
         await component.mount(socket, {"initial": 50})
         assert socket.context["count"] == 50
 
-    @pytest.mark.asyncio
     async def test_custom_handle_event(self):
         """Test custom handle_event implementation."""
 

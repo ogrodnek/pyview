@@ -17,7 +17,6 @@ from pyview.live_view import LiveView
 class TestDependsInMount:
     """Integration tests for Depends() in mount()."""
 
-    @pytest.mark.asyncio
     async def test_depends_resolves_in_mount(self):
         """Verify basic dependency injection works in mount."""
 
@@ -35,7 +34,6 @@ class TestDependsInMount:
 
         assert lv.received_config == {"theme": "dark"}
 
-    @pytest.mark.asyncio
     async def test_depends_chain_resolution(self):
         """Verify dependencies that depend on other dependencies resolve correctly."""
 
@@ -64,7 +62,6 @@ class TestDependsInMount:
         assert isinstance(lv.received_repo, UserRepo)
         assert isinstance(lv.received_repo.db, FakeDB)
 
-    @pytest.mark.asyncio
     async def test_depends_caching(self):
         """Verify same dependency called twice only executes once (per-request caching)."""
         call_count = 0
@@ -94,7 +91,6 @@ class TestDependsInMount:
         assert lv.b == "b:result"
         assert call_count == 1  # get_expensive only called once, not twice
 
-    @pytest.mark.asyncio
     async def test_session_type_injection_in_depends(self):
         """Verify Session type annotation injects session dict into dependency functions."""
 
@@ -145,3 +141,29 @@ class TestDependsInInit:
 
         assert "get_async_config" in str(exc_info.value)
         assert "async" in str(exc_info.value).lower()
+
+
+class TestSessionTypeInjection:
+    """Tests for Session type annotation injection."""
+
+    async def test_session_type_preserves_annotated_metadata(self):
+        """Verify Session type annotation works (requires include_extras=True).
+
+        This test fails if get_type_hints() doesn't use include_extras=True,
+        because the Annotated metadata would be stripped and Session wouldn't
+        be recognized.
+        """
+
+        async def get_user_from_session(sess: Session):
+            return {"user_id": sess.get("user_id")}
+
+        class MyView(LiveView):
+            async def mount(self, socket, session, user=Depends(get_user_from_session)):
+                self.user = user
+
+        lv = MyView()
+        socket = MagicMock()
+
+        await call_mount(lv, socket, session={"user_id": "abc123"})
+
+        assert lv.user == {"user_id": "abc123"}

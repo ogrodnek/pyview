@@ -58,7 +58,6 @@ def test_descriptor_stringification():
     assert str(view.custom_handler) == "custom-name"
 
 
-@pytest.mark.asyncio
 async def test_event_dispatch():
     """Test that events are dispatched correctly to handler methods."""
     view = SampleView()
@@ -79,7 +78,6 @@ async def test_event_dispatch():
     assert view.call_log[-1] == ("custom-name", {"custom": True})
 
 
-@pytest.mark.asyncio
 async def test_method_callable():
     """Test that methods remain directly callable as normal async functions."""
     view = SampleView()
@@ -117,7 +115,6 @@ def test_multiple_instances():
     assert view1._event_handlers is view2._event_handlers
 
 
-@pytest.mark.asyncio
 async def test_unhandled_event_warning(caplog):
     """Test that unhandled events trigger a warning."""
     view = SampleView()
@@ -188,7 +185,6 @@ class TestEventDecoratorVariants:
 class TestEventBindingErrors:
     """Test error handling when event binding fails."""
 
-    @pytest.mark.asyncio
     async def test_raises_on_missing_required_param(self):
         """Test that missing required typed params raise ValueError."""
 
@@ -205,7 +201,6 @@ class TestEventBindingErrors:
         assert "Event binding failed" in str(exc_info.value)
         assert "save" in str(exc_info.value)
 
-    @pytest.mark.asyncio
     async def test_raises_on_conversion_error(self):
         """Test that type conversion errors raise ValueError."""
 

@@ -8,8 +8,6 @@ event routing, and state persistence.
 from typing import TypedDict
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
-
 from pyview.components.base import ComponentSocket, LiveComponent
 from pyview.components.manager import ComponentsManager
 from pyview.meta import PyViewMeta
@@ -122,7 +120,6 @@ class TestComponentsManagerRegistration:
 class TestComponentsManagerLifecycle:
     """Tests for component lifecycle methods."""
 
-    @pytest.mark.asyncio
     async def test_mount_called_on_new_component(self):
         """Test that mount is called for new components."""
         parent = MockParentSocket()
@@ -135,7 +132,6 @@ class TestComponentsManagerLifecycle:
         context = manager.get_context(cid)
         assert context == {"count": 0}
 
-    @pytest.mark.asyncio
     async def test_update_called_with_assigns(self):
         """Test that update is called with assigns."""
         parent = MockParentSocket()
@@ -148,7 +144,6 @@ class TestComponentsManagerLifecycle:
         context = manager.get_context(cid)
         assert context == {"count": 100}
 
-    @pytest.mark.asyncio
     async def test_update_called_on_re_register(self):
         """Test that update is called when component is re-registered."""
         parent = MockParentSocket()
@@ -166,7 +161,6 @@ class TestComponentsManagerLifecycle:
         # Context should be updated
         assert manager.get_context(cid)["count"] == 50
 
-    @pytest.mark.asyncio
     async def test_mount_not_called_twice(self):
         """Test that mount is only called once per component."""
         parent = MockParentSocket()
@@ -198,7 +192,6 @@ class TestComponentsManagerLifecycle:
 class TestComponentsManagerEventHandling:
     """Tests for event routing to components."""
 
-    @pytest.mark.asyncio
     async def test_handle_event_routes_to_component(self):
         """Test that handle_event calls component's handle_event."""
         parent = MockParentSocket()
@@ -218,7 +211,6 @@ class TestComponentsManagerEventHandling:
         await manager.handle_event(cid, "increment", {})
         assert manager.get_context(cid)["count"] == 2
 
-    @pytest.mark.asyncio
     async def test_handle_event_with_payload(self):
         """Test that event payload is passed to component."""
         parent = MockParentSocket()
@@ -230,7 +222,6 @@ class TestComponentsManagerEventHandling:
         await manager.handle_event(cid, "set", {"value": 42})
         assert manager.get_context(cid)["count"] == 42
 
-    @pytest.mark.asyncio
     async def test_handle_event_unknown_cid(self):
         """Test that handle_event with unknown CID doesn't crash."""
         parent = MockParentSocket()
@@ -243,7 +234,6 @@ class TestComponentsManagerEventHandling:
 class TestComponentsManagerRendering:
     """Tests for component rendering."""
 
-    @pytest.mark.asyncio
     async def test_render_component(self):
         """Test rendering a component."""
         parent = MockParentSocket()
@@ -257,7 +247,6 @@ class TestComponentsManagerRendering:
         assert "Count: 0" in result
         assert f"target={cid}" in result
 
-    @pytest.mark.asyncio
     async def test_render_component_after_event(self):
         """Test rendering reflects state changes."""
         parent = MockParentSocket()
@@ -280,7 +269,6 @@ class TestComponentsManagerRendering:
         result = manager.render_component(999, parent.meta)
         assert result is None
 
-    @pytest.mark.asyncio
     async def test_nested_component_registration(self):
         """Test that nested components (component rendering another component) get separate CIDs."""
 
@@ -335,7 +323,6 @@ class TestComponentsManagerRendering:
 class TestComponentsManagerParentCommunication:
     """Tests for component-to-parent communication."""
 
-    @pytest.mark.asyncio
     async def test_send_to_parent(self):
         """Test sending event to parent LiveView."""
         parent = MockParentSocket()
@@ -345,7 +332,6 @@ class TestComponentsManagerParentCommunication:
 
         parent.liveview.handle_event.assert_called_once_with("my_event", {"key": "value"}, parent)
 
-    @pytest.mark.asyncio
     async def test_send_parent_from_component_event_handler(self):
         """Test that a component can send events to parent via socket.send_parent()."""
 
@@ -471,7 +457,6 @@ class TestComponentsManagerCleanup:
 class TestComponentsManagerGetters:
     """Tests for getter methods."""
 
-    @pytest.mark.asyncio
     async def test_get_component(self):
         """Test getting component and context."""
         parent = MockParentSocket()
@@ -495,7 +480,6 @@ class TestComponentsManagerGetters:
         result = manager.get_component(999)
         assert result is None
 
-    @pytest.mark.asyncio
     async def test_get_context(self):
         """Test getting just the context."""
         parent = MockParentSocket()
@@ -507,7 +491,6 @@ class TestComponentsManagerGetters:
         context = manager.get_context(cid)
         assert context == {"count": 0}
 
-    @pytest.mark.asyncio
     async def test_set_context(self):
         """Test setting context directly."""
         parent = MockParentSocket()

@@ -57,7 +57,7 @@ class Binder(Generic[T]):
         # AttributeError: accessing annotations on some objects
         # RecursionError: circular type references
         try:
-            hints = get_type_hints(func)
+            hints = get_type_hints(func, include_extras=True)
         except (NameError, AttributeError, RecursionError) as e:
             logger.debug("Could not resolve type hints for %s: %s", func.__name__, e)
             hints = {}
@@ -188,7 +188,7 @@ class Binder(Generic[T]):
         sig = inspect.signature(func)
 
         try:
-            hints = get_type_hints(func)
+            hints = get_type_hints(func, include_extras=True)
         except (NameError, AttributeError, RecursionError) as e:
             logger.debug("Could not resolve type hints for %s: %s", func.__name__, e)
             hints = {}
