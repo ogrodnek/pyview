@@ -66,17 +66,14 @@ class Binder(Generic[T]):
         errors: list[ParamError] = []
 
         for name, param in sig.parameters.items():
-            # Skip 'self' for methods
             if name == "self":
                 continue
-
-            # Skip *args and **kwargs (VAR_POSITIONAL and VAR_KEYWORD)
             if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
                 continue
 
             expected = hints.get(name, Any)
 
-            # 1) Check for Depends first
+            # Handle Depends separately (sync resolution)
             if isinstance(param.default, _DependsMarker):
                 try:
                     bound[name] = self._resolve_depends_sync(param.default, ctx)
@@ -84,40 +81,14 @@ class Binder(Generic[T]):
                     errors.append(ParamError(name, "Depends", None, str(e)))
                 continue
 
-            # 2) Try injectables
-            injected = self.injectables.resolve(name, expected, ctx)
-            if injected is not _NOT_FOUND:
-                bound[name] = injected
-                continue
-
-            # 3) Check for dataclass parameter - gather fields from params
-            if dataclasses.is_dataclass(expected) and isinstance(expected, type):
-                raw = self._resolve_dataclass_fields(expected, ctx)
-                try:
-                    bound[name] = self.converter.convert(raw, expected)
-                except ConversionError as e:
-                    errors.append(ParamError(name, repr(expected), raw, str(e)))
-                continue
-
-            # 4) Pull raw value from params or payload
-            raw = self._resolve_raw(name, ctx)
-
-            # 5) Handle missing values
-            if raw is None:
-                if param.default is not inspect.Parameter.empty:
-                    bound[name] = param.default
-                    continue
-                if self.converter.is_optional(expected):
-                    bound[name] = None
-                    continue
-                errors.append(ParamError(name, repr(expected), None, "missing required parameter"))
-                continue
-
-            # 6) Convert to expected type
-            try:
-                bound[name] = self.converter.convert(raw, expected)
-            except ConversionError as e:
-                errors.append(ParamError(name, repr(expected), raw, str(e)))
+            # all other params
+            result = self._resolve_param(name, param, expected, ctx)
+            if result is not None:
+                value, error = result
+                if error:
+                    errors.append(error)
+                else:
+                    bound[name] = value
 
         return BindResult(bound, errors)
 
@@ -146,6 +117,53 @@ class Binder(Generic[T]):
             ctx.cache[dep.dependency] = value
 
         return value
+
+    def _resolve_param(
+        self,
+        name: str,
+        param: inspect.Parameter,
+        expected: Any,
+        ctx: BindContext[T],
+    ) -> tuple[Any, ParamError | None] | None:
+        """Resolve a single non-Depends parameter.
+
+        Returns:
+            - (value, None) if resolved successfully
+            - (None, ParamError) if resolution failed
+            - None if this is a Depends parameter (caller handles)
+        """
+        if isinstance(param.default, _DependsMarker):
+            return None  # Caller handles sync/async
+
+        # Try injectables
+        injected = self.injectables.resolve(name, expected, ctx)
+        if injected is not _NOT_FOUND:
+            return (injected, None)
+
+        # Dataclass parameter
+        if dataclasses.is_dataclass(expected) and isinstance(expected, type):
+            raw = self._resolve_dataclass_fields(expected, ctx)
+            try:
+                return (self.converter.convert(raw, expected), None)
+            except ConversionError as e:
+                return (None, ParamError(name, repr(expected), raw, str(e)))
+
+        # Raw value from params/payload
+        raw = self._resolve_raw(name, ctx)
+
+        # Missing values
+        if raw is None:
+            if param.default is not inspect.Parameter.empty:
+                return (param.default, None)
+            if self.converter.is_optional(expected):
+                return (None, None)
+            return (None, ParamError(name, repr(expected), None, "missing required parameter"))
+
+        # Convert
+        try:
+            return (self.converter.convert(raw, expected), None)
+        except ConversionError as e:
+            return (None, ParamError(name, repr(expected), raw, str(e)))
 
     def _resolve_dataclass_fields(self, expected: type, ctx: BindContext[T]) -> dict[str, Any]:
         """Gather dataclass fields from params."""
@@ -199,13 +217,12 @@ class Binder(Generic[T]):
         for name, param in sig.parameters.items():
             if name == "self":
                 continue
-
             if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
                 continue
 
             expected = hints.get(name, Any)
 
-            # Check for Depends first
+            # Handle Depends separately (async resolution)
             if isinstance(param.default, _DependsMarker):
                 try:
                     bound[name] = await self._resolve_depends(param.default, ctx)
@@ -213,40 +230,14 @@ class Binder(Generic[T]):
                     errors.append(ParamError(name, "Depends", None, str(e)))
                 continue
 
-            # Try injectables
-            injected = self.injectables.resolve(name, expected, ctx)
-            if injected is not _NOT_FOUND:
-                bound[name] = injected
-                continue
-
-            # Check for dataclass parameter
-            if dataclasses.is_dataclass(expected) and isinstance(expected, type):
-                raw = self._resolve_dataclass_fields(expected, ctx)
-                try:
-                    bound[name] = self.converter.convert(raw, expected)
-                except ConversionError as e:
-                    errors.append(ParamError(name, repr(expected), raw, str(e)))
-                continue
-
-            # Pull raw value from params or payload
-            raw = self._resolve_raw(name, ctx)
-
-            # Handle missing values
-            if raw is None:
-                if param.default is not inspect.Parameter.empty:
-                    bound[name] = param.default
-                    continue
-                if self.converter.is_optional(expected):
-                    bound[name] = None
-                    continue
-                errors.append(ParamError(name, repr(expected), None, "missing required parameter"))
-                continue
-
-            # Convert to expected type
-            try:
-                bound[name] = self.converter.convert(raw, expected)
-            except ConversionError as e:
-                errors.append(ParamError(name, repr(expected), raw, str(e)))
+            # all other params
+            result = self._resolve_param(name, param, expected, ctx)
+            if result is not None:
+                value, error = result
+                if error:
+                    errors.append(error)
+                else:
+                    bound[name] = value
 
         return BindResult(bound, errors)
 

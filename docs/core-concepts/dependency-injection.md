@@ -207,7 +207,7 @@ async def test_get_current_user_no_session():
 |--------|------------|-------------------|
 | `__init__` | No (sync only) | Yes |
 | `mount` | Yes | Yes |
-| `handle_params` | Yes | Yes |
+| `handle_params` | Yes | No |
 | `handle_event` | Yes | No |
 | `@event` handlers | Yes | No |
 
