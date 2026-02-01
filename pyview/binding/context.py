@@ -1,7 +1,7 @@
 """Binding context for parameter resolution."""
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar
 from urllib.parse import ParseResult
 
 if TYPE_CHECKING:
@@ -23,6 +23,7 @@ class BindContext(Generic[T]):
         socket: LiveView socket instance
         event: Event name (for handle_event)
         extra: Additional injectable values
+        cache: Dependency cache for Depends() resolution (per-request)
     """
 
     params: "Params"
@@ -31,3 +32,4 @@ class BindContext(Generic[T]):
     socket: Optional["LiveViewSocket[T]"]
     event: Optional[str]
     extra: dict[str, Any] = field(default_factory=dict)
+    cache: dict[Callable[..., Any], Any] = field(default_factory=dict)

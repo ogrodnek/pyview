@@ -90,7 +90,6 @@ class MockLiveView:
 class TestTemplateView:
     """Test TemplateView mixin."""
 
-    @pytest.mark.asyncio
     async def test_template_view_render_success(self):
         """Test successful render with template method."""
 
@@ -114,7 +113,6 @@ class TestTemplateView:
         html = result.text()
         assert html == "Hello World!"
 
-    @pytest.mark.asyncio
     async def test_template_view_no_template_method(self):
         """Test TemplateView without template method falls back to super()."""
 
@@ -130,7 +128,6 @@ class TestTemplateView:
         result = await view.render(assigns, meta)
         assert result == "fallback"
 
-    @pytest.mark.asyncio
     async def test_template_view_invalid_return_type(self):
         """Test TemplateView with template method returning wrong type."""
 
@@ -147,7 +144,6 @@ class TestTemplateView:
         ):
             await view.render(assigns, meta)
 
-    @pytest.mark.asyncio
     async def test_template_view_with_assigns_dict(self):
         class TestView(TemplateView, MockLiveView):
             def template(self, assigns, meta):

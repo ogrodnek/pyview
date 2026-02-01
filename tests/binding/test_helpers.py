@@ -15,13 +15,14 @@ from urllib.parse import urlparse
 import pytest
 
 from pyview.binding.helpers import call_handle_event, call_handle_params
+from pyview.live_routes import LiveViewLookup
+from pyview.live_socket import ConnectedLiveViewSocket
 from pyview.live_view import LiveView
 
 
 class TestCallHandleEvent:
     """Integration tests for call_handle_event."""
 
-    @pytest.mark.asyncio
     async def test_binds_typed_params_from_payload(self):
         """Verify typed params are bound from payload with conversion."""
 
@@ -39,7 +40,6 @@ class TestCallHandleEvent:
         assert lv.received_count == 5  # int, not "5"
         assert lv.received_socket is socket
 
-    @pytest.mark.asyncio
     async def test_legacy_event_payload_socket_signature(self):
         """Verify legacy (event, payload, socket) signature still works."""
 
@@ -56,7 +56,6 @@ class TestCallHandleEvent:
         assert lv.received[1] == {"x": 10, "y": 20}
         assert lv.received[2] is socket
 
-    @pytest.mark.asyncio
     async def test_injects_event_name(self):
         """Verify event name is injectable."""
 
@@ -69,7 +68,6 @@ class TestCallHandleEvent:
 
         assert lv.received_event == "my-event"
 
-    @pytest.mark.asyncio
     async def test_multiple_typed_params(self):
         """Verify multiple typed params from payload."""
 
@@ -82,7 +80,6 @@ class TestCallHandleEvent:
 
         assert lv.received == (10, 20, "point")
 
-    @pytest.mark.asyncio
     async def test_optional_params_with_default(self):
         """Verify optional params use defaults when missing."""
 
@@ -95,7 +92,6 @@ class TestCallHandleEvent:
 
         assert lv.received_count == 1  # default value
 
-    @pytest.mark.asyncio
     async def test_optional_none_when_missing(self):
         """Verify Optional params get None when missing."""
 
@@ -108,7 +104,6 @@ class TestCallHandleEvent:
 
         assert lv.received_tag is None
 
-    @pytest.mark.asyncio
     async def test_dataclass_from_payload(self):
         """Verify dataclass binding from payload fields."""
 
@@ -131,7 +126,6 @@ class TestCallHandleEvent:
 class TestCallHandleParams:
     """Integration tests for call_handle_params."""
 
-    @pytest.mark.asyncio
     async def test_binds_typed_params_from_query(self):
         """Verify typed params are bound from query params."""
 
@@ -147,7 +141,6 @@ class TestCallHandleParams:
 
         assert lv.received_page == 5  # int, not "5"
 
-    @pytest.mark.asyncio
     async def test_legacy_url_params_socket_signature(self):
         """Verify legacy (url, params, socket) signature still works."""
 
@@ -165,7 +158,6 @@ class TestCallHandleParams:
         # params is wrapped in Params object for legacy, check it has the data
         assert lv.received[2] is socket
 
-    @pytest.mark.asyncio
     async def test_injects_url(self):
         """Verify URL is injectable."""
 
@@ -180,7 +172,6 @@ class TestCallHandleParams:
 
         assert lv.received_url is url
 
-    @pytest.mark.asyncio
     async def test_multiple_typed_params(self):
         """Verify multiple typed params from query."""
 
@@ -195,7 +186,6 @@ class TestCallHandleParams:
 
         assert lv.received == (2, 25)
 
-    @pytest.mark.asyncio
     async def test_default_when_param_missing(self):
         """Verify defaults are used when params are missing."""
 
@@ -208,7 +198,6 @@ class TestCallHandleParams:
 
         assert lv.received_page == 1
 
-    @pytest.mark.asyncio
     async def test_dataclass_from_params(self):
         """Verify dataclass binding from query params."""
 
@@ -229,7 +218,6 @@ class TestCallHandleParams:
         assert lv.received_paging.page == 3
         assert lv.received_paging.per_page == 50
 
-    @pytest.mark.asyncio
     async def test_list_params(self):
         """Verify list params are bound correctly."""
 
@@ -248,7 +236,6 @@ class TestCallHandleParams:
 class TestBindingErrorHandling:
     """Tests for error handling when binding fails."""
 
-    @pytest.mark.asyncio
     async def test_call_handle_event_raises_on_missing_required_param(self):
         """Verify ValueError is raised when required param is missing."""
 
@@ -264,7 +251,6 @@ class TestBindingErrorHandling:
         assert "Event binding failed" in str(exc_info.value)
         assert "count" in str(exc_info.value)
 
-    @pytest.mark.asyncio
     async def test_call_handle_params_raises_on_missing_required_param(self):
         """Verify ValueError is raised when required param is missing."""
 
@@ -280,7 +266,6 @@ class TestBindingErrorHandling:
         assert "Parameter binding failed" in str(exc_info.value)
         assert "page" in str(exc_info.value)
 
-    @pytest.mark.asyncio
     async def test_call_handle_event_raises_on_conversion_error(self):
         """Verify ValueError is raised when type conversion fails."""
 
@@ -295,7 +280,6 @@ class TestBindingErrorHandling:
 
         assert "Event binding failed" in str(exc_info.value)
 
-    @pytest.mark.asyncio
     async def test_call_handle_params_raises_on_conversion_error(self):
         """Verify ValueError is raised when type conversion fails."""
 
@@ -314,11 +298,8 @@ class TestBindingErrorHandling:
 class TestPushPatchPathParams:
     """Tests for push_patch extracting and merging path params."""
 
-    @pytest.mark.asyncio
     async def test_push_patch_merges_path_params(self):
         """Verify push_patch extracts and merges path params with query params."""
-        from pyview.live_routes import LiveViewLookup
-        from pyview.live_socket import ConnectedLiveViewSocket
 
         class MyView(LiveView):
             async def handle_params(self, socket, item_id: str, page: int = 1):
@@ -328,7 +309,7 @@ class TestPushPatchPathParams:
         # Set up routes with a path parameter
         routes = LiveViewLookup()
         lv = MyView()
-        routes.add("/items/{item_id}", lambda: lv)
+        routes.add("/items/{item_id}", MyView)
 
         # Create socket with routes
         mock_websocket = MagicMock()
@@ -355,11 +336,8 @@ class TestPushPatchPathParams:
         assert lv.received_item_id == "123"  # path param extracted
         assert lv.received_page == 2  # query param passed
 
-    @pytest.mark.asyncio
     async def test_push_patch_path_params_only(self):
         """Verify push_patch works with only path params (no query params)."""
-        from pyview.live_routes import LiveViewLookup
-        from pyview.live_socket import ConnectedLiveViewSocket
 
         class MyView(LiveView):
             async def handle_params(self, socket, job_id: str):
@@ -367,7 +345,7 @@ class TestPushPatchPathParams:
 
         routes = LiveViewLookup()
         lv = MyView()
-        routes.add("/analysis/{job_id}/summary", lambda: lv)
+        routes.add("/analysis/{job_id}/summary", MyView)
 
         mock_websocket = MagicMock()
 
@@ -390,10 +368,8 @@ class TestPushPatchPathParams:
 
         assert lv.received_job_id == "456"  # path param extracted
 
-    @pytest.mark.asyncio
     async def test_push_patch_without_routes(self):
         """Verify push_patch works when routes is None (backwards compat)."""
-        from pyview.live_socket import ConnectedLiveViewSocket
 
         class MyView(LiveView):
             async def handle_params(self, socket, page: int = 1):

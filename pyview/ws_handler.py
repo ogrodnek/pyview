@@ -8,7 +8,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from pyview.auth import AuthProviderFactory
-from pyview.binding import call_handle_event, call_handle_params
+from pyview.binding import call_handle_event, call_handle_params, call_mount, create_view
 from pyview.csrf import validate_csrf_token
 from pyview.instrumentation import InstrumentationProvider
 from pyview.live_routes import LiveViewLookup
@@ -95,21 +95,24 @@ class LiveSocketHandler:
                 self.myJoinId = topic
 
                 url = urlparse(payload["url"])
-                lv, path_params = self.routes.get(url.path)
-                await self.check_auth(websocket, lv)
-                socket = ConnectedLiveViewSocket(
-                    websocket, topic, lv, self.scheduler, self.instrumentation, self.routes
-                )
+                lv_class, path_params = self.routes.get(url.path)
+                await self.check_auth(websocket, lv_class)
 
                 session = {}
                 if "session" in payload:
                     session = deserialize_session(payload["session"])
 
+                lv = create_view(lv_class, session)
+
+                socket = ConnectedLiveViewSocket(
+                    websocket, topic, lv, self.scheduler, self.instrumentation, self.routes
+                )
+
                 # Track mount
-                view_name = lv.__class__.__name__
+                view_name = lv_class.__name__
                 self.metrics.mounts.add(1, {"view": view_name})
 
-                await lv.mount(socket, session)
+                await call_mount(lv, socket, session)
 
                 # Parse query parameters and merge with path parameters
                 query_params = parse_qs(url.query)
@@ -330,8 +333,14 @@ class LiveSocketHandler:
                         else str(url_str_raw)
                     )
                     url = urlparse(url_str)
-                    lv, path_params = self.routes.get(url.path)
-                    await self.check_auth(socket.websocket, lv)
+                    lv_class, path_params = self.routes.get(url.path)
+                    await self.check_auth(socket.websocket, lv_class)
+
+                    session = {}
+                    if "session" in payload:
+                        session = deserialize_session(payload["session"])
+
+                    lv = create_view(lv_class, session)
 
                     # Create new socket for new LiveView
                     socket = ConnectedLiveViewSocket(
@@ -343,11 +352,7 @@ class LiveSocketHandler:
                         self.routes,
                     )
 
-                    session = {}
-                    if "session" in payload:
-                        session = deserialize_session(payload["session"])
-
-                    await lv.mount(socket, session)
+                    await call_mount(lv, socket, session)
 
                     # Parse query parameters and merge with path parameters
                     query_params = parse_qs(url.query)

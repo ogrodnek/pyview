@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import ParseResult
 
 from .binder import Binder
@@ -12,8 +12,74 @@ from .params import Params
 
 if TYPE_CHECKING:
     from pyview.live_socket import LiveViewSocket
+    from pyview.live_view import LiveView
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T", bound="LiveView")
+
+
+def create_view(cls: type[T], session: dict[str, Any]) -> T:
+    """Create a LiveView instance with Depends() support in __init__.
+
+    Args:
+        cls: The LiveView class to instantiate
+        session: Session dict (available to sync dependencies)
+
+    Returns:
+        Instance of the LiveView class
+
+    Raises:
+        TypeError: If an async dependency is used in __init__
+        ValueError: If dependency binding fails
+    """
+    ctx = BindContext(
+        params=Params({}),
+        payload=None,
+        url=None,
+        socket=None,
+        event=None,
+        extra={"session": session},
+    )
+    binder = Binder()
+    result = binder.bind(cls.__init__, ctx)
+
+    if not result.success:
+        for err in result.errors:
+            logger.warning(f"Init binding error for {cls.__name__}: {err}")
+        raise ValueError(f"Init binding failed for {cls.__name__}: {result.errors}")
+
+    return cls(**result.bound_args)
+
+
+async def call_mount(lv, socket: LiveViewSocket, session: dict[str, Any]) -> None:
+    """Bind and call mount with Depends() support.
+
+    Args:
+        lv: The LiveView instance
+        socket: The socket instance
+        session: Session dict
+
+    Returns:
+        Result of lv.mount()
+    """
+    ctx = BindContext(
+        params=Params({}),
+        payload=None,
+        url=None,
+        socket=socket,
+        event=None,
+        extra={"session": session},
+    )
+    binder = Binder()
+    result = await binder.abind(lv.mount, ctx)
+
+    if not result.success:
+        for err in result.errors:
+            logger.warning(f"Mount binding error: {err}")
+        raise ValueError(f"Mount binding failed: {result.errors}")
+
+    return await lv.mount(**result.bound_args)
 
 
 async def call_handle_params(
@@ -38,7 +104,7 @@ async def call_handle_params(
         event=None,
     )
     binder = Binder()
-    result = binder.bind(lv.handle_params, ctx)
+    result = await binder.abind(lv.handle_params, ctx)
 
     if not result.success:
         for err in result.errors:
@@ -68,7 +134,7 @@ async def call_handle_event(lv, event: str, payload: dict, socket: LiveViewSocke
         event=event,
     )
     binder = Binder()
-    result = binder.bind(lv.handle_event, ctx)
+    result = await binder.abind(lv.handle_event, ctx)
 
     if not result.success:
         for err in result.errors:

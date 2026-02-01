@@ -25,11 +25,11 @@ class BlogPostLiveView(LiveView):
 def routes_lookup():
     lookup = LiveViewLookup()
     # Add a mix of static and parameterized routes
-    lookup.add("/", lambda: MockLiveView())
-    lookup.add("/users", lambda: UserLiveView())
-    lookup.add("/users/{user_id}", lambda: UserLiveView())
-    lookup.add("/products/{product_id:int}", lambda: ProductLiveView())
-    lookup.add("/blog/{year:int}/{month:int}/{slug}", lambda: BlogPostLiveView())
+    lookup.add("/", MockLiveView)
+    lookup.add("/users", UserLiveView)
+    lookup.add("/users/{user_id}", UserLiveView)
+    lookup.add("/products/{product_id:int}", ProductLiveView)
+    lookup.add("/blog/{year:int}/{month:int}/{slug}", BlogPostLiveView)
     return lookup
 
 
@@ -38,32 +38,32 @@ class TestLiveViewLookup:
     # When we look up an exact path match
     # Then we get the correct LiveView with empty params
     def test_exact_path_match(self, routes_lookup):
-        view, params = routes_lookup.get("/users")
-        assert isinstance(view, UserLiveView)
+        view_class, params = routes_lookup.get("/users")
+        assert view_class is UserLiveView
         assert params == {}
 
     # Given a route with trailing slash
     # When we look up the path
     # Then we get the correct LiveView by removing the trailing slash
     def test_trailing_slash(self, routes_lookup):
-        view, params = routes_lookup.get("/users/")
-        assert isinstance(view, UserLiveView)
+        view_class, params = routes_lookup.get("/users/")
+        assert view_class is UserLiveView
         assert params == {}
 
     # Given a route with path parameters
     # When we look up a matching path
     # Then we get the correct LiveView with extracted parameters
     def test_path_parameters(self, routes_lookup):
-        view, params = routes_lookup.get("/users/123")
-        assert isinstance(view, UserLiveView)
+        view_class, params = routes_lookup.get("/users/123")
+        assert view_class is UserLiveView
         assert params == {"user_id": "123"}
 
     # Given a route with type-converted path parameters
     # When we look up a matching path
     # Then we get the correct LiveView with properly converted parameters
     def test_type_conversion(self, routes_lookup):
-        view, params = routes_lookup.get("/products/456")
-        assert isinstance(view, ProductLiveView)
+        view_class, params = routes_lookup.get("/products/456")
+        assert view_class is ProductLiveView
         assert params == {"product_id": 456}
         assert isinstance(params["product_id"], int)
 
@@ -71,8 +71,8 @@ class TestLiveViewLookup:
     # When we look up a matching path
     # Then we get all parameters correctly extracted and converted
     def test_multiple_parameters(self, routes_lookup):
-        view, params = routes_lookup.get("/blog/2023/05/hello-world")
-        assert isinstance(view, BlogPostLiveView)
+        view_class, params = routes_lookup.get("/blog/2023/05/hello-world")
+        assert view_class is BlogPostLiveView
         assert params == {"year": 2023, "month": 5, "slug": "hello-world"}
         assert isinstance(params["year"], int)
         assert isinstance(params["month"], int)
@@ -98,12 +98,12 @@ class TestLiveViewLookup:
     # Then the most specific match wins
     def test_specific_path_priority(self):
         lookup = LiveViewLookup()
-        lookup.add("/items/{id}", lambda: MockLiveView())
-        lookup.add("/items/special", lambda: UserLiveView())
+        lookup.add("/items/{id}", MockLiveView)
+        lookup.add("/items/special", UserLiveView)
 
         # The specific path should match, not the parameter path
-        view, params = lookup.get("/items/special")
-        assert isinstance(view, UserLiveView)
+        view_class, params = lookup.get("/items/special")
+        assert view_class is UserLiveView
         assert params == {}
 
     # Given the starlette compile_path function

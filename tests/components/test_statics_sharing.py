@@ -118,7 +118,6 @@ class DifferentCounter(LiveComponent[CounterContext]):
 class TestComponentStaticsSharing:
     """Tests for component statics sharing optimization."""
 
-    @pytest.mark.asyncio
     async def test_multiple_same_components_share_statics(self):
         """Test that multiple instances of same component share statics via CID reference."""
         parent = MockConnectedSocket()
@@ -146,7 +145,6 @@ class TestComponentStaticsSharing:
         assert second_comp["s"] == cid1, f"Second component should reference CID {cid1}"
         assert third_comp["s"] == cid1, f"Third component should reference CID {cid1}"
 
-    @pytest.mark.asyncio
     async def test_different_components_no_sharing(self):
         """Test that different component types don't share statics."""
         parent = MockConnectedSocket()
@@ -168,7 +166,6 @@ class TestComponentStaticsSharing:
             "Different component should have its own statics array"
         )
 
-    @pytest.mark.asyncio
     async def test_all_components_have_root_flag(self):
         """Test that all components have ROOT flag set to 1."""
         parent = MockConnectedSocket()
@@ -183,7 +180,6 @@ class TestComponentStaticsSharing:
         for cid_str, comp_data in rendered["c"].items():
             assert comp_data.get("r") == 1, f"Component {cid_str} missing ROOT flag"
 
-    @pytest.mark.asyncio
     async def test_component_cid_keys_are_strings(self):
         """Test that component keys in 'c' dict are strings (Phoenix wire format)."""
         parent = MockConnectedSocket()
@@ -197,7 +193,6 @@ class TestComponentStaticsSharing:
         for key in rendered["c"]:
             assert isinstance(key, str), f"CID key should be string, got {type(key)}"
 
-    @pytest.mark.asyncio
     async def test_statics_reference_is_integer(self):
         """Test that shared statics reference is an integer CID, not string."""
         parent = MockConnectedSocket()
@@ -216,7 +211,6 @@ class TestComponentStaticsSharing:
         )
         assert second_comp["s"] == cid1
 
-    @pytest.mark.asyncio
     async def test_single_component_no_sharing(self):
         """Test that a single component has full statics array."""
         parent = MockConnectedSocket()
@@ -229,7 +223,6 @@ class TestComponentStaticsSharing:
         comp = rendered["c"][str(cid)]
         assert isinstance(comp["s"], list), "Single component should have statics array"
 
-    @pytest.mark.asyncio
     async def test_mixed_components_correct_sharing(self):
         """Test correct sharing with a mix of same and different components."""
         parent = MockConnectedSocket()
