@@ -122,6 +122,12 @@ class LiveViewTemplate:
                 # Get the actual value from the interpolation
                 interp_value = item.value
 
+                # None is rendered as empty string
+                if interp_value is None:
+                    parts[key] = ""
+                    interp_index += 1
+                    continue
+
                 # Apply format specifier if present
                 if hasattr(item, "format_spec") and item.format_spec:
                     try:
