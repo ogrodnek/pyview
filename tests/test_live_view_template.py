@@ -225,10 +225,22 @@ class TestLiveViewTemplate:
         
         expected = {
             "s": ["Value: ", ""],
-            "0": "None"  # None is converted to string
+            "0": ""  # None renders as empty string
         }
         assert result == expected
     
+    def test_none_with_format_spec(self):
+        """Test None with a format spec still renders as empty string."""
+        value = None
+        template = t"Price: {value:.2f}"
+        result = LiveViewTemplate.process(template)
+
+        expected = {
+            "s": ["Price: ", ""],
+            "0": ""  # None renders as empty string
+        }
+        assert result == expected
+
     def test_dict_interpolation(self):
         """Test dictionary interpolation."""
         data = {"key": "value", "num": 42}
