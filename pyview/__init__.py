@@ -1,5 +1,6 @@
 from pyview.components import ComponentMeta, ComponentsManager, ComponentSocket, LiveComponent
 from pyview.depends import Depends, Session
+import pyview.flash  # noqa: F401 — registers flash context processor
 from pyview.js import JsCommand
 from pyview.live_socket import (
     ConnectedLiveViewSocket,

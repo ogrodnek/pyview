@@ -183,27 +183,32 @@ class LiveSocketHandler:
                 event_name = payload["event"]
                 view_name = socket.liveview.__class__.__name__
 
-                # Check if event is targeted at a component (via phx-target={cid})
-                target_cid = payload.get("cid")
+                # Handle built-in lv:clear-flash event
+                if event_name == "lv:clear-flash":
+                    key = value.get("key") if isinstance(value, dict) else None
+                    socket.clear_flash(key)
+                else:
+                    # Check if event is targeted at a component (via phx-target={cid})
+                    target_cid = payload.get("cid")
 
-                self.metrics.events_processed.add(1, {"event": event_name, "view": view_name})
+                    self.metrics.events_processed.add(1, {"event": event_name, "view": view_name})
 
-                # Time event processing
-                with self.instrumentation.time_histogram(
-                    "pyview.events.duration", {"event": event_name, "view": view_name}
-                ):
-                    if target_cid is not None:
-                        # Validate CID type - must be an integer
-                        if not isinstance(target_cid, int):
-                            logger.warning(
-                                f"Invalid cid type for event '{event_name}': {type(target_cid).__name__}"
-                            )
+                    # Time event processing
+                    with self.instrumentation.time_histogram(
+                        "pyview.events.duration", {"event": event_name, "view": view_name}
+                    ):
+                        if target_cid is not None:
+                            # Validate CID type - must be an integer
+                            if not isinstance(target_cid, int):
+                                logger.warning(
+                                    f"Invalid cid type for event '{event_name}': {type(target_cid).__name__}"
+                                )
+                            else:
+                                # Route event to component
+                                await socket.components.handle_event(target_cid, event_name, value)
                         else:
-                            # Route event to component
-                            await socket.components.handle_event(target_cid, event_name, value)
-                    else:
-                        # Route event to LiveView (default behavior)
-                        await call_handle_event(socket.liveview, event_name, value, socket)
+                            # Route event to LiveView (default behavior)
+                            await call_handle_event(socket.liveview, event_name, value, socket)
 
                 # Time rendering
                 with self.instrumentation.time_histogram(
