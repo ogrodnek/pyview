@@ -65,12 +65,23 @@ class UnconnectedSocket(Generic[T]):
     context: T
     live_title: Optional[str] = None
     connected: bool = False
+    flash: dict[str, Any]
     _liveview: UnconnectedLiveView
     components: ComponentsManager
 
     def __init__(self) -> None:
         self._liveview = UnconnectedLiveView()
         self.components = ComponentsManager(self)
+        self.flash: dict[str, Any] = {}
+
+    def put_flash(self, key: str, value: Any) -> None:
+        self.flash[key] = value
+
+    def clear_flash(self, key: Optional[str] = None) -> None:
+        if key:
+            self.flash.pop(key, None)
+        else:
+            self.flash.clear()
 
     @property
     def liveview(self) -> UnconnectedLiveView:
@@ -101,6 +112,7 @@ class ConnectedLiveViewSocket(Generic[T]):
     pending_events: list[tuple[str, Any]]
     upload_manager: UploadManager
     prev_rendered: Optional[dict[str, Any]] = None
+    flash: dict[str, Any]
 
     def __init__(
         self,
@@ -120,10 +132,20 @@ class ConnectedLiveViewSocket(Generic[T]):
         self.connected = True
         self.pub_sub = PubSub(pub_sub_hub, topic)
         self.pending_events = []
+        self.flash: dict[str, Any] = {}
         self.upload_manager = UploadManager()
         self.stream_runner = AsyncStreamRunner(self)
         self.scheduler = scheduler
         self.components = ComponentsManager(self)
+
+    def put_flash(self, key: str, value: Any) -> None:
+        self.flash[key] = value
+
+    def clear_flash(self, key: Optional[str] = None) -> None:
+        if key:
+            self.flash.pop(key, None)
+        else:
+            self.flash.clear()
 
     @property
     def meta(self) -> PyViewMeta:

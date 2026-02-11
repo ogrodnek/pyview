@@ -1,3 +1,4 @@
+import pyview.flash  # noqa: F401 — registers flash context processor
 from pyview.components import ComponentMeta, ComponentsManager, ComponentSocket, LiveComponent
 from pyview.depends import Depends, Session
 from pyview.js import JsCommand

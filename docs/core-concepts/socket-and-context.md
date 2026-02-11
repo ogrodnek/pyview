@@ -21,7 +21,10 @@ class UnconnectedSocket(Generic[T]):
     context: T                           # Your application state
     live_title: Optional[str] = None     # Page title
     connected: bool = False              # Always False
-    
+    flash: dict[str, Any]                # Flash messages
+
+    def put_flash(self, key: str, value: Any) -> None: ...
+    def clear_flash(self, key: Optional[str] = None) -> None: ...
     def allow_upload(
         self,
         upload_name: str,
@@ -49,7 +52,11 @@ class ConnectedLiveViewSocket(Generic[T]):
     pending_events: list[tuple[str, Any]]         # Queued client events
     upload_manager: UploadManager                 # File upload handling
     prev_rendered: Optional[dict[str, Any]]       # Previous render for diffing
-    
+    flash: dict[str, Any]                         # Flash messages
+
+    def put_flash(self, key: str, value: Any) -> None: ...
+    def clear_flash(self, key: Optional[str] = None) -> None: ...
+
     # Real-time capabilities
     async def subscribe(self, topic: str)         # Subscribe to pub/sub
     async def broadcast(self, topic: str, message: Any)  # Send pub/sub messages
@@ -117,6 +124,9 @@ This is why checking `is_connected(socket)` in `mount()` is common—you may wan
 |--------|:-----------:|:---------:|-------|
 | `context` | ✓ | ✓ | State management |
 | `live_title` | ✓ | ✓ | Page title |
+| `flash` | ✓ | ✓ | Flash messages |
+| `put_flash()` | ✓ | ✓ | Set a flash message |
+| `clear_flash()` | ✓ | ✓ | Clear flash messages |
 | `allow_upload()` | ✓ | ✓ | Configure uploads |
 | `subscribe()` | | ✓ | Pub/sub |
 | `broadcast()` | | ✓ | Pub/sub |

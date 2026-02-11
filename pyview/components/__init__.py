@@ -56,6 +56,8 @@ class ComponentsManagerProtocol(Protocol):
 class SocketWithComponents(Protocol):
     """Protocol for socket with components manager (for template rendering)."""
 
+    flash: dict[str, Any]
+
     @property
     def components(self) -> ComponentsManagerProtocol: ...
 
