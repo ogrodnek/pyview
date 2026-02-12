@@ -7,6 +7,8 @@ import pytest
 
 from pyview.binding import BindContext, Params
 from pyview.binding.injectables import _NOT_FOUND, InjectableRegistry
+from pyview.components.base import ComponentSocket
+from pyview.live_socket import ConnectedLiveViewSocket, UnconnectedSocket
 
 
 class TestInjectableRegistry:
@@ -110,4 +112,78 @@ class TestInjectableRegistry:
     ):
         """When 'params' is typed as int, treat it as a URL param name."""
         result = registry.resolve("params", int, ctx)
+        assert result is _NOT_FOUND
+
+    # --- Type-based socket injection ---
+
+    def test_inject_component_socket_by_type(self, registry: InjectableRegistry, ctx: BindContext):
+        """ComponentSocket type annotation injects socket regardless of param name."""
+        result = registry.resolve("any_name", ComponentSocket, ctx)
+        assert result is ctx.socket
+
+    def test_inject_component_socket_generic_by_type(
+        self, registry: InjectableRegistry, ctx: BindContext
+    ):
+        """ComponentSocket[T] generic type annotation injects socket."""
+        result = registry.resolve("sock", ComponentSocket[dict], ctx)
+        assert result is ctx.socket
+
+    def test_inject_connected_socket_by_type(self, registry: InjectableRegistry, ctx: BindContext):
+        """ConnectedLiveViewSocket type annotation injects socket."""
+        result = registry.resolve("s", ConnectedLiveViewSocket, ctx)
+        assert result is ctx.socket
+
+    def test_inject_connected_socket_generic_by_type(
+        self, registry: InjectableRegistry, ctx: BindContext
+    ):
+        """ConnectedLiveViewSocket[T] generic type annotation injects socket."""
+        result = registry.resolve("x", ConnectedLiveViewSocket[dict], ctx)
+        assert result is ctx.socket
+
+    def test_inject_unconnected_socket_by_type(
+        self, registry: InjectableRegistry, ctx: BindContext
+    ):
+        """UnconnectedSocket type annotation injects socket."""
+        result = registry.resolve("whatever", UnconnectedSocket, ctx)
+        assert result is ctx.socket
+
+    def test_inject_unconnected_socket_generic_by_type(
+        self, registry: InjectableRegistry, ctx: BindContext
+    ):
+        """UnconnectedSocket[T] generic type annotation injects socket."""
+        result = registry.resolve("foo", UnconnectedSocket[dict], ctx)
+        assert result is ctx.socket
+
+    def test_non_socket_name_without_type_not_injected(
+        self, registry: InjectableRegistry, ctx: BindContext
+    ):
+        """Non-socket parameter name without socket type is not injected."""
+        result = registry.resolve("sock", Any, ctx)
+        assert result is _NOT_FOUND
+
+    # --- Assigns injection (for components) ---
+
+    def test_inject_assigns_by_name(self, registry: InjectableRegistry):
+        """assigns parameter is injected from extra context."""
+        ctx = BindContext(
+            params=Params({}),
+            payload=None,
+            url=None,
+            socket=None,
+            event=None,
+            extra={"assigns": {"label": "test", "count": 5}},
+        )
+        result = registry.resolve("assigns", dict, ctx)
+        assert result == {"label": "test", "count": 5}
+
+    def test_assigns_missing_returns_not_found(self, registry: InjectableRegistry):
+        """assigns returns NOT_FOUND when not in extra context."""
+        ctx = BindContext(
+            params=Params({}),
+            payload=None,
+            url=None,
+            socket=None,
+            event=None,
+        )
+        result = registry.resolve("assigns", dict, ctx)
         assert result is _NOT_FOUND
