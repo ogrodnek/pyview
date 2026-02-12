@@ -63,28 +63,39 @@ Flash is automatically available in every template as `flash`:
 
 ## Dismissing Flash Messages
 
-Users expect to dismiss notifications. The built-in `lv:clear-flash` event handles this cleanly.
-
-Push the event with the key to clear, and chain a JS command for an instant visual response:
+Users expect to dismiss notifications. The built-in `lv:clear-flash` event handles this — just use `phx-click` with `phx-value-key`:
 
 ```html
-<div
-  class="flash-info"
-  id="flash-info"
-  phx-click="{{ js|js.push:'lv:clear-flash', {'key': 'info'}|js.hide:'#flash-info' }}"
->
+<div class="flash-info"
+     phx-click="lv:clear-flash" phx-value-key="info">
   {{ flash.info }}
 </div>
 ```
 
-This does two things in one click: hides the element immediately on the client (no round-trip flicker) and tells the server to clear the flash so it stays gone on the next render.
+That's it. The click sends `lv:clear-flash` to the server with `{"key": "info"}`, the framework clears it, and the next render removes the element.
 
-To clear all flash messages at once, omit the key:
+To clear all flash messages at once from the server side, omit the key:
 
 ```python
 socket.clear_flash()        # clear everything
 socket.clear_flash("info")  # clear just one key
 ```
+
+<details>
+<summary>Adding a client-side transition</summary>
+
+If you want an instant hide before the server round-trip, chain a JS command:
+
+```html
+<div class="flash-info" id="flash-info"
+     phx-click='{{ js.push("lv:clear-flash", {"key": "info"}) | js.hide("#flash-info") }}'>
+  {{ flash.info }}
+</div>
+```
+
+This hides the element immediately on the client and clears the flash on the server. In practice the websocket round-trip is fast enough that the simple `phx-value-key` approach works well.
+
+</details>
 
 ## Complete Example
 
@@ -115,16 +126,14 @@ class SettingsLiveView(LiveView[Context]):
 ```html
 {% if flash.error %}
 <p class="error"
-   id="flash-error"
-   phx-click="{{ js|js.push:'lv:clear-flash', {'key': 'error'}|js.hide:'#flash-error' }}">
+   phx-click="lv:clear-flash" phx-value-key="error">
   {{ flash.error }}
 </p>
 {% endif %}
 
 {% if flash.info %}
 <p class="success"
-   id="flash-info"
-   phx-click="{{ js|js.push:'lv:clear-flash', {'key': 'info'}|js.hide:'#flash-info' }}">
+   phx-click="lv:clear-flash" phx-value-key="info">
   {{ flash.info }}
 </p>
 {% endif %}

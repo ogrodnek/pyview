@@ -4,7 +4,7 @@
 
         {% if flash.info %}
         <div id="flash-info"
-             phx-click='{{ js.push("lv:clear-flash", {"key": "info"}) | js.hide("#flash-info") }}'
+             phx-click="lv:clear-flash" phx-value-key="info"
              class="mb-6 flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-4 py-3 cursor-pointer hover:bg-green-100 transition-colors">
             <span class="text-sm text-green-800">{{ flash.info }}</span>
             <span class="text-green-400 text-xs ml-3">dismiss</span>
@@ -13,7 +13,7 @@
 
         {% if flash.error %}
         <div id="flash-error"
-             phx-click='{{ js.push("lv:clear-flash", {"key": "error"}) | js.hide("#flash-error") }}'
+             phx-click="lv:clear-flash" phx-value-key="error"
              class="mb-6 flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-4 py-3 cursor-pointer hover:bg-red-100 transition-colors">
             <span class="text-sm text-red-800">{{ flash.error }}</span>
             <span class="text-red-400 text-xs ml-3">dismiss</span>

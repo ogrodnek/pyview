@@ -1,6 +1,5 @@
 from typing import TypedDict
 
-from pyview.js import JsCommands
 from pyview.live_view import LiveView, LiveViewSocket
 from pyview.events import AutoEventDispatch, event
 from pyview.template.template_view import TemplateView
@@ -46,10 +45,8 @@ class FlashDemoTStringLiveView(AutoEventDispatch, TemplateView, LiveView[FlashDe
             text = "text-red-800"
             dismiss = "text-red-400"
 
-        click = JsCommands([]).push("lv:clear-flash", {"key": key}).hide(f"#flash-{key}")
-
         return t"""<div id="flash-{key}"
-             phx-click='{click}'
+             phx-click="lv:clear-flash" phx-value-key="{key}"
              class="mb-6 flex items-center justify-between border rounded-lg px-4 py-3 cursor-pointer transition-colors {bg}">
             <span class="text-sm {text}">{message}</span>
             <span class="{dismiss} text-xs ml-3">dismiss</span>
