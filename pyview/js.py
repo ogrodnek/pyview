@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from typing import Any, Sequence
 
 from pyview.template.context_processor import context_processor
+from pyview.template.html import escape_html
 from pyview.vendor.ibis import filters
 
 # Type alias for transition specifications
@@ -57,6 +58,9 @@ def _format_transition(transition: Transition) -> list[list[str]]:
             transition[1].split() if isinstance(transition[1], str) else list(transition[1]),
             transition[2].split() if isinstance(transition[2], str) else list(transition[2]),
         ]
+    elif isinstance(transition, list):
+        # List of class names - treat as transition classes with no start/end
+        return [transition, [], []]
     else:
         raise ValueError(f"Transition must be a string or 3-tuple, got: {transition!r}")
 
@@ -420,7 +424,7 @@ class JsCommands:
             js.toggle_attribute(("aria-expanded", "true", "false"), to="#menu")
         """
         if isinstance(attr, str):
-            attr_list = [attr]
+            attr_list = [attr, ""]
         else:
             attr_list = list(attr)
 
@@ -469,8 +473,8 @@ class JsCommands:
     def dispatch(
         self,
         event: str,
-        *,
         to: str | None = None,
+        *,
         detail: dict[str, Any] | None = None,
         bubbles: bool = True,
     ) -> "JsCommands":
@@ -654,13 +658,15 @@ class JsCommands:
 
     def __html__(self) -> str:
         """
-        Return JSON for use in templates without HTML escaping.
+        Return HTML-escaped JSON for safe insertion into HTML attributes.
 
         This method is called by template engines (including LiveViewTemplate
-        for t-strings) to get the HTML-safe representation. Since JS commands
-        are already JSON, we return them as-is to prevent double-escaping.
+        for t-strings) to get the HTML-safe representation. The JSON is
+        HTML-entity-escaped so that characters like " don't break attribute
+        quoting. The browser decodes the entities, so phx-click etc. still
+        receive the correct JSON value.
         """
-        return self.__str__()
+        return escape_html(self.__str__())
 
 
 # JS Builder Singleton (for t-string API)
@@ -825,8 +831,8 @@ class _JsBuilder:
     def dispatch(
         self,
         event: str,
-        *,
         to: str | None = None,
+        *,
         detail: dict[str, Any] | None = None,
         bubbles: bool = True,
     ) -> JsCommands:
@@ -974,3 +980,39 @@ def js_navigate(js_cmds: JsCommands, href: str) -> JsCommands:
 @filters.register("js.patch")
 def js_patch(js_cmds: JsCommands, href: str) -> JsCommands:
     return js_cmds.patch(href)
+
+
+@filters.register("js.set_attribute")
+def js_set_attribute(
+    js_cmds: JsCommands, attr: str | tuple[str, str], selector: str | None = None
+) -> JsCommands:
+    return js_cmds.set_attribute(attr, to=selector)
+
+
+@filters.register("js.remove_attribute")
+def js_remove_attribute(js_cmds: JsCommands, attr: str, selector: str | None = None) -> JsCommands:
+    return js_cmds.remove_attribute(attr, to=selector)
+
+
+@filters.register("js.toggle_attribute")
+def js_toggle_attribute(
+    js_cmds: JsCommands,
+    attr: str | tuple[str, str] | tuple[str, str, str],
+    selector: str | None = None,
+) -> JsCommands:
+    return js_cmds.toggle_attribute(attr, to=selector)
+
+
+@filters.register("js.push_focus")
+def js_push_focus(js_cmds: JsCommands, selector: str | None = None) -> JsCommands:
+    return js_cmds.push_focus(to=selector)
+
+
+@filters.register("js.pop_focus")
+def js_pop_focus(js_cmds: JsCommands) -> JsCommands:
+    return js_cmds.pop_focus()
+
+
+@filters.register("js.exec")
+def js_exec(js_cmds: JsCommands, attr: str, selector: str | None = None) -> JsCommands:
+    return js_cmds.exec(attr, to=selector)

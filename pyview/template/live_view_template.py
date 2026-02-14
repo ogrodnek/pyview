@@ -9,6 +9,8 @@ import sys
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, Union
 from dataclasses import dataclass
 
+from pyview.template.html import escape_html as _escape_html
+
 # T-string support requires Python 3.14+
 if sys.version_info < (3, 14):
     raise ImportError(
@@ -322,13 +324,7 @@ class LiveViewTemplate:
     @staticmethod
     def escape_html(text: str) -> str:
         """Escape HTML special characters."""
-        return (
-            text.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace('"', "&quot;")
-            .replace("'", "&#x27;")
-        )
+        return _escape_html(text)
 
 
 def live_component(

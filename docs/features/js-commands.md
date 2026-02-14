@@ -26,14 +26,14 @@ Each `js` method returns a command chain that serializes to JSON for the Phoenix
 <details>
 <summary>Ibis template syntax</summary>
 
-In Ibis templates, use the pipe syntax for commands that take a selector:
+In Ibis templates, commands that accept a positional selector (`show`, `hide`, `toggle`, `dispatch`) can be called directly. Commands with keyword-only arguments need the pipe syntax, since Ibis doesn't support keyword arguments:
 
 ```html
 <button phx-click='{{ js.show("#modal") }}'>Open</button>
 <button phx-click='{{ js | js.focus("#email") }}'>Focus</button>
 ```
 
-Commands like `show`, `hide`, and `toggle` accept the selector as a positional argument. Others (`add_class`, `focus`, `dispatch`) require pipe syntax: `{{ js | js.command(...) }}`.
+Use pipe syntax for chaining: `{{ js.show("#modal") | js.push("opened") }}`.
 
 </details>
 

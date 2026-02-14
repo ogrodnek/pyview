@@ -83,6 +83,12 @@ def test_toggle_attribute_3_tuple():
     assert result == [["toggle_attr", {"attr": ["aria-pressed", "true", "false"], "to": "#btn"}]]
 
 
+def test_toggle_attribute_bare_string_includes_empty_value():
+    """Bare attribute must serialize as [attr, ""] so Phoenix.js doesn't set attr="undefined"."""
+    result = json.loads(str(js.toggle_attribute("disabled", to="#btn")))
+    assert result == [["toggle_attr", {"attr": ["disabled", ""], "to": "#btn"}]]
+
+
 # Optional params excluded when not set
 
 
@@ -138,9 +144,22 @@ def test_three_command_chain():
     assert result[2][0] == "dispatch"
 
 
-# __html__ matches __str__
+# __html__ returns HTML-escaped JSON
 
 
-def test_html_matches_str():
+def test_html_escapes_json():
     cmd = js.show("#el").push("event")
-    assert cmd.__html__() == str(cmd)
+    html = cmd.__html__()
+    raw = str(cmd)
+    # __html__ should HTML-escape the JSON (quotes become entities)
+    assert "&quot;" in html
+    assert '"' not in html
+    # Unescaping should recover the original JSON
+    unescaped = (
+        html.replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", '"')
+        .replace("&#x27;", "'")
+    )
+    assert unescaped == raw
