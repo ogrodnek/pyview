@@ -36,6 +36,7 @@ if sys.version_info >= (3, 14):
     from .views.components import SlotsDemo, StatefulComponentsDemo, StatelessComponentsDemo
     from .views.count.count_tstring import CounterTStringLiveView
     from .views.flash_demo.flash_demo_tstring import FlashDemoTStringLiveView
+    from .views.js_commands.js_commands_tstring import JsCommandsTStringLiveView
     from .views.streams.streams_tstring import StreamsTStringLiveView
 
 app = PyView()
@@ -161,6 +162,7 @@ if sys.version_info >= (3, 14):
     routes.append(("/counter_tstring", CounterTStringLiveView))
     routes.append(("/streams_tstring", StreamsTStringLiveView))
     routes.append(("/flash_tstring", FlashDemoTStringLiveView))
+    routes.append(("/js_commands_tstring", JsCommandsTStringLiveView))
     routes.append(("/components/stateless", StatelessComponentsDemo))
     routes.append(("/components/stateful", StatefulComponentsDemo))
     routes.append(("/components/slots", SlotsDemo))

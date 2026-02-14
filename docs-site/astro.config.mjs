@@ -46,6 +46,7 @@ export default defineConfig({
           items: [
             { label: 'Authentication', slug: 'features/authentication' },
             { label: 'Flash Messages', slug: 'features/flash-messages' },
+            { label: 'JS Commands', slug: 'features/js-commands' },
             { label: 'JavaScript Interop', slug: 'features/js-interop' },
             {
               label: 'File Uploads',

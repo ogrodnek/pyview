@@ -112,6 +112,7 @@ exclude = [
     "examples/views/count/count_tstring.py",
     "examples/views/streams/streams_tstring.py",
     "examples/views/flash_demo/flash_demo_tstring.py",
+    "examples/views/js_commands/js_commands_tstring.py",
     "examples/views/components/slots_demo.py",
     "examples/views/components/stateful_demo.py",
     "examples/views/components/stateless_demo.py",

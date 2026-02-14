@@ -57,15 +57,15 @@
             <section>
                 <h2 class="text-xl font-semibold text-gray-900 mb-4">Add/Remove Class</h2>
                 <div class="flex flex-wrap gap-2 mb-4">
-                    <button phx-click='{{ js.add_class("#bq3", "hint") }}' 
+                    <button phx-click='{{ js | js.add_class("#bq3", "hint") }}' 
                             class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
                         Add "hint"
                     </button>
-                    <button phx-click='{{ js.add_class("#bq3", "warn") }}' 
+                    <button phx-click='{{ js | js.add_class("#bq3", "warn") }}' 
                             class="px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors">
                         Add "warn"
                     </button>
-                    <button phx-click='{{ js.remove_class("#bq3", "warn", "hint") }}' 
+                    <button phx-click='{{ js | js.remove_class("#bq3", "warn", "hint") }}' 
                             class="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors">
                         Remove all
                     </button>
@@ -83,9 +83,9 @@
                     <p>This example sends a "copy-to-clipboard" event when the button is clicked.</p>
                     <p>It also demonstrates how to chain multiple JS commands together - this example adds a class to the button when the copy-to-clipboard event is dispatched.</p>
                 </div>
-                <pre id="copy-text" class="bg-gray-100 p-4 rounded-md text-sm font-mono mb-4 overflow-x-auto">{{ js.dispatch("copy-to-clipboard", "#copy-text") }}</pre>
+                <pre id="copy-text" class="bg-gray-100 p-4 rounded-md text-sm font-mono mb-4 overflow-x-auto">{{ js | js.dispatch("copy-to-clipboard", "#copy-text") }}</pre>
                 <button id="copy-button"
-                        phx-click='{{ js.dispatch("copy-to-clipboard", "#copy-text") | js.add_class("#copy-button", "copied") }}'
+                        phx-click='{{ js | js.dispatch("copy-to-clipboard", "#copy-text") | js.add_class("#copy-button", "copied") }}'
                         class="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors">
                     Copy to clipboard
                 </button>
@@ -121,11 +121,11 @@
                     <p>The second button uses <code class="px-2 py-1 bg-gray-100 rounded text-xs">js.focus_first("#focus-form")</code> to focus the first input in the form.</p>
                 </div>
                 <div class="flex gap-2 mb-4">
-                    <button phx-click='{{ js.focus("#email") }}'
+                    <button phx-click='{{ js | js.focus("#email") }}'
                             class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-colors">
                         Focus Email
                     </button>
-                    <button phx-click='{{ js.focus_first("#focus-form") }}'
+                    <button phx-click='{{ js | js.focus_first("#focus-form") }}'
                             class="px-4 py-2 bg-cyan-600 text-white text-sm font-medium rounded-md hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 transition-colors">
                         Focus First
                     </button>
