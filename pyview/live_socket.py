@@ -78,7 +78,7 @@ class UnconnectedSocket(Generic[T]):
         self.flash[key] = value
 
     def clear_flash(self, key: Optional[str] = None) -> None:
-        if key:
+        if key is not None:
             self.flash.pop(key, None)
         else:
             self.flash.clear()
@@ -142,7 +142,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         self.flash[key] = value
 
     def clear_flash(self, key: Optional[str] = None) -> None:
-        if key:
+        if key is not None:
             self.flash.pop(key, None)
         else:
             self.flash.clear()
