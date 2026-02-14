@@ -1,9 +1,11 @@
 import json
 
-from pyview.js import JsCommands, _format_transition, js
+import pytest
 
+from pyview.js import _format_transition, js
 
 # _format_transition
+
 
 def test_format_transition_simple_string():
     assert _format_transition("fade-in") == [["fade-in"], [], []]
@@ -11,12 +13,16 @@ def test_format_transition_simple_string():
 
 def test_format_transition_splits_spaces():
     assert _format_transition("transition-all duration-300 ease-out") == [
-        ["transition-all", "duration-300", "ease-out"], [], []
+        ["transition-all", "duration-300", "ease-out"],
+        [],
+        [],
     ]
 
 
 def test_format_transition_3_tuple_strings():
-    result = _format_transition(("transition-all duration-300", "opacity-0 scale-95", "opacity-100 scale-100"))
+    result = _format_transition(
+        ("transition-all duration-300", "opacity-0 scale-95", "opacity-100 scale-100")
+    )
     assert result == [
         ["transition-all", "duration-300"],
         ["opacity-0", "scale-95"],
@@ -30,14 +36,12 @@ def test_format_transition_3_tuple_lists():
 
 
 def test_format_transition_invalid_raises():
-    try:
-        _format_transition(("a", "b"))
-        assert False, "should have raised"
-    except ValueError:
-        pass
+    with pytest.raises(ValueError):
+        _format_transition(("a", "b"))  # type: ignore[arg-type]
 
 
 # Serialization
+
 
 def test_show_serializes_to_phoenix_format():
     result = json.loads(str(js.show("#modal")))
@@ -81,6 +85,7 @@ def test_toggle_attribute_3_tuple():
 
 # Optional params excluded when not set
 
+
 def test_show_no_to_when_omitted():
     result = json.loads(str(js.show()))
     assert result == [["show", {}]]
@@ -103,6 +108,7 @@ def test_show_blocking_false_included():
 
 # Chaining
 
+
 def test_chaining_produces_multiple_commands():
     result = json.loads(str(js.show("#modal").push("opened")))
     assert result == [
@@ -119,11 +125,13 @@ def test_chaining_is_immutable():
 
 
 def test_three_command_chain():
-    result = json.loads(str(
-        js.hide("#item", transition="fade-out")
-        .push("delete", value={"id": 1})
-        .dispatch("deleted", to="#list")
-    ))
+    result = json.loads(
+        str(
+            js.hide("#item", transition="fade-out")
+            .push("delete", value={"id": 1})
+            .dispatch("deleted", to="#list")
+        )
+    )
     assert len(result) == 3
     assert result[0][0] == "hide"
     assert result[1][0] == "push"
@@ -131,6 +139,7 @@ def test_three_command_chain():
 
 
 # __html__ matches __str__
+
 
 def test_html_matches_str():
     cmd = js.show("#el").push("event")

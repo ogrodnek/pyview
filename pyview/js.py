@@ -27,10 +27,11 @@ from typing import Any, Sequence
 from pyview.template.context_processor import context_processor
 from pyview.vendor.ibis import filters
 
-
 # Type alias for transition specifications
 # Can be a simple string "fade-in" or a 3-tuple ("fade-in", "opacity-0", "opacity-100")
-Transition = str | tuple[str, str, str] | list[str]
+# Each element in the tuple can be a string (space-separated) or a list of strings.
+_TransitionElement = str | Sequence[str]
+Transition = str | tuple[_TransitionElement, _TransitionElement, _TransitionElement] | list[str]
 
 
 def _format_transition(transition: Transition) -> list[list[str]]:
@@ -57,9 +58,7 @@ def _format_transition(transition: Transition) -> list[list[str]]:
             transition[2].split() if isinstance(transition[2], str) else list(transition[2]),
         ]
     else:
-        raise ValueError(
-            f"Transition must be a string or 3-tuple, got: {transition!r}"
-        )
+        raise ValueError(f"Transition must be a string or 3-tuple, got: {transition!r}")
 
 
 @dataclass
@@ -707,9 +706,7 @@ class _JsBuilder:
         blocking: bool = True,
     ) -> JsCommands:
         """Hide element(s). See JsCommands.hide() for details."""
-        return JsCommands([]).hide(
-            to, transition=transition, time=time, blocking=blocking
-        )
+        return JsCommands([]).hide(to, transition=transition, time=time, blocking=blocking)
 
     def toggle(
         self,
@@ -782,9 +779,7 @@ class _JsBuilder:
         blocking: bool = True,
     ) -> JsCommands:
         """Apply CSS transition. See JsCommands.transition() for details."""
-        return JsCommands([]).transition(
-            transition, to=to, time=time, blocking=blocking
-        )
+        return JsCommands([]).transition(transition, to=to, time=time, blocking=blocking)
 
     def set_attribute(
         self,
@@ -949,9 +944,7 @@ def js_dispatch(js_cmds: JsCommands, event: str, selector: str) -> JsCommands:
 
 
 @filters.register("js.push")
-def js_push(
-    js_cmds: JsCommands, event: str, payload: dict[str, Any] | None = None
-) -> JsCommands:
+def js_push(js_cmds: JsCommands, event: str, payload: dict[str, Any] | None = None) -> JsCommands:
     return js_cmds.push(event, value=payload)
 
 

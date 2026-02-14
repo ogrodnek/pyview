@@ -4,10 +4,11 @@ JS Commands example using t-string templates.
 This demonstrates the new tstring API for JS commands using the `js` singleton.
 """
 
+from string.templatelib import Template
 from typing import TypedDict
 
-from string.templatelib import Template
 from markupsafe import Markup
+
 from pyview import LiveView, LiveViewSocket, js
 from pyview.events import AutoEventDispatch, event
 from pyview.meta import PyViewMeta
