@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from pyview.components import SocketWithComponents
@@ -16,3 +16,7 @@ class PyViewMeta:
     """
 
     socket: Optional["SocketWithComponents"] = field(default=None, repr=False)
+
+    @property
+    def flash(self) -> dict[str, Any]:
+        return self.socket.flash if self.socket else {}

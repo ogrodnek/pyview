@@ -6,6 +6,7 @@ from .count import CountLiveView
 from .count_pubsub import CountLiveViewPubSub
 from .fifa import FifaAudienceLiveView
 from .file_upload import FileUploadDemoLiveView
+from .flash_demo import FlashDemoLiveView
 from .form_validation import PlantsLiveView
 from .includes import IncludesLiveView
 from .js_commands import JsCommandsLiveView
@@ -40,6 +41,7 @@ __all__ = [
     "KanbanLiveView",
     "IncludesLiveView",
     "StreamsDemoLiveView",
+    "FlashDemoLiveView",
 ]
 
 if sys.version_info >= (3, 14):
