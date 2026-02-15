@@ -159,10 +159,8 @@ class IndexLiveView(AutoEventDispatch, LiveView[IndexContext]):
         tag: Optional[str] = None,
         q: Optional[str] = None,
     ):
-        if tag is not None:
-            socket.context.active_tag = tag
-        if q is not None:
-            socket.context.search = q
+        socket.context.active_tag = tag or "all"
+        socket.context.search = q or ""
         self._apply_filters(socket)
 
     async def _push_url(self, socket: ConnectedLiveViewSocket[IndexContext]):
