@@ -5,7 +5,7 @@ from typing import Optional
 from urllib.parse import parse_qs, urlparse
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from starlette.websockets import WebSocket, WebSocketDisconnect
+from starlette.websockets import WebSocketDisconnect
 
 from pyview.auth import AuthProviderFactory
 from pyview.binding import call_handle_event, call_handle_params, call_mount, create_view
@@ -15,6 +15,7 @@ from pyview.live_routes import LiveViewLookup
 from pyview.live_socket import ConnectedLiveViewSocket, LiveViewSocket
 from pyview.phx_message import parse_message
 from pyview.session import deserialize_session
+from pyview.transport import Transport
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,6 @@ class LiveSocketHandler:
         self.routes = routes
         self.instrumentation = instrumentation
         self.metrics = LiveSocketMetrics(instrumentation)
-        self.manager = ConnectionManager()
         self.sessions = 0
         self.scheduler = AsyncIOScheduler()
         self._scheduler_started = False
@@ -72,12 +72,12 @@ class LiveSocketHandler:
             self.scheduler.shutdown(wait=False)
             self._scheduler_started = False
 
-    async def check_auth(self, websocket: WebSocket, lv):
-        if not await AuthProviderFactory.get(lv).has_required_auth(websocket):
+    async def check_auth(self, transport: Transport, lv):
+        if not await AuthProviderFactory.get(lv).has_required_auth(transport):
             raise AuthException()
 
-    async def handle(self, websocket: WebSocket):
-        await self.manager.connect(websocket)
+    async def handle(self, transport: Transport):
+        await transport.accept()
 
         # Track active connections
         self.metrics.active_connections.add(1)
@@ -86,7 +86,7 @@ class LiveSocketHandler:
         socket: Optional[LiveViewSocket] = None
 
         try:
-            data = await websocket.receive_text()
+            data = await transport.receive_text()
             [joinRef, messageRef, topic, event, payload] = json.loads(data)
             if event == "phx_join":
                 if not validate_csrf_token(payload["params"]["_csrf_token"], topic):
@@ -96,7 +96,7 @@ class LiveSocketHandler:
 
                 url = urlparse(payload["url"])
                 lv_class, path_params = self.routes.get(url.path)
-                await self.check_auth(websocket, lv_class)
+                await self.check_auth(transport, lv_class)
 
                 session = {}
                 if "session" in payload:
@@ -105,7 +105,7 @@ class LiveSocketHandler:
                 lv = create_view(lv_class, session)
 
                 socket = ConnectedLiveViewSocket(
-                    websocket, topic, lv, self.scheduler, self.instrumentation, self.routes
+                    transport, topic, lv, self.scheduler, self.instrumentation, self.routes
                 )
 
                 # Track mount
@@ -138,7 +138,7 @@ class LiveSocketHandler:
                     },
                 ]
 
-                await self.manager.send_personal_message(json.dumps(resp), websocket)
+                await transport.send_text(json.dumps(resp))
                 await self.handle_connected(topic, socket)
 
         except WebSocketDisconnect:
@@ -147,7 +147,7 @@ class LiveSocketHandler:
             self.sessions -= 1
             self.metrics.active_connections.add(-1)
         except AuthException:
-            await websocket.close()
+            await transport.close()
             self.sessions -= 1
             self.metrics.active_connections.add(-1)
         except Exception:
@@ -158,7 +158,7 @@ class LiveSocketHandler:
 
     async def handle_connected(self, myJoinId, socket: ConnectedLiveViewSocket):
         while True:
-            message = await socket.websocket.receive()
+            message = await socket.transport.receive()
             [joinRef, messageRef, topic, event, payload] = parse_message(message)
 
             if event == "heartbeat":
@@ -169,7 +169,7 @@ class LiveSocketHandler:
                     "phx_reply",
                     {"response": {}, "status": "ok"},
                 ]
-                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+                await socket.transport.send_text(json.dumps(resp))
                 continue
 
             if event == "event":
@@ -231,7 +231,7 @@ class LiveSocketHandler:
                 ]
                 resp_json = json.dumps(resp)
                 self.metrics.message_size.record(len(resp_json))
-                await self.manager.send_personal_message(resp_json, socket.websocket)
+                await socket.transport.send_text(resp_json)
                 continue
 
             if event == "live_patch":
@@ -260,7 +260,7 @@ class LiveSocketHandler:
                     "phx_reply",
                     {"response": {"diff": diff}, "status": "ok"},
                 ]
-                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+                await socket.transport.send_text(json.dumps(resp))
                 continue
 
             if event == "cids_will_destroy":
@@ -273,7 +273,7 @@ class LiveSocketHandler:
                     "phx_reply",
                     {"response": {}, "status": "ok"},
                 ]
-                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+                await socket.transport.send_text(json.dumps(resp))
                 continue
 
             if event == "cids_destroyed":
@@ -287,7 +287,7 @@ class LiveSocketHandler:
                     "phx_reply",
                     {"response": {"cids": cids}, "status": "ok"},
                 ]
-                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+                await socket.transport.send_text(json.dumps(resp))
                 continue
 
             if event == "allow_upload":
@@ -309,7 +309,7 @@ class LiveSocketHandler:
                     },
                 ]
 
-                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+                await socket.transport.send_text(json.dumps(resp))
                 continue
 
             # file upload or navigation
@@ -327,7 +327,7 @@ class LiveSocketHandler:
                         {"response": {}, "status": "ok"},
                     ]
 
-                    await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+                    await socket.transport.send_text(json.dumps(resp))
                 else:
                     # This is a navigation join (topic starts with "lv:")
                     # Navigation payload has 'redirect' field instead of 'url'
@@ -339,7 +339,7 @@ class LiveSocketHandler:
                     )
                     url = urlparse(url_str)
                     lv_class, path_params = self.routes.get(url.path)
-                    await self.check_auth(socket.websocket, lv_class)
+                    await self.check_auth(socket.transport, lv_class)
 
                     session = {}
                     if "session" in payload:
@@ -349,7 +349,7 @@ class LiveSocketHandler:
 
                     # Create new socket for new LiveView
                     socket = ConnectedLiveViewSocket(
-                        socket.websocket,
+                        socket.transport,
                         topic,
                         lv,
                         self.scheduler,
@@ -382,7 +382,7 @@ class LiveSocketHandler:
                         },
                     ]
 
-                    await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+                    await socket.transport.send_text(json.dumps(resp))
 
             if event == "chunk":
                 socket.upload_manager.add_chunk(joinRef, payload)  # type: ignore
@@ -396,7 +396,7 @@ class LiveSocketHandler:
                 ]
 
                 if socket.upload_manager.no_progress(joinRef):
-                    await self.manager.send_personal_message(
+                    await socket.transport.send_text(
                         json.dumps(
                             [
                                 joinRef,
@@ -405,11 +405,10 @@ class LiveSocketHandler:
                                 "phx_reply",
                                 {"response": {"diff": {}}, "status": "ok"},
                             ]
-                        ),
-                        socket.websocket,
+                        )
                     )
 
-                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+                await socket.transport.send_text(json.dumps(resp))
 
             if event == "progress":
                 # Trigger progress callback BEFORE updating progress (which may consume the entry)
@@ -428,7 +427,7 @@ class LiveSocketHandler:
                     {"response": {"diff": diff}, "status": "ok"},
                 ]
 
-                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+                await socket.transport.send_text(json.dumps(resp))
 
             if event == "phx_leave":
                 # Handle LiveView navigation - clean up current LiveView
@@ -441,7 +440,7 @@ class LiveSocketHandler:
                     "phx_reply",
                     {"response": {}, "status": "ok"},
                 ]
-                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+                await socket.transport.send_text(json.dumps(resp))
                 # Continue to wait for next phx_join
                 continue
 
@@ -454,14 +453,3 @@ async def _render(socket: ConnectedLiveViewSocket):
         socket.live_title = None
 
     return rendered
-
-
-class ConnectionManager:
-    def __init__(self):
-        pass
-
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-
-    async def send_personal_message(self, message: str, websocket: WebSocket):
-        await websocket.send_text(message)

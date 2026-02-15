@@ -21,8 +21,6 @@ from urllib.parse import urlencode, urlparse
 
 from apscheduler.jobstores.base import JobLookupError
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from starlette.websockets import WebSocket
-
 from pyview.async_stream_runner import AsyncStreamRunner
 from pyview.binding.helpers import call_handle_params
 from pyview.binding.params import _as_list
@@ -30,6 +28,7 @@ from pyview.components.manager import ComponentsManager
 from pyview.events import InfoEvent
 from pyview.meta import PyViewMeta
 from pyview.template.render_diff import calc_diff
+from pyview.transport import Transport
 from pyview.uploads import UploadConfig, UploadConstraints, UploadManager
 from pyview.vendor.flet.pubsub import PubSub, PubSubHub
 
@@ -116,14 +115,14 @@ class ConnectedLiveViewSocket(Generic[T]):
 
     def __init__(
         self,
-        websocket: WebSocket,
+        transport: Transport,
         topic: str,
         liveview: LiveView,
         scheduler: AsyncIOScheduler,
         instrumentation: InstrumentationProvider,
         routes: Optional[LiveViewLookup] = None,
     ):
-        self.websocket = websocket
+        self.transport = transport
         self.topic = topic
         self.liveview = liveview
         self.instrumentation = instrumentation
@@ -237,7 +236,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         resp = [None, None, self.topic, "diff", self.diff(rendered)]
 
         try:
-            await self.websocket.send_text(json.dumps(resp))
+            await self.transport.send_text(json.dumps(resp))
         except Exception:
             for id in list(self.scheduled_jobs):
                 logger.debug("Removing scheduled job %s", id)
@@ -284,7 +283,7 @@ class ConnectedLiveViewSocket(Generic[T]):
 
         await call_handle_params(self.liveview, parsed_url, merged_params, self)
         try:
-            await self.websocket.send_text(json.dumps(message))
+            await self.transport.send_text(json.dumps(message))
         except Exception:
             logger.warning("Error sending patch message", exc_info=True)
 
@@ -318,7 +317,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         ]
 
         try:
-            await self.websocket.send_text(json.dumps(message))
+            await self.transport.send_text(json.dumps(message))
         except Exception:
             logger.warning("Error sending navigation message", exc_info=True)
 
@@ -339,7 +338,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         ]
 
         try:
-            await self.websocket.send_text(json.dumps(message))
+            await self.transport.send_text(json.dumps(message))
         except Exception:
             logger.warning("Error sending redirect message", exc_info=True)
 

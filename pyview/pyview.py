@@ -26,6 +26,7 @@ from .template import (
     defaultRootTemplate,
     find_associated_css,
 )
+from .transport import WebSocketTransport
 from .ws_handler import LiveSocketHandler
 
 
@@ -44,7 +45,10 @@ class PyView(Starlette):
         self.view_lookup = LiveViewLookup()
         self.live_handler = LiveSocketHandler(self.view_lookup, self.instrumentation)
 
-        self.routes.append(WebSocketRoute("/live/websocket", self.live_handler.handle))
+        async def _ws_endpoint(websocket):
+            await self.live_handler.handle(WebSocketTransport(websocket))
+
+        self.routes.append(WebSocketRoute("/live/websocket", _ws_endpoint))
         self.add_middleware(GZipMiddleware)
 
     def _create_lifespan(self, user_lifespan=None):

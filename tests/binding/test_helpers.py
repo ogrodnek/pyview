@@ -322,7 +322,7 @@ class TestPushPatchPathParams:
         mock_websocket.send_text = mock_send_text
 
         socket = ConnectedLiveViewSocket(
-            websocket=mock_websocket,
+            transport=mock_websocket,
             topic="lv:test",
             liveview=lv,
             scheduler=MagicMock(),
@@ -355,7 +355,7 @@ class TestPushPatchPathParams:
         mock_websocket.send_text = mock_send_text
 
         socket = ConnectedLiveViewSocket(
-            websocket=mock_websocket,
+            transport=mock_websocket,
             topic="lv:test",
             liveview=lv,
             scheduler=MagicMock(),
@@ -386,7 +386,7 @@ class TestPushPatchPathParams:
 
         # Create socket without routes (backwards compat)
         socket = ConnectedLiveViewSocket(
-            websocket=mock_websocket,
+            transport=mock_websocket,
             topic="lv:test",
             liveview=lv,
             scheduler=MagicMock(),
