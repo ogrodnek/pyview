@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from pyview.cli.commands.create_view import detect_package_structure
+from pyview.cli.commands.create_view import detect_package_structure, normalize_project_name
 from pyview.cli.main import cli
 
 
@@ -179,3 +179,241 @@ packages = [
 
         # Check import advice uses detected package
         assert "from myapp.views.counter import CounterLiveView" in result.output
+
+
+def test_normalize_project_name():
+    """Test PEP 503 project name normalization."""
+    assert normalize_project_name("myapp") == "myapp"
+    assert normalize_project_name("my-app") == "my_app"
+    assert normalize_project_name("my.app") == "my_app"
+    assert normalize_project_name("My-App") == "my_app"
+    assert normalize_project_name("my-cool.app") == "my_cool_app"
+
+
+def test_detect_package_structure_uv_build(temp_dir):
+    """Test package structure detection with uv_build backend."""
+    test_dir = Path(temp_dir)
+
+    pyproject_content = """
+[project]
+name = "myapp"
+
+[build-system]
+requires = ["uv_build>=0.10.4,<0.11.0"]
+build-backend = "uv_build"
+"""
+    (test_dir / "pyproject.toml").write_text(pyproject_content)
+    (test_dir / "src" / "myapp").mkdir(parents=True)
+
+    package_name, views_path = detect_package_structure(test_dir)
+
+    assert package_name == "myapp"
+    assert views_path == "src/myapp/views"
+
+
+def test_detect_package_structure_uv_build_dashed_name(temp_dir):
+    """Test uv_build detection normalizes dashed project names."""
+    test_dir = Path(temp_dir)
+
+    pyproject_content = """
+[project]
+name = "my-cool-app"
+
+[build-system]
+requires = ["uv_build>=0.10.4,<0.11.0"]
+build-backend = "uv_build"
+"""
+    (test_dir / "pyproject.toml").write_text(pyproject_content)
+    (test_dir / "src" / "my_cool_app").mkdir(parents=True)
+
+    package_name, views_path = detect_package_structure(test_dir)
+
+    assert package_name == "my_cool_app"
+    assert views_path == "src/my_cool_app/views"
+
+
+def test_detect_package_structure_uv_build_custom_module(temp_dir):
+    """Test uv_build detection with custom module-name and module-root."""
+    test_dir = Path(temp_dir)
+
+    pyproject_content = """
+[project]
+name = "my-app"
+
+[build-system]
+requires = ["uv_build>=0.10.4,<0.11.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "myapp"
+module-root = "lib"
+"""
+    (test_dir / "pyproject.toml").write_text(pyproject_content)
+    (test_dir / "lib" / "myapp").mkdir(parents=True)
+
+    package_name, views_path = detect_package_structure(test_dir)
+
+    assert package_name == "myapp"
+    assert views_path == "lib/myapp/views"
+
+
+def test_detect_package_structure_uv_build_no_module_root(temp_dir):
+    """Test uv_build detection with empty module-root (root directory)."""
+    test_dir = Path(temp_dir)
+
+    pyproject_content = """
+[project]
+name = "myapp"
+
+[build-system]
+requires = ["uv_build>=0.10.4,<0.11.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+"""
+    (test_dir / "pyproject.toml").write_text(pyproject_content)
+    (test_dir / "myapp").mkdir(parents=True)
+
+    package_name, views_path = detect_package_structure(test_dir)
+
+    assert package_name == "myapp"
+    assert views_path == "myapp/views"
+
+
+def test_detect_package_structure_uv_build_dir_missing(temp_dir):
+    """Test build-backend detection falls through when package dir doesn't exist."""
+    test_dir = Path(temp_dir)
+
+    pyproject_content = """
+[project]
+name = "myapp"
+
+[build-system]
+requires = ["uv_build>=0.10.4,<0.11.0"]
+build-backend = "uv_build"
+"""
+    (test_dir / "pyproject.toml").write_text(pyproject_content)
+    # No src/myapp/ directory created
+
+    package_name, views_path = detect_package_structure(test_dir)
+
+    assert package_name is None
+    assert views_path == "views"
+
+
+def test_detect_package_structure_src_layout_fallback(temp_dir):
+    """Test filesystem fallback with [project] name and src/ directory."""
+    test_dir = Path(temp_dir)
+
+    # uv-style pyproject.toml: no packages, no build-system
+    pyproject_content = """
+[project]
+name = "myapp"
+
+[tool.uv]
+package = false
+"""
+    (test_dir / "pyproject.toml").write_text(pyproject_content)
+
+    # Create src/myapp/ directory
+    (test_dir / "src" / "myapp").mkdir(parents=True)
+
+    package_name, views_path = detect_package_structure(test_dir)
+
+    assert package_name == "myapp"
+    assert views_path == "src/myapp/views"
+
+
+def test_detect_package_structure_src_layout_name_normalization(temp_dir):
+    """Test filesystem fallback normalizes dashed project names."""
+    test_dir = Path(temp_dir)
+
+    pyproject_content = """
+[project]
+name = "my-app"
+
+[tool.uv]
+package = false
+"""
+    (test_dir / "pyproject.toml").write_text(pyproject_content)
+
+    # Directory uses underscores (Python convention)
+    (test_dir / "src" / "my_app").mkdir(parents=True)
+
+    package_name, views_path = detect_package_structure(test_dir)
+
+    assert package_name == "my_app"
+    assert views_path == "src/my_app/views"
+
+
+def test_detect_package_structure_src_layout_no_name(temp_dir):
+    """Test filesystem fallback without [project] name falls back to views/."""
+    test_dir = Path(temp_dir)
+
+    # pyproject.toml without project name
+    pyproject_content = """
+[tool.uv]
+package = false
+"""
+    (test_dir / "pyproject.toml").write_text(pyproject_content)
+
+    (test_dir / "src" / "myapp").mkdir(parents=True)
+
+    package_name, views_path = detect_package_structure(test_dir)
+
+    assert package_name is None
+    assert views_path == "views"
+
+
+def test_detect_package_structure_src_layout_no_matching_dir(temp_dir):
+    """Test filesystem fallback when src/ dir doesn't match project name."""
+    test_dir = Path(temp_dir)
+
+    pyproject_content = """
+[project]
+name = "myapp"
+
+[tool.uv]
+package = false
+"""
+    (test_dir / "pyproject.toml").write_text(pyproject_content)
+
+    # src/ exists but with a different directory name
+    (test_dir / "src" / "other_package").mkdir(parents=True)
+
+    package_name, views_path = detect_package_structure(test_dir)
+
+    assert package_name is None
+    assert views_path == "views"
+
+
+def test_create_view_with_uv_project(runner):
+    """End-to-end test: create-view with uv-style project (matching cookiecutter)."""
+    with runner.isolated_filesystem():
+        # Replicate the uv cookiecutter structure
+        pyproject_content = """
+[project]
+name = "myapp"
+
+[tool.uv]
+package = false
+"""
+        Path("pyproject.toml").write_text(pyproject_content)
+        Path("src/myapp/views").mkdir(parents=True)
+        Path("src/myapp/__init__.py").write_text("")
+
+        result = runner.invoke(cli, ["create-view", "Temperature"])
+
+        assert result.exit_code == 0
+        assert "LiveView created successfully!" in result.output
+
+        # Check that view was created in the correct path
+        view_dir = Path("src/myapp/views/temperature")
+        assert view_dir.exists()
+        assert (view_dir / "temperature.py").exists()
+        assert (view_dir / "temperature.html").exists()
+        assert (view_dir / "temperature.css").exists()
+
+        # Check import advice
+        assert "from myapp.views.temperature import TemperatureLiveView" in result.output
