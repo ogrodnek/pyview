@@ -86,8 +86,20 @@ __all__ = ["{class_name}"]
 '''
 
 
+def normalize_project_name(name: str) -> str:
+    """Normalize a project/distribution name to a valid Python module name."""
+    return re.sub(r"[-_.]+", "_", name).lower()
+
+
 def detect_package_structure(directory: Optional[Path] = None):
     """Detect the package structure from pyproject.toml.
+
+    Detection priority:
+    1. [tool.poetry.packages] — Poetry projects
+    2. [project.packages] — explicit packages config
+    3. [build-system] build-backend + [project] name — packaged projects (uv_build, etc.)
+    4. Filesystem src/ + [project] name — non-package projects with src layout
+    5. Fallback to views/
 
     Args:
         directory: Directory to look for pyproject.toml in. Defaults to current directory.
@@ -115,23 +127,53 @@ def detect_package_structure(directory: Optional[Path] = None):
         # Check for modern pyproject.toml structure
         packages = config.get("project", {}).get("packages", [])
 
-    if not packages:
-        return None, "views"
+    if packages:
+        # Find the first package entry
+        for package in packages:
+            if isinstance(package, dict) and "include" in package:
+                package_name = package["include"]
+                from_dir = package.get("from", ".")
 
-    # Find the first package entry
-    for package in packages:
-        if isinstance(package, dict) and "include" in package:
-            package_name = package["include"]
-            from_dir = package.get("from", ".")
+                # Construct the path where views should go
+                if from_dir == ".":
+                    package_path = Path(package_name)
+                else:
+                    package_path = Path(from_dir) / package_name
 
-            # Construct the path where views should go
-            if from_dir == ".":
-                package_path = Path(package_name)
+                views_path = package_path / "views"
+                return package_name, str(views_path)
+
+    # Check for build backend + project name (uv_build, hatchling, etc.)
+    build_backend = config.get("build-system", {}).get("build-backend", "")
+    if build_backend:
+        project_name = config.get("project", {}).get("name", "")
+        if project_name:
+            module_name = normalize_project_name(project_name)
+
+            # Check for uv_build overrides
+            uv_build_config = config.get("tool", {}).get("uv", {}).get("build-backend", {})
+            if uv_build_config.get("module-name"):
+                module_name = uv_build_config["module-name"]
+            module_root = uv_build_config.get("module-root", "src")
+
+            if module_root:
+                package_path = Path(module_root) / module_name
             else:
-                package_path = Path(from_dir) / package_name
+                package_path = Path(module_name)
 
-            views_path = package_path / "views"
-            return package_name, str(views_path)
+            if (directory / package_path).is_dir():
+                views_path = package_path / "views"
+                return module_name, str(views_path)
+
+    # Filesystem fallback: use [project] name to find package in src/
+    src_dir = directory / "src"
+    if src_dir.is_dir():
+        project_name = config.get("project", {}).get("name", "")
+        if project_name:
+            normalized = normalize_project_name(project_name)
+            candidate = src_dir / normalized
+            if candidate.is_dir():
+                return normalized, str(Path("src") / normalized / "views")
 
     return None, "views"
 
