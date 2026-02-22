@@ -88,7 +88,7 @@ __all__ = ["{class_name}"]
 
 def normalize_project_name(name: str) -> str:
     """Normalize a project/distribution name to a valid Python module name."""
-    return re.sub(r"[-.]", "_", name).lower()
+    return re.sub(r"[-_.]+", "_", name).lower()
 
 
 def detect_package_structure(directory: Optional[Path] = None):

@@ -188,6 +188,8 @@ def test_normalize_project_name():
     assert normalize_project_name("my.app") == "my_app"
     assert normalize_project_name("My-App") == "my_app"
     assert normalize_project_name("my-cool.app") == "my_cool_app"
+    assert normalize_project_name("my--app") == "my_app"
+    assert normalize_project_name("my-_.app") == "my_app"
 
 
 def test_detect_package_structure_uv_build(temp_dir):
