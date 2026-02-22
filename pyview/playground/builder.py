@@ -30,6 +30,7 @@ from starlette.routing import Route
 from starlette.staticfiles import StaticFiles
 
 from pyview.live_view import LiveView
+from pyview.playground.devtools import devtools_route, get_caller_directory
 from pyview.playground.favicon import Favicon, generate_favicon_svg
 from pyview.pyview import PyView
 from pyview.template import defaultRootTemplate
@@ -44,6 +45,7 @@ class PlaygroundBuilder:
         self._title: Optional[str] = None
         self._title_suffix: Optional[str] = " | LiveView"
         self._favicon: Optional[Favicon] = Favicon()
+        self._devtools: bool = True
 
     def with_live_view(self, view: type[LiveView], path: str = "/") -> "PlaygroundBuilder":
         """Add a LiveView to the application."""
@@ -69,6 +71,11 @@ class PlaygroundBuilder:
     def no_favicon(self) -> "PlaygroundBuilder":
         """Disable auto-generated favicon."""
         self._favicon = None
+        return self
+
+    def no_devtools(self) -> "PlaygroundBuilder":
+        """Disable the Chrome DevTools workspace endpoint."""
+        self._devtools = False
         return self
 
     def build(self) -> PyView:
@@ -97,6 +104,9 @@ class PlaygroundBuilder:
 
             app.routes.append(Route("/favicon.svg", favicon_route, methods=["GET"]))
             css_parts.append(Markup('<link rel="icon" href="/favicon.svg" type="image/svg+xml">'))
+
+        if self._devtools:
+            app.routes.append(devtools_route(get_caller_directory()))
 
         # Configure root template - join all CSS entries
         combined_css = Markup("\n".join(css_parts)) if css_parts else None
