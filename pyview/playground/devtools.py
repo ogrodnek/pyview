@@ -25,17 +25,18 @@ def devtools_json_response(project_root: str) -> dict:
     return {"workspace": {"root": root, "uuid": get_workspace_uuid(root)}}
 
 
-_LOCALHOST_HOSTS = ("localhost", "127.0.0.1", "::1")
+_LOOPBACK_IPS = ("127.0.0.1", "::1")
 _DEVTOOLS_PATH = "/.well-known/appspecific/com.chrome.devtools.json"
-_PACKAGE_DIR = str(Path(__file__).parent.resolve())
+_PACKAGE_DIR = Path(__file__).parent.resolve()
 
 
 def get_caller_directory() -> str:
     """Get the directory of the file that called playground()."""
     # Walk up the stack to find the first frame outside the playground package
     for frame_info in inspect.stack():
-        if not str(Path(frame_info.filename).resolve()).startswith(_PACKAGE_DIR):
-            return str(Path(frame_info.filename).parent.resolve())
+        frame_path = Path(frame_info.filename).resolve()
+        if not frame_path.is_relative_to(_PACKAGE_DIR):
+            return str(frame_path.parent)
     return str(Path.cwd())
 
 
@@ -46,8 +47,8 @@ def devtools_route(caller_dir: str) -> Route:
     """
 
     async def handler(request: Request) -> Response:
-        host = request.url.hostname or ""
-        if host not in _LOCALHOST_HOSTS:
+        client_ip = request.client.host if request.client else ""
+        if client_ip not in _LOOPBACK_IPS:
             return Response(status_code=404)
         response = devtools_json_response(caller_dir)
         return Response(content=json.dumps(response), media_type="application/json")
