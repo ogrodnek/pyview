@@ -3,16 +3,18 @@ from contextlib import asynccontextmanager
 from typing import Optional
 from urllib.parse import parse_qs, urlparse
 
+from markupsafe import Markup
 from starlette.applications import Starlette
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.requests import Request
-from starlette.responses import HTMLResponse
+from starlette.responses import HTMLResponse, Response
 from starlette.routing import Route, WebSocketRoute
 
 from pyview.auth import AuthProviderFactory
 from pyview.binding import call_handle_params, call_mount, create_view
 from pyview.components.lifecycle import run_nested_component_lifecycle
 from pyview.csrf import generate_csrf_token
+from pyview.css import CSSRegistry
 from pyview.instrumentation import InstrumentationProvider, NoOpInstrumentation
 from pyview.live_socket import UnconnectedSocket
 from pyview.meta import PyViewMeta
@@ -24,7 +26,6 @@ from .template import (
     RootTemplate,
     RootTemplateContext,
     defaultRootTemplate,
-    find_associated_css,
 )
 from .ws_handler import LiveSocketHandler
 
@@ -32,8 +33,15 @@ from .ws_handler import LiveSocketHandler
 class PyView(Starlette):
     rootTemplate: RootTemplate
     instrumentation: InstrumentationProvider
+    css_registry: CSSRegistry
 
-    def __init__(self, *args, instrumentation: Optional[InstrumentationProvider] = None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        instrumentation: Optional[InstrumentationProvider] = None,
+        css_auto_refresh: bool = False,
+        **kwargs,
+    ):
         # Extract user's lifespan if provided, then always use our composed lifespan
         user_lifespan = kwargs.pop("lifespan", None)
         kwargs["lifespan"] = self._create_lifespan(user_lifespan)
@@ -41,11 +49,27 @@ class PyView(Starlette):
         super().__init__(*args, **kwargs)
         self.rootTemplate = defaultRootTemplate()
         self.instrumentation = instrumentation or NoOpInstrumentation()
+        self.css_registry = CSSRegistry(auto_refresh=css_auto_refresh)
         self.view_lookup = LiveViewLookup()
         self.live_handler = LiveSocketHandler(self.view_lookup, self.instrumentation)
 
         self.routes.append(WebSocketRoute("/live/websocket", self.live_handler.handle))
+        self.routes.append(Route("/pyview-css/{name:path}.{hash}.css", self._serve_css))
         self.add_middleware(GZipMiddleware)
+
+    async def _serve_css(self, request: Request) -> Response:
+        """Serve CSS files with content-hash based caching."""
+        name = request.path_params["name"]
+        hash_val = request.path_params["hash"]
+        entry = self.css_registry.get_for_serving(f"{name}.{hash_val}")
+
+        if entry:
+            return Response(
+                entry.content,
+                media_type="text/css",
+                headers={"Cache-Control": "public, max-age=31536000, immutable"},
+            )
+        return Response(status_code=404)
 
     def _create_lifespan(self, user_lifespan=None):
         """Create the lifespan context manager for proper startup/shutdown.
@@ -73,14 +97,21 @@ class PyView(Starlette):
 
     def add_live_view(self, path: str, view: type[LiveView]):
         async def lv(request: Request):
-            return await liveview_container(self.rootTemplate, self.view_lookup, request)
+            return await liveview_container(
+                self.rootTemplate, self.view_lookup, self.css_registry, request
+            )
 
         self.view_lookup.add(path, view)
         auth = AuthProviderFactory.get(view)
         self.routes.append(Route(path, auth.wrap(lv), methods=["GET"]))
 
 
-async def liveview_container(template: RootTemplate, view_lookup: LiveViewLookup, request: Request):
+async def liveview_container(
+    template: RootTemplate,
+    view_lookup: LiveViewLookup,
+    css_registry: CSSRegistry,
+    request: Request,
+):
     url = request.url
     path = url.path
     lv_class, path_params = view_lookup.get(path)
@@ -110,7 +141,11 @@ async def liveview_container(template: RootTemplate, view_lookup: LiveViewLookup
     # Run component lifecycle, including nested components
     await run_nested_component_lifecycle(s, meta)
 
-    liveview_css = find_associated_css(lv)
+    # Register CSS and generate <link> tag for the view
+    css_elements: list[Markup] = []
+    css_entry = css_registry.register_for_class(lv.__class__)
+    if css_entry:
+        css_elements.append(Markup(css_entry.link_tag))
 
     id = str(uuid.uuid4())
 
@@ -120,7 +155,7 @@ async def liveview_container(template: RootTemplate, view_lookup: LiveViewLookup
         "title": s.live_title,
         "csrf_token": generate_csrf_token("lv:phx-" + id),
         "session": serialize_session(session),
-        "additional_head_elements": liveview_css,
+        "additional_head_elements": css_elements,
     }
 
     return HTMLResponse(template(context))
