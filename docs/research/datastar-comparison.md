@@ -260,14 +260,11 @@ lifecycle (loading/done). PyView could add something similar:
   some of this — verify PyView's current support and fill gaps
 - **Benefit:** Better UX with minimal developer effort
 
-### 6. ViewTransition API Integration (Low Value, Easy Win)
+### 6. View Transition API Integration (Medium Value, Good DX Win)
 
-Datastar supports the browser's ViewTransition API for animated DOM transitions:
-
-- **Implementation:** When applying diffs, wrap DOM mutations in
-  `document.startViewTransition()` calls, gated by a `phx-view-transition`
-  attribute
-- **Benefit:** Smooth visual transitions between states with zero JS from developers
+See the dedicated [View Transition API](#view-transition-api) section below for
+full details. In short: wrap DOM patches in `document.startViewTransition()`,
+give developers a declarative opt-in, and let CSS handle the animations.
 
 ### 7. Custom Bundles / Tree-Shaking (Low Priority)
 
@@ -287,6 +284,206 @@ Some Datastar features are incompatible with PyView's architecture:
 - **Backend-agnostic protocol**: PyView is inherently Python. Making it
   language-agnostic would require extracting the wire protocol, which is the
   Phoenix LiveView protocol (complex, stateful, not designed for simplicity)
+
+---
+
+## View Transition API
+
+The browser-native [View Transition API](https://developer.mozilla.org/en-US/docs/Web/API/View_Transition_API)
+lets the browser animate between two visual states of the DOM. It works by:
+
+1. **Capturing** rasterized snapshots of named elements (old state)
+2. **Running** a DOM update callback (the actual mutation)
+3. **Animating** from old snapshots to new state using CSS pseudo-elements
+
+The default animation is a crossfade, but developers can customize per-element
+animations using CSS `::view-transition-old(name)` and `::view-transition-new(name)`
+pseudo-elements.
+
+### Browser Support
+
+Same-document transitions are **Baseline Newly Available** as of October 2025:
+
+| Browser | Version |
+|---|---|
+| Chrome | 111+ (March 2023) |
+| Edge | 111+ |
+| Safari | 18+ |
+| Firefox | 144+ (October 2025) |
+
+Coverage is over 85% of browsers globally. The API degrades gracefully — if
+unsupported, DOM updates execute normally without animation.
+
+### How Datastar Does It
+
+Datastar treats view transitions as a **first-class protocol feature**. The server
+includes a boolean flag on any SSE event:
+
+```
+event: datastar-patch-elements
+data: useViewTransition true
+data: elements <div id="content">Updated content</div>
+```
+
+The client runtime automatically wraps the DOM morph in
+`document.startViewTransition()` when this flag is set. Zero JavaScript required
+from the developer. Every backend SDK exposes this as a simple option:
+
+```go
+// Go SDK
+sse.PatchElements(datastar.WithUseViewTransitions(true), ...)
+```
+
+### How Phoenix LiveView Does It
+
+LiveView added support in **v1.1.18 (November 2025)** via
+[PR #4043](https://github.com/phoenixframework/phoenix_live_view/pull/4043).
+It provides a low-level `onDocumentPatch` DOM callback — not a turnkey feature.
+Developers must write ~30-50 lines of JavaScript glue code:
+
+```javascript
+// app.js — wire up view transitions manually
+let liveSocket = new LiveSocket("/live", Socket, {
+  dom: {
+    onDocumentPatch(start) {
+      if (shouldTransition) {
+        document.startViewTransition({
+          update: () => {
+            resetTransitionState();
+            start(); // apply the DOM patch
+          },
+          types: transitionTypes,
+        });
+      } else {
+        start();
+      }
+    }
+  }
+});
+```
+
+On the server side, transitions are signaled via `push_event` with a new
+`dispatch: :before` option (ensures the event fires before the DOM patch):
+
+```elixir
+socket
+|> push_event("start-view-transition", %{type: "page"}, dispatch: :before)
+```
+
+Developers write CSS to customize the animations:
+
+```css
+::view-transition-old(root) {
+  animation: 300ms ease-out slide-to-left;
+}
+::view-transition-new(root) {
+  animation: 300ms ease-in slide-from-right;
+}
+```
+
+### Comparison
+
+| Aspect | Datastar | Phoenix LiveView |
+|---|---|---|
+| **API surface** | Boolean flag on SSE events | `onDocumentPatch` callback + manual JS |
+| **Developer effort** | Zero JS | ~30-50 lines of JS boilerplate |
+| **Per-event control** | Each SSE event opts in independently | Must `push_event` with `dispatch: :before` per handler |
+| **Granularity** | On/off + CSS customization | Full control over types, per-element naming, timing |
+| **SDK support** | Built into all backend SDKs | Elixir-only; JS part is manual |
+
+### Why This Is a Natural Fit for PyView
+
+DOM morphing and view transitions are **complementary by design**:
+
+- **Morphdom is synchronous** — exactly what `startViewTransition()` wants. The
+  API freezes rendering, runs the callback, then animates between snapshots.
+- **Morphing preserves element identity** (matching by ID), so `view-transition-name`
+  values on elements remain stable across patches — ideal for shared-element
+  transitions (e.g., a card "flying" from a list to a detail view).
+- **No architectural changes needed** — this is purely a client-side enhancement
+  to the existing DOM patching.
+
+### Implementation Approach for PyView
+
+The simplest integration, following the pattern used by htmx and Datastar:
+
+**1. Client-side: wrap the morph in `startViewTransition()`**
+
+PyView uses Phoenix LiveView's JS client, which exposes the same `onDocumentPatch`
+callback as of v1.1.18. The integration point:
+
+```javascript
+// In PyView's app.js
+let liveSocket = new LiveSocket("/live", Socket, {
+  dom: {
+    onDocumentPatch(start) {
+      if (document.startViewTransition && window.__pyviewTransitionsEnabled) {
+        document.startViewTransition(() => start());
+      } else {
+        start();
+      }
+    }
+  }
+});
+```
+
+**2. Server-side: declarative opt-in**
+
+Add a view-level or element-level attribute to enable transitions:
+
+```python
+class ItemDetail(LiveView):
+    # Enable view transitions for this entire view
+    view_transitions = True
+```
+
+Or per-element in templates:
+
+```html
+<div id="card-{{ item.id }}"
+     style="view-transition-name: card-{{ item.id }}; view-transition-class: card;">
+  {{ item.name }}
+</div>
+```
+
+**3. CSS: developers customize animations**
+
+```css
+/* Default crossfade happens automatically. Customize as needed: */
+::view-transition-group(*.card) {
+  animation-duration: 300ms;
+}
+
+::view-transition-old(root) {
+  animation: 200ms ease-out fade-out;
+}
+::view-transition-new(root) {
+  animation: 300ms ease-in fade-in;
+}
+```
+
+### Edge Cases to Handle
+
+- **Rapid updates**: If a new WebSocket diff arrives while a transition is
+  animating, either skip the running animation (`transition.skipTransition()`)
+  or start a fresh transition. Both htmx and Datastar let the new update
+  proceed immediately.
+- **view-transition-name uniqueness**: Every visible element with a
+  `view-transition-name` must have a unique value. In server-rendered lists,
+  use `view-transition-name: item-${id}`. Duplicate names cause the transition
+  to abort entirely.
+- **Elements entering/leaving**: When an element only exists in the old or new
+  state, use CSS `:only-child` on the pseudo-elements to target enter/exit
+  animations specifically.
+
+### Recommendation
+
+Start with the simplest version: a global `view_transitions = True` config that
+wraps all DOM patches in `startViewTransition()` with feature detection. This
+gives developers animated transitions for free (the default crossfade) and they
+can progressively add `view-transition-name` and custom CSS to specific elements
+for richer animations. No server-side protocol changes needed — this is entirely
+a client-side enhancement.
 
 ---
 
