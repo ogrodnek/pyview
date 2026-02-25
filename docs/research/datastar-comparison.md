@@ -405,31 +405,154 @@ DOM morphing and view transitions are **complementary by design**:
 
 ### Implementation Approach for PyView
 
-The simplest integration, following the pattern used by htmx and Datastar:
+#### Constraint: PyView uses LiveView JS client v0.20.17 (pre-1.0)
 
-**1. Client-side: wrap the morph in `startViewTransition()`**
+PyView's bundled JS client is `phoenix_live_view` v0.20.17 — the last pre-1.0
+release. The `onDocumentPatch` callback was added in v1.1.18 and is **not
+available**. Upgrading to 1.x is non-trivial due to breaking changes in form
+submission handling and other areas.
 
-PyView uses Phoenix LiveView's JS client, which exposes the same `onDocumentPatch`
-callback as of v1.1.18. The integration point:
+However, in 0.20.17 the `dom` config already supports `onPatchStart` and
+`onPatchEnd` callbacks (declared at `LiveSocket` construction), though they are
+**registered but never called** in the source. This is dead code that was later
+activated as `onDocumentPatch` in 1.1.
+
+This means we need an approach that works **without modifying or upgrading the
+LiveView JS client**.
+
+#### Option A: Monkey-patch `DOMPatch.prototype.perform` (Simplest, no fork)
+
+The bundled app.js contains a `DOMPatch` class whose `perform()` method is the
+single entry point for all morphdom operations. We can wrap it:
 
 ```javascript
-// In PyView's app.js
+// In a script loaded after app.js, or in a custom app.js build
+//
+// Wrap the DOMPatch perform method to add view transition support.
+// This avoids modifying the vendored LiveView JS client.
+
+(function() {
+  if (!document.startViewTransition) return; // feature detection
+
+  const liveSocket = window.liveSocket;
+  if (!liveSocket) return;
+
+  // The DOMPatch class is not exported, but every patch goes through
+  // View.performPatch, which calls patch.perform(). We can intercept
+  // at the View level instead.
+
+  // Option: wrap liveSocket's internal view update path
+  // This is fragile but works for 0.20.17 specifically.
+
+  const origPerformPatch = Object.getPrototypeOf(
+    Object.values(liveSocket.roots)[0] || {}
+  )?.performPatch;
+
+  if (origPerformPatch) {
+    const ViewProto = Object.getPrototypeOf(
+      Object.values(liveSocket.roots)[0]
+    );
+    ViewProto.performPatch = function(patch, pruneCids, isJoinPatch) {
+      if (window.__pyviewTransitionsEnabled) {
+        let result;
+        document.startViewTransition(() => {
+          result = origPerformPatch.call(this, patch, pruneCids, isJoinPatch);
+        });
+        return result;
+      }
+      return origPerformPatch.call(this, patch, pruneCids, isJoinPatch);
+    };
+  }
+})();
+```
+
+**Pros:** Zero changes to vendored code, can be added as a separate script.
+**Cons:** Fragile — depends on internal class structure of 0.20.17. Breaks if
+the bundled JS is ever rebuilt from a different version.
+
+#### Option B: Patch the bundled app.js directly (More reliable)
+
+Since `pyview/static/assets/app.js` is a pre-built bundle checked into the repo,
+we can surgically edit it. The `perform` method in the `DOMPatch` class (around
+line 3924) is the insertion point:
+
+```javascript
+// Before (line 3924):
+perform(isJoinPatch) {
+  let { view, liveSocket: liveSocket2, container, html } = this;
+  // ... rest of morphdom logic
+}
+
+// After:
+perform(isJoinPatch) {
+  if (document.startViewTransition && window.__pyviewTransitionsEnabled) {
+    document.startViewTransition(() => this._performInner(isJoinPatch));
+    return;
+  }
+  this._performInner(isJoinPatch);
+}
+_performInner(isJoinPatch) {
+  let { view, liveSocket: liveSocket2, container, html } = this;
+  // ... rest of original morphdom logic (unchanged)
+}
+```
+
+**Pros:** Reliable, self-contained, easy to understand.
+**Cons:** Modifies a vendored file — needs to be re-applied if the bundle is
+ever regenerated. Should be documented clearly.
+
+#### Option C: Activate the existing dead `onPatchStart`/`onPatchEnd` callbacks
+
+The v0.20.17 client already declares these in `domCallbacks` but never calls
+them. Adding two `triggerDOM` calls in `performPatch` would bring them to life:
+
+```javascript
+// In performPatch (around line 4983), add before patch.perform():
+this.liveSocket.triggerDOM("onPatchStart", [this.el]);
+
+// After patch.perform():
+this.liveSocket.triggerDOM("onPatchEnd", [this.el]);
+```
+
+Then in `app.js` configuration:
+
+```javascript
 let liveSocket = new LiveSocket("/live", Socket, {
   dom: {
-    onDocumentPatch(start) {
-      if (document.startViewTransition && window.__pyviewTransitionsEnabled) {
-        document.startViewTransition(() => start());
-      } else {
-        start();
-      }
+    onPatchStart(container) {
+      // Could signal transition start
+    },
+    onPatchEnd(container) {
+      // But view transitions need to WRAP the mutation, not fire before/after
     }
   }
 });
 ```
 
-**2. Server-side: declarative opt-in**
+**Problem:** `onPatchStart`/`onPatchEnd` fire *around* the patch, not *wrapping*
+it. The View Transition API needs the DOM mutation to happen **inside** the
+`startViewTransition()` callback. Before/after hooks aren't sufficient — this is
+exactly why Phoenix added `onDocumentPatch(startCallback)` in 1.1, which wraps
+rather than brackets the mutation.
 
-Add a view-level or element-level attribute to enable transitions:
+**Verdict:** Option C doesn't work for view transitions specifically, though
+activating these callbacks could be useful for other purposes.
+
+#### Recommended approach
+
+**Option B** (patching the bundled app.js) is the most practical:
+
+1. It's a small, surgical change (~10 lines)
+2. The bundle is already a vendored artifact, not regenerated from source
+3. It's easy to document with a comment explaining the modification
+4. Users opt in via `window.__pyviewTransitionsEnabled = true` or a
+   `<meta name="pyview-transitions" content="true">` tag
+5. Feature detection means zero impact on browsers without support
+
+The server-side opt-in and CSS customization story remains the same regardless
+of which client-side approach is chosen:
+
+**Server-side: declarative opt-in**
 
 ```python
 class ItemDetail(LiveView):
@@ -446,7 +569,7 @@ Or per-element in templates:
 </div>
 ```
 
-**3. CSS: developers customize animations**
+**CSS: developers customize animations**
 
 ```css
 /* Default crossfade happens automatically. Customize as needed: */
@@ -475,15 +598,21 @@ Or per-element in templates:
 - **Elements entering/leaving**: When an element only exists in the old or new
   state, use CSS `:only-child` on the pseudo-elements to target enter/exit
   animations specifically.
+- **`startViewTransition` is async**: The callback runs synchronously but the
+  animation is async. In 0.20.17, `performPatch` returns `phxChildrenAdded`
+  (a boolean) — the return value must still be captured correctly. Option B
+  handles this naturally since the inner method runs synchronously inside
+  the callback.
 
 ### Recommendation
 
-Start with the simplest version: a global `view_transitions = True` config that
-wraps all DOM patches in `startViewTransition()` with feature detection. This
-gives developers animated transitions for free (the default crossfade) and they
-can progressively add `view-transition-name` and custom CSS to specific elements
+Start with Option B: a surgical patch to the bundled `app.js` that wraps
+`DOMPatch.perform()` in `startViewTransition()` with feature detection. Pair it
+with a `<meta>` tag or `view_transitions = True` config for opt-in. This gives
+developers animated transitions for free (the default crossfade) and they can
+progressively add `view-transition-name` and custom CSS to specific elements
 for richer animations. No server-side protocol changes needed — this is entirely
-a client-side enhancement.
+a client-side enhancement that works on the current v0.20.17 JS client.
 
 ---
 
