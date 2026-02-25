@@ -127,15 +127,82 @@ a transition type via a pre-patch event, then the client wraps the patch.
 - `pyview/ws_handler.py` — event dispatch format (optional, only if implementing
   pre-patch events)
 
-### 8. `phx-page-loading` Attribute Removed
+### 8. Form Event Payload: `_target` Moved to `meta` Field (CRITICAL)
+
+**This is the second most impactful breaking change**, directly affecting form handling.
+
+In v0.20.17, `_target` and other metadata were mixed into the URL-encoded `value`
+string:
+```
+// Old payload
+{
+  "type": "form",
+  "event": "validate",
+  "value": "name=John&_target=name",
+  "cid": null
+}
+```
+
+In v1.1.24, `_target` and metadata are in a **separate `meta` key**:
+```json
+{
+  "type": "form",
+  "event": "validate",
+  "value": "name=John",
+  "meta": {"_target": "name"},
+  "cid": null
+}
+```
+
+**This applies to both `phx-change` and `phx-submit` events.** The `value` field
+now contains *only* form data; metadata is never appended to the URL-encoded string.
+
+**PyView code that breaks:**
+- `pyview/ws_handler.py:179` — `parse_qs(value)` currently extracts `_target` from
+  the URL-encoded form string. After migration, `_target` will no longer be in
+  `value`. The server must read `payload["meta"]["_target"]` instead.
+
+**Recommended fix:**
+```python
+if payload["type"] == "form":
+    value = parse_qs(value)
+    meta = payload.get("meta", {})
+    target = meta.get("_target")
+    # _target is no longer in `value` — it's in `meta`
+```
+
+### 9. `_unused_` Prefix Replaces `phx-feedback-for`
+
+The client now sends `_unused_` prefixed keys for form fields the user hasn't
+interacted with (not focused, not submitted). This replaces the removed
+`phx-feedback-for` mechanism.
+
+For example, if a form has fields `user[name]` and `user[email]` but the user
+only typed in `name`, the form data will contain:
+```
+user[name]=John&user[email]=&user[_unused_email]=
+```
+
+The `_unused_` prefix tells the server "the user hasn't touched this field yet,
+don't show validation errors for it." This is how Phoenix's `used_input?/1`
+works on the server side.
+
+**PyView impact:**
+- If PyView wants to support "only validate touched fields" (like Phoenix's
+  `used_input?/1`), it should strip `_unused_` prefixed keys from the parsed
+  form data and use them to track which fields need validation feedback.
+- If PyView doesn't need this feature, the `_unused_` keys can be ignored
+  (they won't cause harm, just extra data in the form payload).
+
+### 10. `phx-page-loading` Attribute Removed
 
 Replaced by `page_loading: true` option in `JS.push/2`.
 
-### 9. `phx-capture-click` Removed
+### 11. `phx-capture-click` Removed
 
 Fully removed (deprecated since v0.17.0). Use `phx-click-away` instead.
 
-### 10. JS Command Signatures Changed
+### 12. JS Command Signatures Changed
 
 Every `exec_*` method gained an `e` (event) parameter as the first argument.
 The top-level `JS.exec()` changed from:
@@ -151,12 +218,12 @@ This is internal to the JS client and doesn't directly affect the Python server'
 `js.py`, but any serialized JS commands that depend on execution order may behave
 differently.
 
-### 11. `JS.push` Values on Form Events
+### 13. `JS.push` Values on Form Events
 
 `JS.push` values are now properly sent on form events (was a bug in 0.20.17).
 Code that worked around this bug may need adjustment.
 
-### 12. DOM Locking During Server Round-Trips
+### 14. DOM Locking During Server Round-Trips
 
 The new `ElementRef` + `PHX_REF_LOCK` system clones the DOM subtree of locked
 elements and applies server patches to the **clone** instead of the real DOM.
@@ -166,6 +233,27 @@ flickering during animations and race conditions.
 The server needs to cooperate with this by using the split ref attributes
 (see item #3). The DOMPatch constructor now accepts `opts.undoRef` to signal
 which ref is being acknowledged.
+
+### 15. Join Payload Now Includes `sticky` and `_mount_attempts`
+
+The client now sends additional fields in the channel join:
+- `sticky: true/false` — whether the LiveView element has `phx-sticky` attribute
+- `_mount_attempts` — separate from `_mounts`, tracks total join attempts
+
+The join response also accepts an optional `pid` field (used for debug attributes).
+
+**PyView impact:** These are additive and backwards-compatible. PyView can ignore
+`sticky` and `_mount_attempts` safely. Optionally, send `pid` in join responses
+for debugging.
+
+### 16. Redirect Payload Supports `reloadToken`
+
+Redirects can now include a `reloadToken` field, and join error responses with
+`reason: "reload"` include a `token`. This enables the client to distinguish
+server-initiated reloads from user navigations.
+
+**PyView impact:** Low risk — additive feature. Only needed if PyView implements
+reload tracking.
 
 ---
 
@@ -312,7 +400,40 @@ And read in two places:
 Refactor so there's a single `ComprehensionFormat` class or module that handles
 serialization and deserialization. Then the migration is a one-place change.
 
-#### 0c. Add End-to-End Browser Tests
+#### 0c. Add Form Event Parsing Tests
+
+Write tests that verify how PyView parses form event payloads. These should
+assert on both the current format (for regression) and document the expected
+new format:
+
+```python
+def test_form_event_parsing_current():
+    """Current v0.20.17: _target is in URL-encoded value."""
+    payload = {
+        "type": "form",
+        "event": "validate",
+        "value": "name=John&_target=name",
+        "cid": None
+    }
+    # parse_qs extracts _target from value
+    parsed = parse_qs(payload["value"])
+    assert "_target" in parsed
+
+def test_form_event_parsing_v1():
+    """After migration: _target is in meta, not in value."""
+    payload = {
+        "type": "form",
+        "event": "validate",
+        "value": "name=John",
+        "meta": {"_target": "name"},
+        "cid": None
+    }
+    parsed = parse_qs(payload["value"])
+    assert "_target" not in parsed
+    assert payload["meta"]["_target"] == "name"
+```
+
+#### 0e. Add End-to-End Browser Tests
 
 The highest-confidence way to verify the migration works. Use Playwright or
 similar to test:
@@ -326,7 +447,7 @@ similar to test:
 Even a small smoke test suite that connects a real browser to a running PyView
 instance and clicks through the example views would catch most regressions.
 
-#### 0d. Add a JS Build Script
+#### 0f. Add a JS Build Script
 
 Currently the bundle at `pyview/static/assets/app.js` appears to be a pre-built
 artifact with no documented build process. Set up an explicit build step:
@@ -343,7 +464,7 @@ artifact with no documented build process. Set up an explicit build step:
 This makes it reproducible to rebuild the bundle after changing the
 `phoenix_live_view` dependency version.
 
-#### 0e. Remove `phx-feedback-for` Usage
+#### 0g. Remove `phx-feedback-for` Usage
 
 Since it's removed in 1.x, migrate away from it now while still on 0.20.17.
 Replace with explicit CSS class management or a PyView-specific validation
@@ -369,21 +490,40 @@ Update `ComprehensionFormat` (from Phase 0b) to emit:
 Update `render_diff.py` to diff keyed comprehensions properly. For the first pass,
 don't implement move tracking — just emit in-place diffs.
 
-#### 1b. Update Ref System
+#### 1b. Form Event `_target` Extraction
+
+Update `ws_handler.py` to read `_target` from `payload["meta"]` instead of from
+the URL-encoded `value` string. Also handle `_unused_` prefixed keys:
+
+```python
+# In the "event" handler, after parse_qs:
+if payload["type"] == "form":
+    value = parse_qs(payload["value"])
+    meta = payload.get("meta", {})
+    # _target is now in meta, not in the form value string
+    target = meta.get("_target")
+    # Optionally strip _unused_ keys if not implementing used_input?
+    value = {k: v for k, v in value.items() if not k.startswith("_unused_")}
+```
+
+This is a small but critical change — without it, all `phx-change` events will
+lose their `_target` information.
+
+#### 1d. Update Ref System
 
 Replace `data-phx-ref` with `data-phx-ref-loading` and `data-phx-ref-lock`
 wherever the server sets ref attributes. Audit `ws_handler.py` and `js.py`.
 
-#### 1c. Upload Config Format
+#### 1e. Upload Config Format
 
 Change preflight response to include `chunk_timeout` alongside `chunk_size`.
 
-#### 1d. Update Version Constant
+#### 1f. Update Version Constant
 
 Change `PHOENIX_LIVEVIEW_VERSION` in `ws_handler.py` from `"0.20.17"` to match
 the new client version.
 
-#### 1e. Rebuild JS Bundle
+#### 1g. Rebuild JS Bundle
 
 Update `package.json` to `"phoenix_live_view": "^1.1.24"`, install, and rebuild
 the `app.js` bundle.
@@ -412,13 +552,16 @@ After Phase 1 lands and is stable, adopt new features one at a time:
 | Change | Risk | Mitigation |
 |--------|------|------------|
 | Comprehension format `"d"` → `"k"` | **HIGH** — breaks all loops | Protocol tests (Phase 0a), extract format (Phase 0b) |
+| Form `_target` moved to `meta` field | **HIGH** — breaks all form handling | Fix `parse_qs` in ws_handler.py (Phase 1a-bis) |
 | `data-phx-view` on components | **HIGH** — components won't be found without it | Audit component rendering |
-| `phx-feedback-for` removal | **MEDIUM** — affects form validation UX | Remove usage pre-migration (Phase 0e) |
+| `phx-feedback-for` removal | **MEDIUM** — affects form validation UX | Remove usage pre-migration (Phase 0g) |
+| `_unused_` prefix in form data | **MEDIUM** — extra keys in parsed form data | Decide: support `used_input?` or ignore |
 | Ref system split | **MEDIUM** — affects loading states | Audit all ref usage in ws_handler.py |
 | Stream 4-element tuples | **LOW** — old format still works | Only breaks if using `update_only` |
 | Upload config format | **LOW** — small change, isolated | Unit test upload preflight |
-| Form submission changes | **LOW-MEDIUM** — many 1.0.x bugfixes | E2E browser tests (Phase 0c) |
 | Pre-patch event dispatch | **LOW** — additive, opt-in | No change needed unless using view transitions |
+| Join payload (`sticky`, `_mount_attempts`) | **LOW** — additive fields | Ignore or handle gracefully |
+| Redirect `reloadToken` | **LOW** — additive field | Ignore safely |
 | JS command signature `(e, ...)` | **LOW** — internal to JS client | No server changes needed |
 | DOM locking (`PHX_REF_LOCK`) | **LOW** — client-side behavior | Works with split ref attributes |
 | Stream memory fix | **POSITIVE** — fixes a bug | Free improvement |
@@ -450,7 +593,7 @@ After migration, PyView gains:
 - `pyview/template/live_view_template.py` — comprehension format
 - `pyview/template/render_diff.py` — diff computation for comprehensions
 - `pyview/template/template_view.py` — server-side rendering of comprehensions
-- `pyview/ws_handler.py` — version constant, ref attributes, message handling
+- `pyview/ws_handler.py` — version constant, ref attributes, form `_target`/`meta` parsing, message handling
 - `pyview/uploads.py` — preflight config format
 - `pyview/js.py` — new commands, structured selectors, blocking option
 
@@ -466,3 +609,64 @@ After migration, PyView gains:
 ### Tests
 - Add protocol-level wire format tests
 - Add E2E browser tests for forms, uploads, streams, hooks
+
+---
+
+## Current Test Coverage Assessment
+
+PyView has **402 tests** (pytest, Python 3.11) with strong coverage in some areas
+and critical gaps that directly impact migration confidence.
+
+### Well-Tested (Good Migration Confidence)
+
+| Area | Tests | Notes |
+|------|-------|-------|
+| Template rendering (Ibis) | 14 | `tree()`, `render()`, auto-escaping, loops, conditionals |
+| Diff calculation | 14 | `calc_diff()` including comprehension `"d"` key diffs |
+| Stream operations | 31 | `Stream` class, wire format, insert/delete/reset |
+| Stream + template integration | 29 | Both Ibis and t-string paths |
+| LiveView templates (t-string) | 32 | `LiveViewTemplate.process()`, lists, components |
+| Components | 70 | Base, manager, lifecycle, slots (statics sharing skipped) |
+| Binding / params / DI | 123 | Binder, converters, params, injectables, helpers |
+| JS commands | 17 | show/hide/push/dispatch/add_class, chaining |
+
+### Critical Gaps (Must Fix Before Migration)
+
+| Gap | Risk | What to Add |
+|-----|------|-------------|
+| **WebSocket handler** (`ws_handler.py`) | **CRITICAL** | Zero tests for the 467-line handler that manages join/event/patch/leave/upload flows |
+| **Wire protocol envelope** | **CRITICAL** | No tests for complete `[joinRef, msgRef, topic, "phx_reply", {...}]` JSON structure |
+| **Form event parsing** | **CRITICAL** | `parse_qs(value)` + `_target` extraction untested; this is exactly what changes in v1.1 |
+| **Message parsing** (`phx_message.py`) | **CRITICAL** | `parse_message()` for text and binary frames untested |
+| **Uploads** (`uploads.py`) | **HIGH** | 577 lines, zero tests. Upload preflight format changes in v1.1 |
+| **Component wire format** (`"c"` key) | **HIGH** | Component rendering inside `rendered["c"]` untested at wire level |
+| **`diff()` integration** | **HIGH** | `ConnectedLiveViewSocket.diff()` state management untested |
+| **Statics sharing** | **HIGH** | All 8 tests skipped (reverted due to diff bug) |
+| **Navigation messages** | **MEDIUM** | `push_navigate`, `replace_navigate`, `redirect` untested |
+| **`push_event` wire format** | **MEDIUM** | Hook events (`"e"` key) untested |
+| **Changesets** | **LOW** | 67-line module, zero tests |
+| **E2E browser tests** | **NONE** | No Playwright/Selenium/browser automation exists |
+
+### Priority Test Plan for Pre-Migration
+
+The most impactful tests to add (in order):
+
+1. **Wire protocol envelope test** — Verify the exact JSON the server sends for
+   `phx_join` responses and `diff` responses. This is the single most useful test
+   for migration confidence.
+
+2. **Form event parsing test** — Verify `_target` extraction from form events.
+   Write tests for both current format (`_target` in URL-encoded value) and new
+   format (`_target` in `meta` field).
+
+3. **Comprehension wire format test** — Verify the `"d"` key structure at the
+   response level, then update to `"k"`/`"kc"` during migration.
+
+4. **Upload preflight test** — Verify the `allow_upload` response format,
+   especially the config object.
+
+5. **Component rendering test** — Verify `"c"` key structure in rendered output,
+   including ROOT flag and CID references.
+
+6. **Smoke-test E2E suite** — Even 5-10 Playwright tests covering form submit,
+   upload, stream append, and infinite scroll would catch most regressions.
