@@ -92,15 +92,50 @@ chunk size:
 **PyView files affected:**
 - `pyview/uploads.py` — preflight response format
 
-### 5. `phx-page-loading` Attribute Removed
+### 5. Stream Insert Tuples Gained 4th Element
+
+Stream inserts changed from `[key, streamAt, limit]` to
+`[key, streamAt, limit, updateOnly]`. The `updateOnly` flag means "only update
+this item if it already exists in the DOM; don't add it."
+
+Old format still works (4th element defaults to `undefined`/falsy), but you
+can't use the `update_only` stream feature without it.
+
+**PyView files affected:**
+- `pyview/template/live_view_template.py` — stream metadata construction
+- `pyview/template/render_diff.py` — stream diff emission
+
+### 6. `data-phx-view` Required on Components
+
+Components now must carry `data-phx-view="<view_id>"` so the client can locate
+them via `document.querySelector('[data-phx-view="..."][data-phx-component="..."]')`
+instead of walking up ancestors. The old `withinSameLiveView` traversal is gone.
+
+**PyView files affected:**
+- Component rendering — must stamp `data-phx-view` on component root elements
+
+### 7. Events Can Fire Before DOM Patch
+
+Server-pushed events can now include a third element to control dispatch timing:
+- `[event, payload]` — dispatched **after** the DOM patch (same as before)
+- `[event, payload, true]` — dispatched **before** the DOM patch
+
+This is what enables `onDocumentPatch` + view transitions — the server signals
+a transition type via a pre-patch event, then the client wraps the patch.
+
+**PyView files affected:**
+- `pyview/ws_handler.py` — event dispatch format (optional, only if implementing
+  pre-patch events)
+
+### 8. `phx-page-loading` Attribute Removed
 
 Replaced by `page_loading: true` option in `JS.push/2`.
 
-### 6. `phx-capture-click` Removed
+### 9. `phx-capture-click` Removed
 
 Fully removed (deprecated since v0.17.0). Use `phx-click-away` instead.
 
-### 7. JS Command Signatures Changed
+### 10. JS Command Signatures Changed
 
 Every `exec_*` method gained an `e` (event) parameter as the first argument.
 The top-level `JS.exec()` changed from:
@@ -116,20 +151,21 @@ This is internal to the JS client and doesn't directly affect the Python server'
 `js.py`, but any serialized JS commands that depend on execution order may behave
 differently.
 
-### 8. `JS.push` Values on Form Events
+### 11. `JS.push` Values on Form Events
 
 `JS.push` values are now properly sent on form events (was a bug in 0.20.17).
 Code that worked around this bug may need adjustment.
 
-### 9. Component Attrs: `data-phx-view` Added
+### 12. DOM Locking During Server Round-Trips
 
-Components now get a `data-phx-view` attribute stamped on their root:
-```js
-const attrs = { [PHX_COMPONENT]: cid, [PHX_VIEW_REF]: this.viewId };
-```
+The new `ElementRef` + `PHX_REF_LOCK` system clones the DOM subtree of locked
+elements and applies server patches to the **clone** instead of the real DOM.
+When the server acknowledges (undo), the clone is morphed back in. This prevents
+flickering during animations and race conditions.
 
-This is set client-side and shouldn't break the server, but the server should be
-aware it exists.
+The server needs to cooperate with this by using the split ref attributes
+(see item #3). The DOMPatch constructor now accepts `opts.undoRef` to signal
+which ref is being acknowledged.
 
 ---
 
@@ -376,12 +412,17 @@ After Phase 1 lands and is stable, adopt new features one at a time:
 | Change | Risk | Mitigation |
 |--------|------|------------|
 | Comprehension format `"d"` → `"k"` | **HIGH** — breaks all loops | Protocol tests (Phase 0a), extract format (Phase 0b) |
+| `data-phx-view` on components | **HIGH** — components won't be found without it | Audit component rendering |
 | `phx-feedback-for` removal | **MEDIUM** — affects form validation UX | Remove usage pre-migration (Phase 0e) |
 | Ref system split | **MEDIUM** — affects loading states | Audit all ref usage in ws_handler.py |
+| Stream 4-element tuples | **LOW** — old format still works | Only breaks if using `update_only` |
 | Upload config format | **LOW** — small change, isolated | Unit test upload preflight |
 | Form submission changes | **LOW-MEDIUM** — many 1.0.x bugfixes | E2E browser tests (Phase 0c) |
+| Pre-patch event dispatch | **LOW** — additive, opt-in | No change needed unless using view transitions |
 | JS command signature `(e, ...)` | **LOW** — internal to JS client | No server changes needed |
+| DOM locking (`PHX_REF_LOCK`) | **LOW** — client-side behavior | Works with split ref attributes |
 | Stream memory fix | **POSITIVE** — fixes a bug | Free improvement |
+| 3-30x faster DOM patching | **POSITIVE** — perf improvement | Free improvement |
 
 ---
 
