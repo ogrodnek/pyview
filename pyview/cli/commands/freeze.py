@@ -43,7 +43,12 @@ def freeze(app, output, paths, screenshot, clean_attrs, verbose):
 
 
 def _import_app(app_path: str):
-    """Import a PyView app from a module:attribute path."""
+    """Import a PyView app from a module:attribute path.
+
+    Adds the current directory to sys.path so that both top-level modules
+    (``app:app``) and package-relative modules (``mypackage.app:app``)
+    resolve correctly when running from the project root.
+    """
     if ":" not in app_path:
         raise click.BadParameter(
             f"Expected format 'module:attribute' (e.g. 'myapp:app'), got '{app_path}'",
@@ -52,15 +57,21 @@ def _import_app(app_path: str):
 
     module_path, attr_name = app_path.rsplit(":", 1)
 
-    # Add cwd to sys.path so relative imports work
-    cwd = "."
+    # Add cwd (as absolute path) to sys.path so top-level imports work
+    import os  # noqa: PLC0415
+
+    cwd = os.getcwd()
     if cwd not in sys.path:
         sys.path.insert(0, cwd)
 
     try:
         module = importlib.import_module(module_path)
     except ImportError as e:
-        raise click.BadParameter(f"Could not import module '{module_path}': {e}") from e
+        raise click.BadParameter(
+            f"Could not import module '{module_path}': {e}\n"
+            f"Hint: run from your project root, or use the full dotted path "
+            f"(e.g. 'mypackage.app:app')",
+        ) from e
 
     try:
         return getattr(module, attr_name)
