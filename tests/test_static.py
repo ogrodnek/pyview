@@ -3,9 +3,11 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from starlette.staticfiles import StaticFiles
+
 from pyview import LiveView, LiveViewSocket, PyView
 from pyview.meta import PyViewMeta
-from pyview.static import _clean_html, _list_static_routes, freeze, render_view
+from pyview.static import _clean_html, _copy_static_assets, _list_static_routes, freeze, render_view
 from pyview.template import LiveRender, LiveTemplate, RenderedContent
 from pyview.vendor.ibis import Template
 
@@ -188,3 +190,64 @@ class TestFreeze:
         app = _make_app(("/docs/guide", CountView))
         await freeze(app, str(tmp_path), paths=["/docs/guide"])
         assert (tmp_path / "docs_guide.html").exists()
+
+    async def test_copies_static_assets(self, tmp_path: Path):
+        # Set up a fake static directory with a CSS file
+        static_src = tmp_path / "src_static"
+        static_src.mkdir()
+        (static_src / "styles.css").write_text("body { color: red; }")
+        (static_src / "app.js").write_text("console.log('hi')")
+
+        app = _make_app(("/", CountView))
+        app.mount("/app-static", StaticFiles(directory=str(static_src)), name="app-static")
+
+        build = tmp_path / "build"
+        await freeze(app, str(build))
+
+        # Static assets should be copied under the mount prefix
+        assert (build / "app-static" / "styles.css").exists()
+        assert (build / "app-static" / "app.js").exists()
+        assert (build / "app-static" / "styles.css").read_text() == "body { color: red; }"
+
+
+# ---------------------------------------------------------------------------
+# _copy_static_assets
+# ---------------------------------------------------------------------------
+
+
+class TestCopyStaticAssets:
+    def test_copies_directory_mount(self, tmp_path: Path):
+        static_src = tmp_path / "static"
+        static_src.mkdir()
+        (static_src / "main.css").write_text(".a{}")
+
+        app = PyView()
+        app.mount("/assets", StaticFiles(directory=str(static_src)), name="assets")
+
+        output = tmp_path / "build"
+        output.mkdir()
+        _copy_static_assets(app, output)
+
+        assert (output / "assets" / "main.css").exists()
+        assert (output / "assets" / "main.css").read_text() == ".a{}"
+
+    def test_copies_nested_files(self, tmp_path: Path):
+        static_src = tmp_path / "static"
+        (static_src / "sub").mkdir(parents=True)
+        (static_src / "sub" / "deep.js").write_text("// deep")
+
+        app = PyView()
+        app.mount("/static", StaticFiles(directory=str(static_src)), name="static")
+
+        output = tmp_path / "build"
+        output.mkdir()
+        _copy_static_assets(app, output)
+
+        assert (output / "static" / "sub" / "deep.js").read_text() == "// deep"
+
+    def test_skips_non_staticfiles_mounts(self, tmp_path: Path):
+        app = _make_app(("/", CountView))
+        output = tmp_path / "build"
+        output.mkdir()
+        # Should not crash when there are no StaticFiles mounts
+        _copy_static_assets(app, output)

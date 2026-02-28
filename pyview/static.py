@@ -17,10 +17,14 @@ Or via CLI:
 
 import logging
 import re
+import shutil
 import uuid
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
+
+from starlette.routing import Mount
+from starlette.staticfiles import StaticFiles
 
 from pyview.binding import call_handle_params, call_mount, create_view
 from pyview.components.lifecycle import run_nested_component_lifecycle
@@ -101,6 +105,31 @@ async def render_view(app, path: str) -> str:
     return _clean_html(html)
 
 
+def _copy_static_assets(app, output_dir: Path) -> None:
+    """Copy static file mounts into the build directory.
+
+    Walks the app's routes looking for Starlette StaticFiles mounts and
+    copies their directories into the output, preserving the URL prefix
+    structure. For example, a mount at ``/app-static`` serving from
+    ``./static`` will be copied to ``<output_dir>/app-static/``.
+    """
+    for route in app.routes:
+        if not isinstance(route, Mount) or not isinstance(route.app, StaticFiles):
+            continue
+
+        prefix = route.path.strip("/")
+        if not prefix:
+            continue
+
+        dest = output_dir / prefix
+        for src_dir in route.app.all_directories:
+            src = Path(src_dir)
+            if not src.is_dir():
+                continue
+            logger.info("Copying static assets %s -> %s", src, dest)
+            shutil.copytree(src, dest, dirs_exist_ok=True)
+
+
 def _list_static_routes(app) -> list[str]:
     """List routes that can be statically rendered (no path parameters)."""
     paths = []
@@ -154,6 +183,9 @@ async def freeze(
         html_path.write_text(html)
         output_files.append(html_path)
         logger.info("  -> %s", html_path)
+
+    # Copy static file mounts (CSS, JS, images, etc.)
+    _copy_static_assets(app, output)
 
     if screenshot:
         screenshot_files = await _capture_screenshots(output_files, output)
