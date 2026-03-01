@@ -221,6 +221,8 @@ async def test_get_current_user_no_session():
 | `update` | Yes | No |
 | `handle_event` | Yes | No |
 
+Lifecycle parameters are resolved by name or type. Use `socket`, `assigns`, `event`, and `payload` as parameter names, or annotate with a socket type if you prefer different names.
+
 Components don't have direct session access—they receive data from their parent via `assigns`. If a component needs session data, pass it from the parent:
 
 ```python

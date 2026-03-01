@@ -1,10 +1,11 @@
 """Tests for InjectableRegistry."""
 
-from typing import Any
+from typing import Any, Optional
 from unittest.mock import MagicMock
 
 import pytest
 
+from pyview import LiveViewSocket
 from pyview.binding import BindContext, Params
 from pyview.binding.injectables import _NOT_FOUND, InjectableRegistry
 from pyview.components.base import ComponentSocket
@@ -152,6 +153,27 @@ class TestInjectableRegistry:
     ):
         """UnconnectedSocket[T] generic type annotation injects socket."""
         result = registry.resolve("foo", UnconnectedSocket[dict], ctx)
+        assert result is ctx.socket
+
+    def test_inject_liveviewsocket_alias_by_type(
+        self, registry: InjectableRegistry, ctx: BindContext
+    ):
+        """LiveViewSocket alias (Union) type annotation injects socket."""
+        result = registry.resolve("sock", LiveViewSocket, ctx)
+        assert result is ctx.socket
+
+    def test_inject_liveviewsocket_generic_by_type(
+        self, registry: InjectableRegistry, ctx: BindContext
+    ):
+        """LiveViewSocket[T] alias type annotation injects socket."""
+        result = registry.resolve("sock", LiveViewSocket[dict], ctx)
+        assert result is ctx.socket
+
+    def test_inject_optional_component_socket_by_type(
+        self, registry: InjectableRegistry, ctx: BindContext
+    ):
+        """Optional[ComponentSocket] type annotation injects socket."""
+        result = registry.resolve("sock", Optional[ComponentSocket], ctx)
         assert result is ctx.socket
 
     def test_non_socket_name_without_type_not_injected(

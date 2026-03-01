@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Any, Generic, TypeVar, get_args, get_origin
+import types
+from typing import TYPE_CHECKING, Annotated, Any, Generic, TypeVar, Union, get_args, get_origin
 
 from pyview.depends import _SessionInjector
 
@@ -89,8 +90,24 @@ class InjectableRegistry(Generic[T]):
             UnconnectedSocket,
         )
 
-        # Handle generic types like ComponentSocket[T] or LiveViewSocket[T]
         origin = get_origin(annotation)
+
+        # Unwrap Annotated[T, ...]
+        if origin is Annotated:
+            args = get_args(annotation)
+            if args:
+                annotation = args[0]
+                origin = get_origin(annotation)
+
+        # Expand Union/Optional (including PEP 604 `|`)
+        if origin is Union or origin is types.UnionType:
+            return any(
+                self._is_socket_annotation(arg)
+                for arg in get_args(annotation)
+                if arg is not type(None)
+            )
+
+        # Handle generic types like ComponentSocket[T] or LiveViewSocket[T]
         check_type = origin if origin is not None else annotation
 
         socket_types = (ComponentSocket, ConnectedLiveViewSocket, UnconnectedSocket)
