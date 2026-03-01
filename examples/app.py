@@ -18,6 +18,7 @@ app.mount(
             ("pyview", "static"),
             ("examples.views.maps", "static"),
             ("examples.views.kanban", "static"),
+            ("examples.views.github_events", "static"),
         ]
     ),
     name="static",
@@ -69,6 +70,12 @@ css = """
 <!-- Sortable JS for kanban example -->
 <script src="https://unpkg.com/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="/static/kanban.js"></script>
+
+<!-- Vega-Lite for github events example -->
+<script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+<script defer type="text/javascript" src="/static/vega_chart.js"></script>
 """
 
 

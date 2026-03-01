@@ -13,6 +13,7 @@ dependencies = [
     "pillow>=10.4.0,<13",
     "psutil>=7.0.0,<8",
     "certifi>=2025.11.12",
+    "altair>=6.0.0",
 ]
 
 [dependency-groups]

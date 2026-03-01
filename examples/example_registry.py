@@ -49,6 +49,7 @@ if sys.version_info >= (3, 14):
     from .views.count.count_tstring import CounterTStringLiveView
     from .views.flash_demo.flash_demo_tstring import FlashDemoTStringLiveView
     from .views.js_commands.js_commands_tstring import JsCommandsTStringLiveView
+    from .views.github_events import GitHubEventsLiveView
     from .views.streams.streams_tstring import StreamsTStringLiveView
 
     routes.extend(
@@ -60,6 +61,7 @@ if sys.version_info >= (3, 14):
             ("/components/stateless", StatelessComponentsDemo, ["components"]),
             ("/components/stateful", StatefulComponentsDemo, ["components"]),
             ("/components/slots", SlotsDemo, ["components"]),
+            ("/github-events", GitHubEventsLiveView, ["integrations", "realtime"]),
         ]
     )
 
