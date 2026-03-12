@@ -234,7 +234,13 @@ class ConnectedLiveViewSocket(Generic[T]):
         await self.liveview.handle_info(event, self)
 
         rendered = await self.render_with_components()
-        resp = [None, None, self.topic, "diff", self.diff(rendered)]
+        diff = self.diff(rendered)
+
+        if self.pending_events:
+            diff = diff | {"e": self.pending_events}
+            self.pending_events = []
+
+        resp = [None, None, self.topic, "diff", diff]
 
         try:
             await self.websocket.send_text(json.dumps(resp))
