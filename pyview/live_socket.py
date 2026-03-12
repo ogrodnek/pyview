@@ -237,7 +237,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         diff = self.diff(rendered)
 
         if self.pending_events:
-            diff["e"] = self.pending_events
+            diff = diff | {"e": self.pending_events}
             self.pending_events = []
 
         resp = [None, None, self.topic, "diff", diff]
