@@ -341,8 +341,13 @@ class ConnectionInfo:
     last_action: Optional[str]
     event_count: int
     total_event_duration: float
-    socket: ConnectedLiveViewSocket  # live reference for context introspection
-    session_metadata: dict           # safe subset of session data
+    socket_ref: weakref.ref[ConnectedLiveViewSocket]  # weak reference — won't prevent GC
+    session_metadata: dict                              # safe subset of session data
+
+    @property
+    def socket(self) -> Optional[ConnectedLiveViewSocket]:
+        """Resolve the weak reference. Returns None if the socket has been GC'd."""
+        return self.socket_ref()
 
 class ConnectionRegistry:
     def __init__(self):
@@ -360,7 +365,7 @@ class ConnectionRegistry:
             last_action=None,
             event_count=0,
             total_event_duration=0.0,
-            socket=socket,
+            socket_ref=weakref.ref(socket),
             session_metadata=session_metadata,
         )
 
@@ -409,38 +414,89 @@ class DebugDashboardLiveView(LiveView):
         if event == "select_connection":
             topic = payload["topic"]
             info = self.registry.get(topic)
-            if info:
+            live_socket = info.socket if info else None  # resolves weakref
+            if info and live_socket:
                 socket.context["selected"] = {
                     "info": info,
-                    "context_inspection": inspect_context(info.socket.context),
-                    "component_count": info.socket.components.component_count,
+                    "context_inspection": inspect_context(live_socket.context),
+                    "component_count": live_socket.components.component_count,
                 }
 ```
 
 ### Context Introspection (All External)
 
+We want **memory size**, not serialized size. JSON `len()` measures wire format which doesn't reflect actual memory footprint (e.g. a Python `int` is 28 bytes in memory but `"0"` in JSON). Use recursive `sys.getsizeof` with visited-object tracking to avoid double-counting shared references.
+
+The inspector also reports **per-field sizes**, so developers can immediately see which field is bloating their context.
+
 ```python
+import sys
+from dataclasses import fields, is_dataclass
+
 def inspect_context(context: Any) -> dict:
     """Safely inspect a LiveView context for debug display."""
+    field_details = _inspect_fields(context)
     return {
-        "size_bytes": _estimate_size(context),
+        "total_size_bytes": deep_getsizeof(context),
         "type": type(context).__name__,
-        "fields": _safe_repr_fields(context),
+        "fields": field_details,
     }
 
-def _estimate_size(obj: Any) -> int:
-    """Best-effort size estimation. Try JSON first, fall back to getsizeof."""
-    try:
-        return len(json.dumps(obj))
-    except (TypeError, ValueError):
-        return _recursive_getsizeof(obj)
-
-def _safe_repr_fields(obj: Any) -> dict:
-    """Create a safe repr, redacting sensitive-looking keys."""
+def _inspect_fields(obj: Any) -> dict[str, dict]:
+    """Return per-field size, type, and truncated repr."""
     SENSITIVE_PATTERNS = {"password", "token", "secret", "key", "credential"}
-    # Handle dicts, dataclasses, pydantic models
-    # Truncate large values, mask sensitive keys
-    ...
+    items = _extract_fields(obj)
+    result = {}
+    for name, value in items:
+        is_sensitive = any(p in name.lower() for p in SENSITIVE_PATTERNS)
+        result[name] = {
+            "size_bytes": deep_getsizeof(value),
+            "type": type(value).__name__,
+            "repr": "***" if is_sensitive else _truncated_repr(value),
+        }
+    return result
+
+def _extract_fields(obj: Any) -> list[tuple[str, Any]]:
+    """Extract (name, value) pairs from dicts, dataclasses, or objects."""
+    if isinstance(obj, dict):
+        return list(obj.items())
+    if is_dataclass(obj):
+        return [(f.name, getattr(obj, f.name)) for f in fields(obj)]
+    # Fallback: vars()
+    try:
+        return list(vars(obj).items())
+    except TypeError:
+        return []
+
+def deep_getsizeof(obj: Any, seen: set[int] | None = None) -> int:
+    """Recursive sys.getsizeof that tracks visited objects to avoid double-counting."""
+    if seen is None:
+        seen = set()
+    obj_id = id(obj)
+    if obj_id in seen:
+        return 0
+    seen.add(obj_id)
+
+    size = sys.getsizeof(obj)
+
+    if isinstance(obj, dict):
+        size += sum(deep_getsizeof(k, seen) + deep_getsizeof(v, seen) for k, v in obj.items())
+    elif isinstance(obj, (list, tuple, set, frozenset)):
+        size += sum(deep_getsizeof(item, seen) for item in obj)
+    elif is_dataclass(obj) and not isinstance(obj, type):
+        size += sum(deep_getsizeof(getattr(obj, f.name), seen) for f in fields(obj))
+
+    return size
+
+def _truncated_repr(value: Any, max_len: int = 120) -> str:
+    """Safe repr with truncation for large values."""
+    try:
+        r = repr(value)
+        if len(r) > max_len:
+            return r[:max_len - 3] + "..."
+        return r
+    except Exception:
+        return f"<{type(value).__name__}>"
 ```
 
 ---
@@ -567,10 +623,8 @@ Separate repo/package:
 
 ## Open Questions
 
-1. **Should the tracker receive the socket on `on_event` too?**
-   - Pro: Enables capturing context snapshots at event time
-   - Con: Increases coupling; context can be read any time via the stored socket reference
-   - Leaning no — the stored socket reference from `on_connect` is sufficient
+1. **~~Should the tracker receive the socket on `on_event` too?~~** *Resolved.*
+   - No — the registry holds a `weakref` to the socket from `on_connect`. The socket can be dereferenced at any time while the connection is alive. No need to pass it again on every event.
 
 2. **How much data should the registry retain after disconnect?**
    - Option: Keep last N disconnected sessions for a configurable TTL (useful for "what just happened?")

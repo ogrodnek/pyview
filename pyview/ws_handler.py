@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from contextlib import suppress
 from typing import Optional
 from urllib.parse import parse_qs, urlparse
@@ -10,6 +11,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 from pyview.auth import AuthProviderFactory
 from pyview.binding import call_handle_event, call_handle_params, call_mount, create_view
 from pyview.csrf import validate_csrf_token
+from pyview.connection_tracker import ConnectionTracker
 from pyview.instrumentation import InstrumentationProvider
 from pyview.live_routes import LiveViewLookup
 from pyview.live_socket import ConnectedLiveViewSocket, LiveViewSocket
@@ -51,9 +53,15 @@ class LiveSocketMetrics:
 
 
 class LiveSocketHandler:
-    def __init__(self, routes: LiveViewLookup, instrumentation: InstrumentationProvider):
+    def __init__(
+        self,
+        routes: LiveViewLookup,
+        instrumentation: InstrumentationProvider,
+        connection_tracker: Optional[ConnectionTracker] = None,
+    ):
         self.routes = routes
         self.instrumentation = instrumentation
+        self.connection_tracker = connection_tracker
         self.metrics = LiveSocketMetrics(instrumentation)
         self.manager = ConnectionManager()
         self.sessions = 0
@@ -139,19 +147,29 @@ class LiveSocketHandler:
                 ]
 
                 await self.manager.send_personal_message(json.dumps(resp), websocket)
+
+                if self.connection_tracker:
+                    self.connection_tracker.on_connect(topic, socket, lv_class, url.path, session)
+
                 await self.handle_connected(topic, socket)
 
         except WebSocketDisconnect:
             if socket:
                 await socket.close()
+            if self.connection_tracker and topic:
+                self.connection_tracker.on_disconnect(topic)
             self.sessions -= 1
             self.metrics.active_connections.add(-1)
         except AuthException:
             await websocket.close()
+            if self.connection_tracker and topic:
+                self.connection_tracker.on_disconnect(topic)
             self.sessions -= 1
             self.metrics.active_connections.add(-1)
         except Exception:
             logger.exception("Unexpected error in WebSocket handler")
+            if self.connection_tracker and topic:
+                self.connection_tracker.on_disconnect(topic)
             self.sessions -= 1
             self.metrics.active_connections.add(-1)
             raise
@@ -182,6 +200,8 @@ class LiveSocketHandler:
                 # Track event metrics
                 event_name = payload["event"]
                 view_name = socket.liveview.__class__.__name__
+
+                t0 = time.perf_counter()
 
                 # Handle built-in lv:clear-flash event
                 if event_name == "lv:clear-flash":
@@ -232,6 +252,10 @@ class LiveSocketHandler:
                 resp_json = json.dumps(resp)
                 self.metrics.message_size.record(len(resp_json))
                 await self.manager.send_personal_message(resp_json, socket.websocket)
+
+                if self.connection_tracker:
+                    self.connection_tracker.on_event(topic, event_name, time.perf_counter() - t0)
+
                 continue
 
             if event == "live_patch":
@@ -433,6 +457,8 @@ class LiveSocketHandler:
             if event == "phx_leave":
                 # Handle LiveView navigation - clean up current LiveView
                 await socket.close()
+                if self.connection_tracker:
+                    self.connection_tracker.on_disconnect(topic)
 
                 resp = [
                     joinRef,
