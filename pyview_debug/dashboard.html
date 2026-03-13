@@ -1,0 +1,164 @@
+<style>
+    .debug-dashboard { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 1200px; margin: 0 auto; padding: 24px; color: #1a1a2e; }
+    .debug-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #e2e8f0; }
+    .debug-header h1 { font-size: 24px; font-weight: 700; margin: 0; }
+    .debug-header .badge { background: #3b82f6; color: white; padding: 4px 12px; border-radius: 12px; font-size: 14px; font-weight: 600; }
+    .debug-stats { display: flex; gap: 16px; margin-bottom: 24px; }
+    .debug-stat { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; flex: 1; }
+    .debug-stat .label { font-size: 12px; text-transform: uppercase; color: #64748b; font-weight: 600; letter-spacing: 0.05em; }
+    .debug-stat .value { font-size: 28px; font-weight: 700; color: #1e293b; margin-top: 4px; }
+    .debug-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .debug-table th { text-align: left; padding: 10px 12px; background: #f1f5f9; color: #475569; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #e2e8f0; }
+    .debug-table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
+    .debug-table tr { cursor: pointer; transition: background 0.1s; }
+    .debug-table tr:hover { background: #f8fafc; }
+    .debug-routes { margin-bottom: 24px; }
+    .debug-routes h2 { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: #475569; }
+    .debug-routes .route-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .debug-routes .route-item { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 12px; font-size: 13px; font-family: monospace; }
+    .debug-routes .route-path { color: #3b82f6; font-weight: 600; }
+    .debug-routes .route-view { color: #64748b; }
+    .debug-detail { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; }
+    .debug-detail h2 { font-size: 18px; font-weight: 700; margin: 0 0 16px 0; }
+    .debug-detail .back-btn { background: none; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 13px; color: #475569; margin-bottom: 16px; }
+    .debug-detail .back-btn:hover { background: #e2e8f0; }
+    .debug-detail .meta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .debug-detail .meta-item .meta-label { font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 600; letter-spacing: 0.05em; }
+    .debug-detail .meta-item .meta-value { font-size: 15px; font-weight: 600; color: #1e293b; font-family: monospace; }
+    .debug-context h3 { font-size: 14px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 8px 0; }
+    .debug-context .field-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .debug-context .field-table th { text-align: left; padding: 6px 10px; background: #e2e8f0; color: #475569; font-weight: 600; }
+    .debug-context .field-table td { padding: 6px 10px; border-bottom: 1px solid #e2e8f0; font-family: monospace; }
+    .debug-context .field-table .field-name { color: #3b82f6; font-weight: 600; }
+    .debug-context .field-table .field-type { color: #94a3b8; }
+    .debug-context .field-table .field-size { color: #64748b; text-align: right; }
+    .debug-context .field-table .field-repr { color: #1e293b; max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .debug-empty { text-align: center; padding: 48px; color: #94a3b8; font-size: 15px; }
+    .mono { font-family: monospace; }
+</style>
+
+<div class="debug-dashboard">
+    <div class="debug-header">
+        <h1>PyView Debug Dashboard</h1>
+        <span class="badge">{{ active_count }} active</span>
+    </div>
+
+    {% if selected_info %}
+    <div class="debug-detail">
+        <button class="back-btn" phx-click="back">&larr; Back to overview</button>
+        <h2>{{ selected_info.view_name }}</h2>
+
+        <div class="meta-grid">
+            <div class="meta-item">
+                <div class="meta-label">Topic</div>
+                <div class="meta-value">{{ selected_info.topic }}</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Route</div>
+                <div class="meta-value">{{ selected_info.route }}</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Connected At</div>
+                <div class="meta-value">{{ selected_info.connected_at }}</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Events</div>
+                <div class="meta-value">{{ selected_info.event_count }}</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Last Action</div>
+                <div class="meta-value">{{ selected_info.last_action }}</div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">Components</div>
+                <div class="meta-value">{{ selected_info.component_count }}</div>
+            </div>
+        </div>
+
+        <div class="debug-context">
+            <h3>Context ({{ selected_info.context.type }}) &mdash; {{ selected_info.context.total_size_bytes }} bytes</h3>
+            {% if selected_info.context.fields %}
+            <table class="field-table">
+                <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th style="text-align: right">Size</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for name in selected_info.context.fields %}
+                    <tr>
+                        <td class="field-name">{{ name }}</td>
+                        <td class="field-type">{{ selected_info.context.fields[name].type }}</td>
+                        <td class="field-size">{{ selected_info.context.fields[name].size_bytes }} B</td>
+                        <td class="field-repr">{{ selected_info.context.fields[name].repr }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+        </div>
+    </div>
+
+    {% else %}
+
+    <div class="debug-stats">
+        <div class="debug-stat">
+            <div class="label">Active Connections</div>
+            <div class="value">{{ active_count }}</div>
+        </div>
+        <div class="debug-stat">
+            <div class="label">Registered Routes</div>
+            <div class="value">{{ routes|len }}</div>
+        </div>
+    </div>
+
+    <div class="debug-routes">
+        <h2>Routes</h2>
+        <div class="route-list">
+            {% for path, view_name in routes %}
+            <div class="route-item">
+                <span class="route-path">{{ path }}</span>
+                <span class="route-view">&rarr; {{ view_name }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if connections %}
+    <table class="debug-table">
+        <thead>
+            <tr>
+                <th>View</th>
+                <th>Route</th>
+                <th>Connected</th>
+                <th>Last Seen</th>
+                <th>Last Action</th>
+                <th>Events</th>
+                <th>Avg (ms)</th>
+                <th>Context</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for conn in connections %}
+            <tr phx-click="select" phx-value-topic="{{ conn.topic }}">
+                <td class="mono">{{ conn.view_name }}</td>
+                <td class="mono">{{ conn.route }}</td>
+                <td>{{ conn.connected_at }}</td>
+                <td>{{ conn.last_seen }}</td>
+                <td class="mono">{{ conn.last_action }}</td>
+                <td>{{ conn.event_count }}</td>
+                <td>{{ conn.avg_event_ms }}</td>
+                <td>{{ conn.context_size }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="debug-empty">No active LiveView connections</div>
+    {% endif %}
+
+    {% endif %}
+</div>

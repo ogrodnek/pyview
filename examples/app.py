@@ -107,3 +107,8 @@ app.add_live_view("/", IndexLiveView)
 
 for path, view, _tags in routes:
     app.add_live_view(path, view)
+
+# Enable debug dashboard at /debug
+from pyview_debug import enable_debug
+
+enable_debug(app, path="/debug")
