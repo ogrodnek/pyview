@@ -91,3 +91,22 @@ class TestAsyncStreamRunner:
 
         assert cancelled is True
         assert scheduler.events == [InfoEvent("cancelled")]
+
+    async def test_close_suppresses_on_cancel(
+        self, runner: AsyncStreamRunner, scheduler: MockScheduler
+    ):
+        async def slow_gen():
+            await asyncio.sleep(10)
+            yield "never"
+
+        runner.start_stream(
+            slow_gen(),
+            on_yield=lambda x: InfoEvent("item", x),
+            on_cancel=InfoEvent("cancelled"),
+        )
+        await asyncio.sleep(0)
+
+        await runner.close()
+        await asyncio.sleep(0.05)
+        # on_cancel should NOT fire during teardown
+        assert scheduler.events == []

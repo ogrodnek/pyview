@@ -5,11 +5,14 @@ from typing import Any, AsyncGenerator, Callable, Optional
 
 from pyview.events.info_event import InfoEvent, InfoEventScheduler
 
+logger = logging.getLogger(__name__)
+
 
 class AsyncStreamRunner:
     def __init__(self, scheduler: InfoEventScheduler):
         self._stream_tasks: dict[str, asyncio.Task] = {}
         self._scheduler = scheduler
+        self._closing = False
 
     def start_stream(
         self,
@@ -36,10 +39,8 @@ class AsyncStreamRunner:
                 async for item in gen:
                     self._scheduler.schedule_info_once(on_yield(item))
             except asyncio.CancelledError:
-                # user-requested cancellation
-                if on_cancel:
+                if on_cancel and not self._closing:
                     self._scheduler.schedule_info_once(on_cancel)
-                # swallow so it doesn’t log as an “error”
             except Exception as exc:
                 if on_error:
                     self._scheduler.schedule_info_once(on_error(exc))
@@ -64,3 +65,9 @@ class AsyncStreamRunner:
             return False
         task.cancel()
         return True
+
+    async def close(self) -> None:
+        """Cancel all running stream tasks."""
+        self._closing = True
+        for task in self._stream_tasks.values():
+            task.cancel()

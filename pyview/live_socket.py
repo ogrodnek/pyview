@@ -198,6 +198,8 @@ class ConnectedLiveViewSocket(Generic[T]):
         await self.send_info(InfoEvent(topic, message))
 
     def schedule_info(self, event, seconds):
+        if not self.connected:
+            return
         id = f"{self.topic}:{event}"
         self.scheduler.add_job(
             self.send_info, args=[event], id=id, trigger="interval", seconds=seconds
@@ -205,6 +207,8 @@ class ConnectedLiveViewSocket(Generic[T]):
         self.scheduled_jobs.add(id)
 
     def schedule_info_once(self, event, seconds=None):
+        if not self.connected:
+            return
         job_id = f"{self.topic}:once:{uuid.uuid4().hex}"
         self.scheduler.add_job(
             self._send_info_once,
@@ -231,6 +235,9 @@ class ConnectedLiveViewSocket(Generic[T]):
         self.scheduled_jobs.discard(job_id)
 
     async def send_info(self, event: InfoEvent):
+        if not self.connected:
+            return
+
         await self.liveview.handle_info(event, self)
 
         rendered = await self.render_with_components()
@@ -366,7 +373,11 @@ class ConnectedLiveViewSocket(Generic[T]):
         )
 
     async def close(self):
+        if not self.connected:
+            return
+
         self.connected = False
+        await self.stream_runner.close()
         for id in list(self.scheduled_jobs):
             with suppress(JobLookupError):
                 self.scheduler.remove_job(id)
