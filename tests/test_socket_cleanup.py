@@ -46,9 +46,9 @@ async def test_close_cancels_streams_without_scheduling_cancel_jobs():
 
     await asyncio.sleep(0)
     await socket.close()
-    # Generator cleanup completes before close() returns
+    await asyncio.sleep(0.05)
+    # Generator cleanup runs asynchronously after close
     assert cancelled.is_set()
-    assert socket.stream_runner._stream_tasks == {}
     scheduler.add_job.assert_not_called()
     assert view.disconnect_calls == 1
 

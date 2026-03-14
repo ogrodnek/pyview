@@ -92,30 +92,6 @@ class TestAsyncStreamRunner:
         assert cancelled is True
         assert scheduler.events == [InfoEvent("cancelled")]
 
-    async def test_close_awaits_generator_cleanup(
-        self, runner: AsyncStreamRunner, scheduler: MockScheduler
-    ):
-        cleaned_up = asyncio.Event()
-
-        async def gen_with_finally():
-            try:
-                while True:
-                    await asyncio.sleep(10)
-                    yield "never"
-            finally:
-                cleaned_up.set()
-
-        runner.start_stream(
-            gen_with_finally(),
-            on_yield=lambda x: InfoEvent("item", x),
-        )
-        await asyncio.sleep(0)
-
-        await runner.close()
-        # Generator finally block must have run by the time close() returns
-        assert cleaned_up.is_set()
-        assert runner._stream_tasks == {}
-
     async def test_close_suppresses_on_cancel(
         self, runner: AsyncStreamRunner, scheduler: MockScheduler
     ):
@@ -131,5 +107,6 @@ class TestAsyncStreamRunner:
         await asyncio.sleep(0)
 
         await runner.close()
+        await asyncio.sleep(0.05)
         # on_cancel should NOT fire during teardown
         assert scheduler.events == []

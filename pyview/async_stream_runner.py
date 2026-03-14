@@ -67,12 +67,7 @@ class AsyncStreamRunner:
         return True
 
     async def close(self) -> None:
-        """Cancel all running stream tasks and wait for cleanup."""
+        """Cancel all running stream tasks."""
         self._closing = True
-        tasks = list(self._stream_tasks.values())
-        for task in tasks:
+        for task in self._stream_tasks.values():
             task.cancel()
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        for result in results:
-            if isinstance(result, Exception) and not isinstance(result, asyncio.CancelledError):
-                logger.exception("Unexpected error during stream shutdown", exc_info=result)

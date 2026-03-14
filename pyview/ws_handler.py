@@ -157,6 +157,13 @@ class LiveSocketHandler:
             self.metrics.active_connections.add(-1)
 
     async def handle_connected(self, myJoinId, socket: ConnectedLiveViewSocket):
+        try:
+            await self._handle_connected_loop(myJoinId, socket)
+        finally:
+            with suppress(Exception):
+                await socket.close()
+
+    async def _handle_connected_loop(self, myJoinId, socket: ConnectedLiveViewSocket):
         while True:
             message = await socket.websocket.receive()
             [joinRef, messageRef, topic, event, payload] = parse_message(message)
