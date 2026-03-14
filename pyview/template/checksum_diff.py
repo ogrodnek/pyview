@@ -17,11 +17,11 @@ def _hash_val(val: Any) -> int:
     if isinstance(val, list):
         return hash(tuple(_hash_val(v) for v in val))
     if isinstance(val, dict):
-        return hash(tuple((k, _hash_val(v)) for k in sorted(val, key=str) for v in [val[k]]))
+        return hash(tuple((k, _hash_val(val[k])) for k in sorted(val, key=str)))
     return hash(val)
 
 
-def _build_prints(tree: dict[str, Any]) -> FingerprintNode:
+def _build_prints(tree: dict[str | int, Any]) -> FingerprintNode:
     """Build a fingerprint tree from a render tree."""
     children: dict[str | int, int | FingerprintNode] = {}
 
@@ -51,7 +51,7 @@ class ChecksumDiffEngine:
     def __init__(self):
         self._prints: FingerprintNode | None = None
 
-    def push(self, tree: dict[str, Any]) -> dict[str, Any]:
+    def push(self, tree: dict[str | int, Any]) -> dict[str | int, Any]:
         """Accept a new full render tree, return the diff."""
         if self._prints is None:
             self._prints = _build_prints(tree)
@@ -61,14 +61,14 @@ class ChecksumDiffEngine:
         return diff
 
     def _diff_tree(
-        self, new_tree: dict[str, Any], old_prints: FingerprintNode
-    ) -> tuple[dict[str, Any], FingerprintNode]:
+        self, new_tree: dict[str | int, Any], old_prints: FingerprintNode
+    ) -> tuple[dict[str | int, Any], FingerprintNode]:
         new_prints = _build_prints(new_tree)
 
         if new_prints.fingerprint == old_prints.fingerprint:
             return {}, old_prints
 
-        diff: dict[str, Any] = {}
+        diff: dict[str | int, Any] = {}
 
         for key in new_tree:
             new_val = new_tree[key]
@@ -109,10 +109,10 @@ class ChecksumDiffEngine:
 
     def _diff_comprehension(
         self,
-        key: str,
+        key: str | int,
         new_val: dict[str, Any],
         old_child: int | FingerprintNode | None,
-        diff: dict[str, Any],
+        diff: dict[str | int, Any],
     ) -> None:
         # Case 1a: old was not a FingerprintNode -- structure changed
         if not isinstance(old_child, FingerprintNode):
@@ -144,7 +144,9 @@ class ChecksumDiffEngine:
             diff[key] = {"d": new_val["d"]}
 
 
-def checksum_calc_diff(old_tree: dict[str, Any], new_tree: dict[str, Any]) -> dict[str, Any]:
+def checksum_calc_diff(
+    old_tree: dict[str | int, Any], new_tree: dict[str | int, Any]
+) -> dict[str | int, Any]:
     """Drop-in replacement for calc_diff using checksum engine."""
     engine = ChecksumDiffEngine()
     engine.push(old_tree)

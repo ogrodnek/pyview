@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"from string.templatelib import Template; print\\(Template.__doc__\\)\")",
+      "Bash(python3 -c \"print\\(hash\\([1,2,3]\\)\\)\")",
+      "Bash(python3 -c \"print\\(hash\\({''a'': 1}\\)\\)\")",
+      "Bash(uv run:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

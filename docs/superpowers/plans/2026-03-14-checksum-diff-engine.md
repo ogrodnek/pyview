@@ -1,15 +1,43 @@
-from dataclasses import dataclass as dc
+# Checksum Diff Engine Implementation Plan
 
-from pyview.stream import Stream
-from pyview.template.checksum_diff import (
-    ChecksumDiffEngine,
-    FingerprintNode,
-    _build_prints,
-    _hash_val,
-    checksum_calc_diff,
-)
-from pyview.template.render_diff import calc_diff
-from pyview.vendor.ibis import Template
+> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Build a `ChecksumDiffEngine` that produces identical diffs to the existing `calc_diff` but stores only a compact fingerprint tree instead of the full render tree.
+
+**Architecture:** A new `checksum_diff.py` module containing `FingerprintNode` (dataclass), `_hash_val` (recursive hashing helper), `ChecksumDiffEngine` (stateful diff engine with `push()`), and `checksum_calc_diff` (drop-in wrapper). All existing code is untouched.
+
+**Tech Stack:** Python 3.11+, pytest, dataclasses
+
+**Spec:** `docs/superpowers/specs/2026-03-14-checksum-diff-engine-design.md`
+
+---
+
+## File Structure
+
+```
+pyview/template/
+├── render_diff.py              # EXISTING — untouched
+├── checksum_diff.py            # NEW — FingerprintNode, _hash_val, ChecksumDiffEngine, checksum_calc_diff
+
+tests/template/
+├── test_diff.py                # EXISTING — untouched
+├── test_stream_diff.py         # EXISTING — untouched
+├── test_checksum_diff.py       # NEW — all tests for checksum engine
+```
+
+## Chunk 1: Foundation
+
+### Task 1: FingerprintNode dataclass and _hash_val helper
+
+**Files:**
+- Create: `pyview/template/checksum_diff.py`
+- Create: `tests/template/test_checksum_diff.py`
+
+- [ ] **Step 1: Write failing tests for `_hash_val`**
+
+```python
+# tests/template/test_checksum_diff.py
+from pyview.template.checksum_diff import FingerprintNode, _hash_val
 
 
 class TestHashVal:
@@ -68,9 +96,69 @@ class TestFingerprintNode:
         assert parent.children["1"].fingerprint == 789
 
     def test_int_keys(self):
-        """FingerprintNode supports int keys."""
+        """Component CIDs use int keys."""
         node = FingerprintNode(fingerprint=123, children={1: 456, 2: 789})
         assert node.children[1] == 456
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `uv run pytest tests/template/test_checksum_diff.py -v`
+Expected: FAIL — `ModuleNotFoundError: No module named 'pyview.template.checksum_diff'`
+
+- [ ] **Step 3: Implement FingerprintNode and _hash_val**
+
+```python
+# pyview/template/checksum_diff.py
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+
+@dataclass(slots=True)
+class FingerprintNode:
+    fingerprint: int
+    children: dict[str | int, int | FingerprintNode]
+
+
+def _hash_val(val: Any) -> int:
+    """Hash any render tree value, including lists and dicts."""
+    if isinstance(val, (str, int, float, bool)):
+        return hash(val)
+    if isinstance(val, list):
+        return hash(tuple(_hash_val(v) for v in val))
+    if isinstance(val, dict):
+        return hash(tuple((k, _hash_val(v)) for k in sorted(val, key=str) for v in [val[k]]))
+    return hash(val)
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `uv run pytest tests/template/test_checksum_diff.py -v`
+Expected: All PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add pyview/template/checksum_diff.py tests/template/test_checksum_diff.py
+git commit -m "feat: add FingerprintNode and _hash_val for checksum diff engine"
+```
+
+---
+
+### Task 2: _build_prints helper
+
+**Files:**
+- Modify: `pyview/template/checksum_diff.py`
+- Modify: `tests/template/test_checksum_diff.py`
+
+- [ ] **Step 1: Write failing tests for `_build_prints`**
+
+Append to `tests/template/test_checksum_diff.py`:
+
+```python
+from pyview.template.checksum_diff import _build_prints
 
 
 class TestBuildPrints:
@@ -120,6 +208,63 @@ class TestBuildPrints:
         prints = _build_prints(tree)
         for v in prints.children.values():
             assert isinstance(v, (int, FingerprintNode))
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `uv run pytest tests/template/test_checksum_diff.py::TestBuildPrints -v`
+Expected: FAIL — `ImportError: cannot import name '_build_prints'`
+
+- [ ] **Step 3: Implement _build_prints**
+
+Add to `pyview/template/checksum_diff.py`:
+
+```python
+def _build_prints(tree: dict[str, Any]) -> FingerprintNode:
+    """Build a fingerprint tree from a render tree."""
+    children: dict[str | int, int | FingerprintNode] = {}
+
+    for key, val in tree.items():
+        if isinstance(val, dict):
+            children[key] = _build_prints(val)
+        else:
+            children[key] = _hash_val(val)
+
+    rollup = hash(tuple(sorted(
+        (k, v.fingerprint if isinstance(v, FingerprintNode) else v)
+        for k, v in children.items()
+    )))
+    return FingerprintNode(fingerprint=rollup, children=children)
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `uv run pytest tests/template/test_checksum_diff.py -v`
+Expected: All PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add pyview/template/checksum_diff.py tests/template/test_checksum_diff.py
+git commit -m "feat: add _build_prints to construct fingerprint tree from render tree"
+```
+
+---
+
+## Chunk 2: Core Diff Engine
+
+### Task 3: ChecksumDiffEngine with basic leaf diffing
+
+**Files:**
+- Modify: `pyview/template/checksum_diff.py`
+- Modify: `tests/template/test_checksum_diff.py`
+
+- [ ] **Step 1: Write failing tests for basic engine behavior**
+
+Append to `tests/template/test_checksum_diff.py`:
+
+```python
+from pyview.template.checksum_diff import ChecksumDiffEngine, checksum_calc_diff
 
 
 class TestChecksumDiffEngineBasics:
@@ -156,9 +301,7 @@ class TestChecksumDiffEngineBasics:
     def test_nested_dict_change(self):
         engine = ChecksumDiffEngine()
         engine.push({"s": ["<div>", "</div>"], "0": {"s": ["<span>", "</span>"], "0": "hello"}})
-        diff = engine.push(
-            {"s": ["<div>", "</div>"], "0": {"s": ["<span>", "</span>"], "0": "goodbye"}}
-        )
+        diff = engine.push({"s": ["<div>", "</div>"], "0": {"s": ["<span>", "</span>"], "0": "goodbye"}})
         assert diff == {"0": {"0": "goodbye"}}
 
     def test_nested_no_change(self):
@@ -177,6 +320,159 @@ class TestChecksumCalcDiffWrapper:
     def test_wrapper_no_change(self):
         tree = {"s": ["<div>", "</div>"], "0": "hello"}
         assert checksum_calc_diff(tree, tree) == {}
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `uv run pytest tests/template/test_checksum_diff.py::TestChecksumDiffEngineBasics -v`
+Expected: FAIL — `ImportError`
+
+- [ ] **Step 3: Implement ChecksumDiffEngine core and checksum_calc_diff**
+
+Add to `pyview/template/checksum_diff.py`:
+
+```python
+def _is_comprehension(val: Any) -> bool:
+    """Check if a value is a comprehension (dict with "s" and "d" keys)."""
+    return isinstance(val, dict) and "s" in val and "d" in val
+
+
+class ChecksumDiffEngine:
+    def __init__(self):
+        self._prints: FingerprintNode | None = None
+
+    def push(self, tree: dict[str, Any]) -> dict[str, Any]:
+        """Accept a new full render tree, return the diff."""
+        if self._prints is None:
+            self._prints = _build_prints(tree)
+            return tree
+
+        diff, self._prints = self._diff_tree(tree, self._prints)
+        return diff
+
+    def _diff_tree(
+        self, new_tree: dict[str, Any], old_prints: FingerprintNode
+    ) -> tuple[dict[str, Any], FingerprintNode]:
+        new_prints = _build_prints(new_tree)
+
+        if new_prints.fingerprint == old_prints.fingerprint:
+            return {}, old_prints
+
+        diff: dict[str, Any] = {}
+
+        for key in new_tree:
+            new_val = new_tree[key]
+            old_child = old_prints.children.get(key)
+
+            # Case 1: Comprehension (dict with "s" + "d")
+            if _is_comprehension(new_val):
+                self._diff_comprehension(key, new_val, old_child, diff)
+
+            # Case 2: Stream-only dict (has "stream" but no "s"/"d")
+            elif isinstance(new_val, dict) and "stream" in new_val:
+                diff[key] = new_val
+
+            # Case 3: Stream → empty string transition
+            elif (
+                new_val == ""
+                and isinstance(old_child, FingerprintNode)
+                and "stream" in old_child.children
+            ):
+                pass  # suppress — client retains stream content
+
+            # Case 4: Regular nested dict
+            elif isinstance(new_val, dict):
+                if isinstance(old_child, FingerprintNode):
+                    child_diff, _ = self._diff_tree(new_val, old_child)
+                    if child_diff:
+                        diff[key] = child_diff
+                else:
+                    diff[key] = new_val
+
+            # Case 5: Leaf value
+            else:
+                new_hash = _hash_val(new_val)
+                if new_hash != old_child:
+                    diff[key] = new_val
+
+        return diff, new_prints
+
+    def _diff_comprehension(
+        self,
+        key: str,
+        new_val: dict[str, Any],
+        old_child: int | FingerprintNode | None,
+        diff: dict[str, Any],
+    ) -> None:
+        # Case 1a: old was not a FingerprintNode — structure changed
+        if not isinstance(old_child, FingerprintNode):
+            diff[key] = new_val
+            return
+
+        has_stream = "stream" in new_val
+
+        if has_stream:
+            # Case 1b: Stream comprehension — always include stream ops
+            comp_diff: dict[str, Any] = {"stream": new_val["stream"]}
+            if new_val["d"]:
+                comp_diff["d"] = new_val["d"]
+            new_s_hash = _hash_val(new_val["s"])
+            if new_s_hash != old_child.children.get("s"):
+                comp_diff["s"] = new_val["s"]
+            diff[key] = comp_diff
+            return
+
+        # Case 1c: Regular comprehension
+        new_s_hash = _hash_val(new_val["s"])
+        new_d_hash = _hash_val(new_val["d"])
+        old_s_hash = old_child.children.get("s")
+        old_d_hash = old_child.children.get("d")
+
+        if new_s_hash != old_s_hash:
+            diff[key] = {"s": new_val["s"], "d": new_val["d"]}
+        elif new_d_hash != old_d_hash:
+            diff[key] = {"d": new_val["d"]}
+
+
+def checksum_calc_diff(
+    old_tree: dict[str, Any], new_tree: dict[str, Any]
+) -> dict[str, Any]:
+    """Drop-in replacement for calc_diff using checksum engine."""
+    engine = ChecksumDiffEngine()
+    engine.push(old_tree)
+    return engine.push(new_tree)
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `uv run pytest tests/template/test_checksum_diff.py -v`
+Expected: All PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add pyview/template/checksum_diff.py tests/template/test_checksum_diff.py
+git commit -m "feat: implement ChecksumDiffEngine core with leaf, nested, and comprehension diffing"
+```
+
+---
+
+## Chunk 3: Validate Against Existing Tests
+
+### Task 4: Run all existing diff test scenarios through checksum engine
+
+**Files:**
+- Modify: `tests/template/test_checksum_diff.py`
+
+The existing tests in `test_diff.py` and `test_stream_diff.py` use `calc_diff(old, new)` and assert specific results. We replicate every scenario using `checksum_calc_diff` and assert identical output.
+
+- [ ] **Step 1: Write tests mirroring test_diff.py scenarios**
+
+Append to `tests/template/test_checksum_diff.py`:
+
+```python
+from pyview.template.render_diff import calc_diff
+from pyview.vendor.ibis import Template
 
 
 class TestChecksumMatchesCalcDiff:
@@ -283,6 +579,34 @@ class TestChecksumMatchesCalcDiff:
         old = {"0": {"s": ["<span>", "</span>"], "d": [["Item1"], ["Item2"]]}}
         new = {"0": 2}
         assert checksum_calc_diff(old, new) == calc_diff(old, new)
+```
+
+- [ ] **Step 2: Run tests to verify they pass**
+
+Run: `uv run pytest tests/template/test_checksum_diff.py::TestChecksumMatchesCalcDiff -v`
+Expected: All PASS. If any fail, debug and fix the engine — the existing `calc_diff` output is the source of truth.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add tests/template/test_checksum_diff.py
+git commit -m "test: validate checksum engine against all existing diff test scenarios"
+```
+
+---
+
+### Task 5: Run all existing stream diff test scenarios through checksum engine
+
+**Files:**
+- Modify: `tests/template/test_checksum_diff.py`
+
+- [ ] **Step 1: Write tests mirroring test_stream_diff.py scenarios**
+
+Append to `tests/template/test_checksum_diff.py`:
+
+```python
+from dataclasses import dataclass as dc
+from pyview.stream import Stream
 
 
 @dc
@@ -349,6 +673,7 @@ class TestChecksumMatchesStreamDiff:
         tree1 = template.tree({"users": stream})
         stream.insert(_User(id=1, name="Alice"))
         tree2 = template.tree({"users": stream})
+        # Note: for sequential, we test both steps
         assert checksum_calc_diff(tree1, tree2) == calc_diff(tree1, tree2)
         stream.insert(_User(id=2, name="Bob"))
         tree3 = template.tree({"users": stream})
@@ -423,8 +748,34 @@ class TestChecksumMatchesStreamDiff:
         users2 = [_User(id=1, name="Alice"), _User(id=2, name="Bob")]
         tree2 = template.tree({"users": users2})
         assert checksum_calc_diff(tree1, tree2) == calc_diff(tree1, tree2)
+```
 
+- [ ] **Step 2: Run tests to verify they pass**
 
+Run: `uv run pytest tests/template/test_checksum_diff.py::TestChecksumMatchesStreamDiff -v`
+Expected: All PASS. If any fail, debug and fix the engine.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add tests/template/test_checksum_diff.py
+git commit -m "test: validate checksum engine against all existing stream diff scenarios"
+```
+
+---
+
+## Chunk 4: Checksum-Specific Tests and Polish
+
+### Task 6: Multi-push and engine-specific tests
+
+**Files:**
+- Modify: `tests/template/test_checksum_diff.py`
+
+- [ ] **Step 1: Write checksum-specific tests**
+
+Append to `tests/template/test_checksum_diff.py`:
+
+```python
 class TestChecksumEngineSpecific:
     """Tests for behaviors unique to the stateful checksum engine."""
 
@@ -459,13 +810,11 @@ class TestChecksumEngineSpecific:
     def test_fingerprint_tree_compactness(self):
         """Verify internal state contains no full values."""
         engine = ChecksumDiffEngine()
-        engine.push(
-            {
-                "s": ["<div>", " long content here ", "</div>"],
-                "0": "a very long dynamic string value",
-                "1": {"s": ["<span>", "</span>"], "0": "nested value"},
-            }
-        )
+        engine.push({
+            "s": ["<div>", " long content here ", "</div>"],
+            "0": "a very long dynamic string value",
+            "1": {"s": ["<span>", "</span>"], "0": "nested value"},
+        })
 
         def assert_compact(node):
             assert isinstance(node, FingerprintNode)
@@ -481,9 +830,7 @@ class TestChecksumEngineSpecific:
     def test_structure_transition_leaf_to_dict(self):
         engine = ChecksumDiffEngine()
         engine.push({"s": ["<div>", "</div>"], "0": "plain string"})
-        diff = engine.push(
-            {"s": ["<div>", "</div>"], "0": {"s": ["<span>", "</span>"], "0": "nested"}}
-        )
+        diff = engine.push({"s": ["<div>", "</div>"], "0": {"s": ["<span>", "</span>"], "0": "nested"}})
         assert diff == {"0": {"s": ["<span>", "</span>"], "0": "nested"}}
 
     def test_structure_transition_dict_to_leaf(self):
@@ -494,6 +841,7 @@ class TestChecksumEngineSpecific:
 
     def test_stream_to_empty_suppressed(self):
         """Stream → empty string should NOT produce a diff (client retains content)."""
+        # Simulate a stream comprehension tree
         old = {
             "s": ["<ul>", "</ul>"],
             "0": {
@@ -502,6 +850,7 @@ class TestChecksumEngineSpecific:
                 "stream": ["users", [["users-1", -1, None]], []],
             },
         }
+        # After stream ops consumed, slot becomes empty string
         new = {"s": ["<ul>", "</ul>"], "0": ""}
         assert checksum_calc_diff(old, new) == calc_diff(old, new)
 
@@ -515,3 +864,34 @@ class TestChecksumEngineSpecific:
         result = checksum_calc_diff(old, new)
         assert result == {"0": ""}
         assert result == calc_diff(old, new)
+```
+
+- [ ] **Step 2: Run all tests**
+
+Run: `uv run pytest tests/template/test_checksum_diff.py -v`
+Expected: All PASS
+
+- [ ] **Step 3: Also verify existing tests still pass**
+
+Run: `uv run pytest tests/template/test_diff.py tests/template/test_stream_diff.py -v`
+Expected: All PASS (these files were never modified)
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add tests/template/test_checksum_diff.py
+git commit -m "test: add checksum engine-specific tests for multi-push, compactness, transitions"
+```
+
+---
+
+### Task 7: Run full test suite
+
+- [ ] **Step 1: Run entire project test suite**
+
+Run: `uv run pytest -vvvs`
+Expected: All PASS — no regressions anywhere.
+
+- [ ] **Step 2: Final commit if any fixes were needed**
+
+Only if changes were made during debugging.
