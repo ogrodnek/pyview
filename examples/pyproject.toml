@@ -17,7 +17,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "pytest>=8.2.0,<9",
+    "pytest>=9.0.0,<10",
     "pyright==1.1.403",
 ]
 
@@ -26,6 +26,9 @@ package = false
 
 [tool.uv.sources]
 pyview-web = { path = "..", editable = true }
+
+[tool.pytest.ini_options]
+# Prevents inheriting asyncio_mode from root pyproject.toml
 
 [tool.pyright]
 exclude = [
