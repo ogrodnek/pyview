@@ -27,6 +27,9 @@ package = false
 [tool.uv.sources]
 pyview-web = { path = "..", editable = true }
 
+[tool.pytest.ini_options]
+# Prevents inheriting asyncio_mode from root pyproject.toml
+
 [tool.pyright]
 exclude = [
     ".venv",
