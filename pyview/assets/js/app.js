@@ -60,7 +60,7 @@ let csrfToken = document
   .querySelector("meta[name='csrf-token']")
   .getAttribute("content");
 let rootPath = document
-  .querySelector("meta[name='root-path']")
+  .querySelector("meta[name='pyview-root-path']")
   .getAttribute("content");
 let liveSocket = new LiveSocket(rootPath + "/live", Socket, {
   hooks: { ...Hooks, ...(userConfig.hooks ?? {}) },

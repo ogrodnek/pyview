@@ -6738,7 +6738,7 @@ removing illegal node: "${(childNode.outerHTML || childNode.nodeValue).trim()}"
     }
   };
   var csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
-  var rootPath = document.querySelector("meta[name='root-path']").getAttribute("content");
+  var rootPath = document.querySelector("meta[name='pyview-root-path']").getAttribute("content");
   var _a3, _b, _c;
   var liveSocket = new LiveSocket(rootPath + "/live", Socket, {
     hooks: __spreadValues(__spreadValues({}, Hooks2), (_a3 = userConfig.hooks) != null ? _a3 : {}),

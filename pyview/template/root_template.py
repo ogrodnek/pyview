@@ -77,7 +77,7 @@ def _defaultRootTemplate(
     <head>
       <title data-suffix="{suffix}">{render_title}</title>
       <meta name="csrf-token" content="{context["csrf_token"]}" />
-      <meta name="root-path" content="{context["root_path"]}" />
+      <meta name="pyview-root-path" content="{context["root_path"]}" />
       <meta charset="utf-8">
       <meta http-equiv="X-UA-Compatible" content="IE=edge">
       <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
