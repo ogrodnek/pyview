@@ -1,4 +1,4 @@
-from typing import Callable, Optional, TypedDict
+from typing import Callable, Optional, TypedDict, Union
 
 from markupsafe import Markup
 
@@ -15,6 +15,7 @@ class RootTemplateContext(TypedDict):
 
 RootTemplate = Callable[[RootTemplateContext], str]
 ContentWrapper = Callable[[RootTemplateContext, Markup], Markup]
+HeadContent = Union[Markup, Callable[[RootTemplateContext], Markup]]
 
 
 def defaultRootTemplate(
@@ -22,7 +23,7 @@ def defaultRootTemplate(
     content_wrapper: Optional[ContentWrapper] = None,
     title: Optional[str] = None,
     title_suffix: Optional[str] = " | LiveView",
-    head_content: Optional[Markup] = None,
+    head_content: Optional[HeadContent] = None,
 ) -> RootTemplate:
     content_wrapper = content_wrapper or (lambda c, m: m)
 
@@ -33,7 +34,7 @@ def defaultRootTemplate(
             content_wrapper,
             title,
             title_suffix,
-            head_content or Markup(""),
+            head_content,
         )
 
     return template
@@ -45,9 +46,12 @@ def _defaultRootTemplate(
     contentWrapper: ContentWrapper,
     default_title: Optional[str] = None,
     title_suffix: Optional[str] = " | LiveView",
-    head_content: Optional[Markup] = None,
+    head_content: Optional[HeadContent] = None,
 ) -> str:
-    head_content = head_content or Markup("")
+    if callable(head_content):
+        resolved_head = head_content(context)
+    else:
+        resolved_head = head_content or Markup("")
     suffix = title_suffix or ""
     # Use context title if provided, otherwise use default_title, otherwise "LiveView"
     title = context.get("title") or default_title
@@ -82,7 +86,7 @@ def _defaultRootTemplate(
       <meta http-equiv="X-UA-Compatible" content="IE=edge">
       <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
       {css}
-      {head_content}
+      {resolved_head}
       <script defer type="text/javascript" src="{context["root_path"]}/static/assets/app.js"></script>
       {additional_head_elements}
     </head>

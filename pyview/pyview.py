@@ -103,8 +103,10 @@ async def liveview_container(template: RootTemplate, view_lookup: LiveViewLookup
     # Pass merged parameters to handle_params
     await call_handle_params(lv, urlparse(url._url), merged_params, s)
 
+    root_path = request.scope.get("root_path", "").rstrip("/")
+
     # Pass socket to meta for component registration
-    meta = PyViewMeta(socket=s)
+    meta = PyViewMeta(socket=s, root_path=root_path)
     r = await lv.render(s.context, meta)
 
     # Run component lifecycle, including nested components
@@ -113,8 +115,6 @@ async def liveview_container(template: RootTemplate, view_lookup: LiveViewLookup
     liveview_css = find_associated_css(lv)
 
     id = str(uuid.uuid4())
-
-    root_path = request.scope.get("root_path", "").rstrip("/")
 
     context: RootTemplateContext = {
         "id": id,

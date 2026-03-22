@@ -149,7 +149,8 @@ class ConnectedLiveViewSocket(Generic[T]):
 
     @property
     def meta(self) -> PyViewMeta:
-        return PyViewMeta(socket=self)
+        root_path = self.websocket.scope.get("root_path", "").rstrip("/")
+        return PyViewMeta(socket=self, root_path=root_path)
 
     async def render_with_components(self) -> dict[str, Any]:
         """

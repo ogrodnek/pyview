@@ -59,9 +59,8 @@ Hooks.InfiniteScroll = {
 let csrfToken = document
   .querySelector("meta[name='csrf-token']")
   .getAttribute("content");
-let rootPath = document
-  .querySelector("meta[name='pyview-root-path']")
-  .getAttribute("content");
+let rootPathEl = document.querySelector("meta[name='pyview-root-path']");
+let rootPath = rootPathEl ? rootPathEl.getAttribute("content") : "";
 let liveSocket = new LiveSocket(rootPath + "/live", Socket, {
   hooks: { ...Hooks, ...(userConfig.hooks ?? {}) },
   params: { _csrf_token: csrfToken, ...(userConfig.params ?? {}) },

@@ -13,9 +13,11 @@ class PyViewMeta:
     Attributes:
         socket: Optional reference to the socket (for component registration).
                 Can be either ConnectedLiveViewSocket or UnconnectedSocket.
+        root_path: The ASGI root_path for reverse proxy path prefix mounting.
     """
 
     socket: Optional["SocketWithComponents"] = field(default=None, repr=False)
+    root_path: str = ""
 
     @property
     def flash(self) -> dict[str, Any]:
