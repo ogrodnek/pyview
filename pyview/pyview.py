@@ -114,6 +114,8 @@ async def liveview_container(template: RootTemplate, view_lookup: LiveViewLookup
 
     id = str(uuid.uuid4())
 
+    root_path = request.scope.get("root_path", "").rstrip("/")
+
     context: RootTemplateContext = {
         "id": id,
         "content": r.text(socket=s),  # Pass socket for ComponentMarker resolution
@@ -121,6 +123,7 @@ async def liveview_container(template: RootTemplate, view_lookup: LiveViewLookup
         "csrf_token": generate_csrf_token("lv:phx-" + id),
         "session": serialize_session(session),
         "additional_head_elements": liveview_css,
+        "root_path": root_path,
     }
 
     return HTMLResponse(template(context))

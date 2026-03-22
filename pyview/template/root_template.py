@@ -10,6 +10,7 @@ class RootTemplateContext(TypedDict):
     csrf_token: str
     session: Optional[str]
     additional_head_elements: list[Markup]
+    root_path: str
 
 
 RootTemplate = Callable[[RootTemplateContext], str]
@@ -76,12 +77,13 @@ def _defaultRootTemplate(
     <head>
       <title data-suffix="{suffix}">{render_title}</title>
       <meta name="csrf-token" content="{context["csrf_token"]}" />
+      <meta name="root-path" content="{context["root_path"]}" />
       <meta charset="utf-8">
       <meta http-equiv="X-UA-Compatible" content="IE=edge">
       <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
       {css}
       {head_content}
-      <script defer type="text/javascript" src="/static/assets/app.js"></script>
+      <script defer type="text/javascript" src="{context["root_path"]}/static/assets/app.js"></script>
       {additional_head_elements}
     </head>
     <body>"""

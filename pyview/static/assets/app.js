@@ -6738,8 +6738,9 @@ removing illegal node: "${(childNode.outerHTML || childNode.nodeValue).trim()}"
     }
   };
   var csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
+  var rootPath = document.querySelector("meta[name='root-path']").getAttribute("content");
   var _a3, _b, _c;
-  var liveSocket = new LiveSocket("/live", Socket, {
+  var liveSocket = new LiveSocket(rootPath + "/live", Socket, {
     hooks: __spreadValues(__spreadValues({}, Hooks2), (_a3 = userConfig.hooks) != null ? _a3 : {}),
     params: __spreadValues({ _csrf_token: csrfToken }, (_b = userConfig.params) != null ? _b : {}),
     uploaders: __spreadValues(__spreadValues({}, window.Uploaders || {}), (_c = userConfig.uploaders) != null ? _c : {}),

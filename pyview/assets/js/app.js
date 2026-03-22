@@ -59,7 +59,10 @@ Hooks.InfiniteScroll = {
 let csrfToken = document
   .querySelector("meta[name='csrf-token']")
   .getAttribute("content");
-let liveSocket = new LiveSocket("/live", Socket, {
+let rootPath = document
+  .querySelector("meta[name='root-path']")
+  .getAttribute("content");
+let liveSocket = new LiveSocket(rootPath + "/live", Socket, {
   hooks: { ...Hooks, ...(userConfig.hooks ?? {}) },
   params: { _csrf_token: csrfToken, ...(userConfig.params ?? {}) },
   uploaders: { ...(window.Uploaders || {}), ...(userConfig.uploaders ?? {}) },
