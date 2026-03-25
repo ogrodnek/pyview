@@ -13,6 +13,8 @@ from .views import (
     JsCommandsLiveView,
     KanbanLiveView,
     MapLiveView,
+    PageALiveView,
+    PageBLiveView,
     PingLiveView,
     PlantsLiveView,
     PodcastLiveView,
@@ -41,6 +43,8 @@ routes: list[tuple[str, type[LiveView], list[str]]] = [
     ("/includes", IncludesLiveView, ["basics"]),
     ("/streams", StreamsDemoLiveView, ["realtime", "advanced"]),
     ("/flash", FlashDemoLiveView, ["basics"]),
+    ("/redirect_a", PageALiveView, ["basics"]),
+    ("/redirect_b", PageBLiveView, ["basics"]),
 ]
 
 # T-string examples are only available on Python 3.14+

@@ -18,6 +18,7 @@ from .registration import RegistrationLiveView
 from .status import StatusLiveView
 from .streams import StreamsDemoLiveView
 from .volume import VolumeLiveView
+from .redirect_repro import PageALiveView, PageBLiveView
 from .webping import PingLiveView
 
 if sys.version_info >= (3, 14):
@@ -42,6 +43,8 @@ __all__ = [
     "IncludesLiveView",
     "StreamsDemoLiveView",
     "FlashDemoLiveView",
+    "PageALiveView",
+    "PageBLiveView",
 ]
 
 if sys.version_info >= (3, 14):

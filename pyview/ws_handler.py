@@ -94,7 +94,8 @@ class LiveSocketHandler:
 
                 self.myJoinId = topic
 
-                url = urlparse(payload["url"])
+                url_str = payload.get("redirect") or payload.get("url")
+                url = urlparse(url_str)
                 lv_class, path_params = self.routes.get(url.path)
                 await self.check_auth(websocket, lv_class)
 
@@ -166,144 +167,238 @@ class LiveSocketHandler:
     async def _handle_connected_loop(self, myJoinId, socket: ConnectedLiveViewSocket):
         while True:
             message = await socket.websocket.receive()
+            # parse_message raises WebSocketDisconnect for disconnect frames,
+            # which propagates out of the loop — this is intentional.
             [joinRef, messageRef, topic, event, payload] = parse_message(message)
 
-            if event == "heartbeat":
-                resp = [
-                    None,
-                    messageRef,
-                    "phoenix",
-                    "phx_reply",
-                    {"response": {}, "status": "ok"},
-                ]
-                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
-                continue
+            try:
+                await self._dispatch_event(
+                    myJoinId, socket, joinRef, messageRef, topic, event, payload
+                )
+            except Exception:
+                logger.exception("Error handling event '%s'", event)
+                with suppress(Exception):
+                    resp = [
+                        joinRef,
+                        messageRef,
+                        topic,
+                        "phx_reply",
+                        {"response": {}, "status": "error"},
+                    ]
+                    await self.manager.send_personal_message(
+                        json.dumps(resp), socket.websocket
+                    )
 
-            if event == "event":
-                value = payload["value"]
+    async def _dispatch_event(
+        self, myJoinId, socket: ConnectedLiveViewSocket,
+        joinRef, messageRef, topic, event, payload,
+    ):
+        if event == "heartbeat":
+            resp = [
+                None,
+                messageRef,
+                "phoenix",
+                "phx_reply",
+                {"response": {}, "status": "ok"},
+            ]
+            await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+            return
 
-                if payload["type"] == "form":
-                    value = parse_qs(value)
-                    socket.upload_manager.maybe_process_uploads(value, payload)
+        if event == "event":
+            value = payload["value"]
 
-                # Track event metrics
-                event_name = payload["event"]
-                view_name = socket.liveview.__class__.__name__
+            if payload["type"] == "form":
+                value = parse_qs(value)
+                socket.upload_manager.maybe_process_uploads(value, payload)
 
-                # Handle built-in lv:clear-flash event
-                if event_name == "lv:clear-flash":
-                    raw_key = value.get("key") if isinstance(value, dict) else None
-                    socket.clear_flash(raw_key if isinstance(raw_key, str) else None)
-                else:
-                    # Check if event is targeted at a component (via phx-target={cid})
-                    target_cid = payload.get("cid")
+            # Track event metrics
+            event_name = payload["event"]
+            view_name = socket.liveview.__class__.__name__
 
-                    self.metrics.events_processed.add(1, {"event": event_name, "view": view_name})
+            # Handle built-in lv:clear-flash event
+            if event_name == "lv:clear-flash":
+                raw_key = value.get("key") if isinstance(value, dict) else None
+                socket.clear_flash(raw_key if isinstance(raw_key, str) else None)
+            else:
+                # Check if event is targeted at a component (via phx-target={cid})
+                target_cid = payload.get("cid")
 
-                    # Time event processing
-                    with self.instrumentation.time_histogram(
-                        "pyview.events.duration", {"event": event_name, "view": view_name}
-                    ):
-                        if target_cid is not None:
-                            # Validate CID type - must be an integer
-                            if not isinstance(target_cid, int):
-                                logger.warning(
-                                    f"Invalid cid type for event '{event_name}': {type(target_cid).__name__}"
-                                )
-                            else:
-                                # Route event to component
-                                await socket.components.handle_event(target_cid, event_name, value)
-                        else:
-                            # Route event to LiveView (default behavior)
-                            await call_handle_event(socket.liveview, event_name, value, socket)
+                self.metrics.events_processed.add(1, {"event": event_name, "view": view_name})
 
-                # Time rendering
+                # Time event processing
                 with self.instrumentation.time_histogram(
-                    "pyview.render.duration", {"view": view_name}
+                    "pyview.events.duration", {"event": event_name, "view": view_name}
                 ):
-                    rendered = await _render(socket)
+                    if target_cid is not None:
+                        # Validate CID type - must be an integer
+                        if not isinstance(target_cid, int):
+                            logger.warning(
+                                f"Invalid cid type for event '{event_name}': {type(target_cid).__name__}"
+                            )
+                        else:
+                            # Route event to component
+                            await socket.components.handle_event(target_cid, event_name, value)
+                    else:
+                        # Route event to LiveView (default behavior)
+                        await call_handle_event(socket.liveview, event_name, value, socket)
 
-                hook_events = {} if not socket.pending_events else {"e": socket.pending_events}
+            # Time rendering
+            with self.instrumentation.time_histogram(
+                "pyview.render.duration", {"view": view_name}
+            ):
+                rendered = await _render(socket)
 
-                diff = socket.diff(rendered)
+            hook_events = {} if not socket.pending_events else {"e": socket.pending_events}
 
-                socket.pending_events = []
+            diff = socket.diff(rendered)
+
+            socket.pending_events = []
+
+            resp = [
+                joinRef,
+                messageRef,
+                topic,
+                "phx_reply",
+                {"response": {"diff": diff | hook_events}, "status": "ok"},
+            ]
+            resp_json = json.dumps(resp)
+            self.metrics.message_size.record(len(resp_json))
+            await self.manager.send_personal_message(resp_json, socket.websocket)
+            return
+
+        if event == "live_patch":
+            lv = socket.liveview
+            url = urlparse(payload.get("url", ""))
+
+            # Extract and merge parameters
+            query_params = parse_qs(url.query)
+            path_params = {}
+
+            # We need to get path params for the new URL
+            with suppress(ValueError):
+                # TODO: I don't think this is actually going to work...
+                _, path_params = self.routes.get(url.path)
+
+            merged_params = {**query_params, **path_params}
+
+            await call_handle_params(lv, url, merged_params, socket)
+            rendered = await _render(socket)
+            diff = socket.diff(rendered)
+
+            resp = [
+                joinRef,
+                messageRef,
+                topic,
+                "phx_reply",
+                {"response": {"diff": diff}, "status": "ok"},
+            ]
+            await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+            return
+
+        if event == "cids_will_destroy":
+            # Client notifies that these CIDs are being removed from DOM
+            # Actual cleanup handled by prune_stale_components() during render
+            resp = [
+                joinRef,
+                messageRef,
+                topic,
+                "phx_reply",
+                {"response": {}, "status": "ok"},
+            ]
+            await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+            return
+
+        if event == "cids_destroyed":
+            # Client confirms CIDs have been fully removed from DOM
+            # Return the CIDs so client can prune its render cache
+            cids = payload.get("cids", [])
+            resp = [
+                joinRef,
+                messageRef,
+                topic,
+                "phx_reply",
+                {"response": {"cids": cids}, "status": "ok"},
+            ]
+            await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+            return
+
+        if event == "allow_upload":
+            allow_upload_response = await socket.upload_manager.process_allow_upload(
+                payload, socket.context
+            )
+
+            rendered = await _render(socket)
+            diff = socket.diff(rendered)
+
+            resp = [
+                joinRef,
+                messageRef,
+                topic,
+                "phx_reply",
+                {
+                    "response": {"diff": rendered} | allow_upload_response,
+                    "status": "ok",
+                },
+            ]
+
+            await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+            return
+
+        # file upload or navigation
+        if event == "phx_join":
+            # Check if this is a file upload join (topic starts with "lvu:")
+            if topic.startswith("lvu:"):
+                # This is a file upload join
+                socket.upload_manager.add_upload(joinRef, payload)
 
                 resp = [
                     joinRef,
                     messageRef,
                     topic,
                     "phx_reply",
-                    {"response": {"diff": diff | hook_events}, "status": "ok"},
+                    {"response": {}, "status": "ok"},
                 ]
-                resp_json = json.dumps(resp)
-                self.metrics.message_size.record(len(resp_json))
-                await self.manager.send_personal_message(resp_json, socket.websocket)
-                continue
 
-            if event == "live_patch":
-                lv = socket.liveview
-                url = urlparse(payload["url"])
+                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+            else:
+                # This is a navigation join (topic starts with "lv:")
+                # Navigation payload has 'redirect' field instead of 'url'
+                url_str_raw = payload.get("redirect") or payload.get("url")
+                url_str: str = (
+                    url_str_raw.decode("utf-8")
+                    if isinstance(url_str_raw, bytes)
+                    else str(url_str_raw)
+                )
+                url = urlparse(url_str)
+                lv_class, path_params = self.routes.get(url.path)
+                await self.check_auth(socket.websocket, lv_class)
 
-                # Extract and merge parameters
+                session = {}
+                if "session" in payload:
+                    session = deserialize_session(payload["session"])
+
+                lv = create_view(lv_class, session)
+
+                # Create new socket for new LiveView
+                socket = ConnectedLiveViewSocket(
+                    socket.websocket,
+                    topic,
+                    lv,
+                    self.scheduler,
+                    self.instrumentation,
+                    self.routes,
+                )
+
+                await call_mount(lv, socket, session)
+
+                # Parse query parameters and merge with path parameters
                 query_params = parse_qs(url.query)
-                path_params = {}
-
-                # We need to get path params for the new URL
-                with suppress(ValueError):
-                    # TODO: I don't think this is actually going to work...
-                    _, path_params = self.routes.get(url.path)
-
                 merged_params = {**query_params, **path_params}
 
                 await call_handle_params(lv, url, merged_params, socket)
-                rendered = await _render(socket)
-                diff = socket.diff(rendered)
-
-                resp = [
-                    joinRef,
-                    messageRef,
-                    topic,
-                    "phx_reply",
-                    {"response": {"diff": diff}, "status": "ok"},
-                ]
-                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
-                continue
-
-            if event == "cids_will_destroy":
-                # Client notifies that these CIDs are being removed from DOM
-                # Actual cleanup handled by prune_stale_components() during render
-                resp = [
-                    joinRef,
-                    messageRef,
-                    topic,
-                    "phx_reply",
-                    {"response": {}, "status": "ok"},
-                ]
-                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
-                continue
-
-            if event == "cids_destroyed":
-                # Client confirms CIDs have been fully removed from DOM
-                # Return the CIDs so client can prune its render cache
-                cids = payload.get("cids", [])
-                resp = [
-                    joinRef,
-                    messageRef,
-                    topic,
-                    "phx_reply",
-                    {"response": {"cids": cids}, "status": "ok"},
-                ]
-                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
-                continue
-
-            if event == "allow_upload":
-                allow_upload_response = await socket.upload_manager.process_allow_upload(
-                    payload, socket.context
-                )
 
                 rendered = await _render(socket)
-                diff = socket.diff(rendered)
+                socket.prev_rendered = rendered
 
                 resp = [
                     joinRef,
@@ -311,146 +406,78 @@ class LiveSocketHandler:
                     topic,
                     "phx_reply",
                     {
-                        "response": {"diff": rendered} | allow_upload_response,
+                        "response": {
+                            "rendered": rendered,
+                            "liveview_version": PHOENIX_LIVEVIEW_VERSION,
+                        },
                         "status": "ok",
                     },
                 ]
 
                 await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
-                continue
+            return
 
-            # file upload or navigation
-            if event == "phx_join":
-                # Check if this is a file upload join (topic starts with "lvu:")
-                if topic.startswith("lvu:"):
-                    # This is a file upload join
-                    socket.upload_manager.add_upload(joinRef, payload)
+        if event == "chunk":
+            socket.upload_manager.add_chunk(joinRef, payload)  # type: ignore
 
-                    resp = [
-                        joinRef,
-                        messageRef,
-                        topic,
-                        "phx_reply",
-                        {"response": {}, "status": "ok"},
-                    ]
+            resp = [
+                joinRef,
+                messageRef,
+                topic,
+                "phx_reply",
+                {"response": {}, "status": "ok"},
+            ]
 
-                    await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
-                else:
-                    # This is a navigation join (topic starts with "lv:")
-                    # Navigation payload has 'redirect' field instead of 'url'
-                    url_str_raw = payload.get("redirect") or payload.get("url")
-                    url_str: str = (
-                        url_str_raw.decode("utf-8")
-                        if isinstance(url_str_raw, bytes)
-                        else str(url_str_raw)
-                    )
-                    url = urlparse(url_str)
-                    lv_class, path_params = self.routes.get(url.path)
-                    await self.check_auth(socket.websocket, lv_class)
+            if socket.upload_manager.no_progress(joinRef):
+                await self.manager.send_personal_message(
+                    json.dumps(
+                        [
+                            joinRef,
+                            None,
+                            myJoinId,
+                            "phx_reply",
+                            {"response": {"diff": {}}, "status": "ok"},
+                        ]
+                    ),
+                    socket.websocket,
+                )
 
-                    session = {}
-                    if "session" in payload:
-                        session = deserialize_session(payload["session"])
+            await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+            return
 
-                    lv = create_view(lv_class, session)
+        if event == "progress":
+            # Trigger progress callback BEFORE updating progress (which may consume the entry)
+            await socket.upload_manager.trigger_progress_callback_if_exists(payload, socket)
 
-                    # Create new socket for new LiveView
-                    socket = ConnectedLiveViewSocket(
-                        socket.websocket,
-                        topic,
-                        lv,
-                        self.scheduler,
-                        self.instrumentation,
-                        self.routes,
-                    )
+            await socket.upload_manager.update_progress(joinRef, payload, socket)
 
-                    await call_mount(lv, socket, session)
+            rendered = await _render(socket)
+            diff = socket.diff(rendered)
 
-                    # Parse query parameters and merge with path parameters
-                    query_params = parse_qs(url.query)
-                    merged_params = {**query_params, **path_params}
+            resp = [
+                joinRef,
+                messageRef,
+                topic,
+                "phx_reply",
+                {"response": {"diff": diff}, "status": "ok"},
+            ]
 
-                    await call_handle_params(lv, url, merged_params, socket)
+            await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+            return
 
-                    rendered = await _render(socket)
-                    socket.prev_rendered = rendered
+        if event == "phx_leave":
+            # Handle LiveView navigation - clean up current LiveView
+            await socket.close()
 
-                    resp = [
-                        joinRef,
-                        messageRef,
-                        topic,
-                        "phx_reply",
-                        {
-                            "response": {
-                                "rendered": rendered,
-                                "liveview_version": PHOENIX_LIVEVIEW_VERSION,
-                            },
-                            "status": "ok",
-                        },
-                    ]
-
-                    await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
-
-            if event == "chunk":
-                socket.upload_manager.add_chunk(joinRef, payload)  # type: ignore
-
-                resp = [
-                    joinRef,
-                    messageRef,
-                    topic,
-                    "phx_reply",
-                    {"response": {}, "status": "ok"},
-                ]
-
-                if socket.upload_manager.no_progress(joinRef):
-                    await self.manager.send_personal_message(
-                        json.dumps(
-                            [
-                                joinRef,
-                                None,
-                                myJoinId,
-                                "phx_reply",
-                                {"response": {"diff": {}}, "status": "ok"},
-                            ]
-                        ),
-                        socket.websocket,
-                    )
-
-                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
-
-            if event == "progress":
-                # Trigger progress callback BEFORE updating progress (which may consume the entry)
-                await socket.upload_manager.trigger_progress_callback_if_exists(payload, socket)
-
-                await socket.upload_manager.update_progress(joinRef, payload, socket)
-
-                rendered = await _render(socket)
-                diff = socket.diff(rendered)
-
-                resp = [
-                    joinRef,
-                    messageRef,
-                    topic,
-                    "phx_reply",
-                    {"response": {"diff": diff}, "status": "ok"},
-                ]
-
-                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
-
-            if event == "phx_leave":
-                # Handle LiveView navigation - clean up current LiveView
-                await socket.close()
-
-                resp = [
-                    joinRef,
-                    messageRef,
-                    topic,
-                    "phx_reply",
-                    {"response": {}, "status": "ok"},
-                ]
-                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
-                # Continue to wait for next phx_join
-                continue
+            resp = [
+                joinRef,
+                messageRef,
+                topic,
+                "phx_reply",
+                {"response": {}, "status": "ok"},
+            ]
+            await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+            return
 
 
 async def _render(socket: ConnectedLiveViewSocket):
