@@ -94,7 +94,10 @@ class LiveSocketHandler:
 
                 self.myJoinId = topic
 
-                url = urlparse(payload["url"])
+                url_str = payload.get("redirect") or payload.get("url")
+                if not url_str:
+                    raise AuthException("Missing 'url' or 'redirect' in phx_join payload")
+                url = urlparse(url_str)
                 lv_class, path_params = self.routes.get(url.path)
                 await self.check_auth(websocket, lv_class)
 
