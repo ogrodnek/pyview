@@ -421,6 +421,12 @@ class LiveSocketHandler:
 
                     await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
 
+                    if self.connection_tracker is not None:
+                        with suppress(Exception):
+                            self.connection_tracker.on_connect(
+                                topic, socket, lv_class, url.path, session
+                            )
+
             if event == "chunk":
                 socket.upload_manager.add_chunk(joinRef, payload)  # type: ignore
 
