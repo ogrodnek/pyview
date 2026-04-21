@@ -18,9 +18,9 @@ export default defineConfig({
       logo: {
         src: './src/assets/pyview_logo_512.png',
       },
-      social: {
-        github: 'https://github.com/ogrodnek/pyview',
-      },
+      social: [
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/ogrodnek/pyview' },
+      ],
       customCss: ['./src/styles/custom.css'],
       sidebar: [
         { label: 'Home', slug: '' },
