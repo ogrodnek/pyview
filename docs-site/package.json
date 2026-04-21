@@ -11,10 +11,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.32.0",
+    "@astrojs/starlight": "^0.38.3",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/space-grotesk": "^5.2.10",
-    "astro": "^5.18.1",
+    "astro": "^6.1.8",
     "sharp": "^0.33.0",
     "unist-util-visit": "^5.0.0"
   },
