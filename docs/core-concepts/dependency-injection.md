@@ -211,6 +211,48 @@ async def test_get_current_user_no_session():
 | `handle_event` | Yes | No |
 | `@event` handlers | Yes | No |
 
+## LiveComponents
+
+`Depends()` also works in LiveComponent lifecycle methods:
+
+| Method | Async Deps | Session Available |
+|--------|------------|-------------------|
+| `mount` | Yes | No |
+| `update` | Yes | No |
+| `handle_event` | Yes | No |
+
+Lifecycle parameters are resolved by name or type. Use `socket`, `assigns`, `event`, and `payload` as parameter names, or annotate with a socket type if you prefer different names.
+
+Components don't have direct session access—they receive data from their parent via `assigns`. If a component needs session data, pass it from the parent:
+
+```python
+from pyview import Depends
+from pyview.components.base import LiveComponent, ComponentSocket
+
+def get_formatter():
+    return Formatter(locale="en-US")
+
+class PriceDisplay(LiveComponent):
+    async def mount(
+        self,
+        socket: ComponentSocket,
+        assigns: dict,
+        formatter=Depends(get_formatter),
+    ):
+        # user_id comes from parent via assigns, not session
+        socket.context = {
+            "price": formatter.format_currency(assigns["amount"]),
+            "user_id": assigns.get("user_id"),
+        }
+```
+
+In the parent LiveView:
+
+```python
+# Pass session data to component via assigns
+live_component(PriceDisplay, id="price", amount=99.99, user_id=session.get("user_id"))
+```
+
 ## Available Injectables
 
 ### Type-based injection
