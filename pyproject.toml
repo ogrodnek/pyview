@@ -63,10 +63,6 @@ dev = [
 profiling = [
     "scalene>=1.5.51,<2; python_version != '3.11.0'",
 ]
-docs = [
-    "mkdocs>=1.6.1,<2",
-    "mkdocs-material>=9.6.14,<10",
-]
 
 [build-system]
 requires = ["uv_build>=0.7,<1"]
