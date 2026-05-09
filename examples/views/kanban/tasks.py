@@ -15,8 +15,9 @@ class Task:
     priority: str
     id: str = field(default_factory=lambda: uuid.uuid4().hex)
     avatar: str = field(
-        default_factory=lambda: "https://avatar.iran.liara.run/public?t="
-        + str(random.randint(1, 5))
+        default_factory=lambda: (
+            "https://avatar.iran.liara.run/public?t=" + str(random.randint(1, 5))
+        )
     )
 
 
