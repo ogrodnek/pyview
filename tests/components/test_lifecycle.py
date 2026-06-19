@@ -168,9 +168,9 @@ class TestComponentRenderingUnconnected:
         mount_called = []
 
         class TrackingComponent(LiveComponent[CounterContext]):
-            async def mount(self, sock, assigns):
+            async def mount(self, socket, assigns):
                 mount_called.append(assigns)
-                sock.context = CounterContext(count=assigns.get("initial", 0))
+                socket.context = CounterContext(count=assigns.get("initial", 0))
 
             def template(self, assigns, meta):
                 return t"<div>{assigns['count']}</div>"
@@ -216,8 +216,8 @@ class TestComponentRenderingUnconnected:
             label: str
 
         class Wrapper(LiveComponent[WrapperContext]):
-            async def mount(self, sock, assigns):
-                sock.context = WrapperContext(label=assigns.get("label", "Wrapper"))
+            async def mount(self, socket, assigns):
+                socket.context = WrapperContext(label=assigns.get("label", "Wrapper"))
 
             def template(self, assigns, meta):
                 # This component contains another component
@@ -287,8 +287,8 @@ class TestMaxIterations:
         class RecursiveComponent(LiveComponent[RecursiveContext]):
             """Component that creates another component of itself (up to a depth)."""
 
-            async def mount(self, sock, assigns):
-                sock.context = RecursiveContext(depth=assigns.get("depth", 0))
+            async def mount(self, socket, assigns):
+                socket.context = RecursiveContext(depth=assigns.get("depth", 0))
 
             def template(self, assigns, meta):
                 depth = assigns["depth"]
