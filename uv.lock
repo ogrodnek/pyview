@@ -640,7 +640,7 @@ wheels = [
 
 [[package]]
 name = "pyview-web"
-version = "0.9.0a4"
+version = "0.9.0"
 source = { editable = "." }
 dependencies = [
     { name = "apscheduler" },
