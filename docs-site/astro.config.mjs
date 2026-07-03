@@ -35,11 +35,11 @@ export default defineConfig({
         { label: 'Streams', slug: 'streams-usage' },
         {
           label: 'Core Concepts',
-          autogenerate: { directory: 'core-concepts' },
+          items: [{ autogenerate: { directory: 'core-concepts' } }],
         },
         {
           label: 'Templating',
-          autogenerate: { directory: 'templating' },
+          items: [{ autogenerate: { directory: 'templating' } }],
         },
         {
           label: 'Features',
