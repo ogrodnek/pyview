@@ -1,5 +1,4 @@
 from typing import Any, Generic, Optional, TypeVar
-from urllib.parse import ParseResult
 
 from pyview.events import InfoEvent
 from pyview.meta import PyViewMeta
@@ -16,7 +15,6 @@ from .live_socket import ConnectedLiveViewSocket, LiveViewSocket
 T = TypeVar("T")
 
 Session = dict[str, Any]
-URL = ParseResult
 
 
 class LiveView(Generic[T]):

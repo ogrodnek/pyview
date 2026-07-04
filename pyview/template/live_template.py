@@ -17,11 +17,6 @@ class DataclassInstance(Protocol):
 Assigns = Union[dict[str, Any], DataclassInstance]
 
 
-# TODO: should we still support this?
-class DictConvertable(Protocol):
-    def asdict(self) -> dict[str, Any]: ...
-
-
 class LiveTemplate:
     t: Template
 

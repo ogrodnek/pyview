@@ -15,14 +15,8 @@ def serialize(assigns: Any) -> dict[str, Any]:
     raise TypeError("Assigns must be a dict or have an asdict() method")
 
 
-def isprop(v) -> bool:
-    return isinstance(v, property)
-
-
 def prop_names(instance: Any) -> list[str]:
     """Returns a list of property names for the given class."""
-    # print(fields(cls))
-
     cls = instance.__class__
 
     return [prop for prop in cls.__dict__ if isinstance(cls.__dict__[prop], property)]
