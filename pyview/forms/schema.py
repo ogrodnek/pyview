@@ -19,7 +19,7 @@ import types
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime, time
 from decimal import Decimal
-from typing import Any, Literal, Optional, Union, get_args, get_origin
+from typing import Any, Literal, Optional, TypeGuard, Union, get_args, get_origin
 
 from annotated_types import Ge, Gt, Le, Lt, MaxLen, MinLen
 from pydantic import BaseModel
@@ -84,7 +84,8 @@ def unwrap_optional(annotation: Any) -> tuple[Any, bool]:
     return annotation, False
 
 
-def is_model(annotation: Any) -> bool:
+def is_model(annotation: Any) -> TypeGuard[type[BaseModel]]:
+    """A TypeGuard, not a bool, so callers narrow instead of casting."""
     return isinstance(annotation, type) and issubclass(annotation, BaseModel)
 
 

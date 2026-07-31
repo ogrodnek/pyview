@@ -4,10 +4,11 @@ from typing import Annotated, Literal, Optional, Union
 import pytest
 from pydantic import BaseModel, Field, model_validator
 
-from pyview.forms import Changeset, errors_of, ui
+from pyview.forms import DEFAULT_MESSAGES, Changeset, humanize, set_messages, ui
+from pyview.forms.form import FormError
 from pyview.forms.params import decode, decode_target
 from pyview.forms.paths import normalize
-
+from pyview.forms.render import errors as render_errors
 
 # ---------------------------------------------------------------------------
 # models
@@ -295,7 +296,7 @@ class TestInference:
     def test_unknown_field_says_what_is_available(self):
         cs = Changeset(Owner)
         with pytest.raises(AttributeError, match="Available:"):
-            cs.form.nmae
+            _ = cs.form.nmae
 
 
 class TestTrustBoundary:
@@ -350,8 +351,6 @@ class TestErrorsKeepTheirData:
 
 class TestMessages:
     def test_messages_are_written_for_people_not_programmers(self):
-        from pyview.forms.render import errors as render_errors
-
         cs = Changeset(Pet)
         cs.submit({"pet": {"name": "A", "age": "99"}})
 
@@ -360,8 +359,6 @@ class TestMessages:
         assert "Age must be 40 or less." in str(render_errors(cs.form.age))
 
     def test_catalog_is_replaceable_for_i18n(self):
-        from pyview.forms import DEFAULT_MESSAGES, humanize, set_messages
-
         cs = Changeset(Pet)
         cs.submit({"pet": {"name": "A", "age": "1"}})
         err = cs.form.name.errors[0]
@@ -373,8 +370,5 @@ class TestMessages:
             set_messages(DEFAULT_MESSAGES)
 
     def test_unknown_error_types_fall_back_to_pydantics_message(self):
-        from pyview.forms import humanize
-        from pyview.forms.form import FormError
-
         err = FormError(msg="something specific went wrong", type="not_in_catalog")
         assert humanize(err, "Field") == "something specific went wrong"
