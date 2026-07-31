@@ -451,13 +451,18 @@ the design system wants markup the library does not emit. The libraries that
 survive let you descend one rung without falling off a cliff:
 
 ```
-{{ signup | render_form }}                     everything, zero decisions
-{{ signup.form.email | input }}                one field, wrapper included
-{{ signup.form.email | input({"class": …}) }}  same, overridden
-{{ signup.form.email | control }}              bare <input>, you write the wrapper
-<input name="{{ signup.form.email.name }}"     nothing of ours at all,
-       value="{{ signup.form.email.value }}">  still correctly bound
+{{ signup | render_form }}                          everything, zero decisions
+{{ signup | render_form({"exclude": ["plan"]}) }}   everything but the ones I'll do myself
+{{ signup.form.email | input }}                     one field, wrapper included
+{{ signup.form.email | input({"class": …}) }}       same, overridden
+{{ signup.form.email | control }}                   bare <input>, you write the wrapper
+<input name="{{ signup.form.email.name }}"          nothing of ours at all,
+       value="{{ signup.form.email.value }}">       still correctly bound
 ```
+
+That second rung is the one people actually reach for and the one most libraries
+skip. uniforms has it (`AutoFields` with omissions) and it is the difference
+between "one field needs custom markup" and "so I hand-wrote all twenty".
 
 The library owns *correctness* — name generation, value round-tripping, error
 placement, and the a11y wiring that is tedious to get right by hand. It does not
@@ -519,7 +524,7 @@ what stops the library from being a wall at month three. But I would want your r
 
 ## 3. What's in the prototype
 
-`pyview/forms/` — about 900 lines, 40 tests, not exported from `pyview` yet.
+`pyview/forms/` — about 2,000 lines, 60 tests, not exported from `pyview` yet.
 
 | file | what it does |
 |---|---|
@@ -530,7 +535,9 @@ what stops the library from being a wall at month three. But I would want your r
 | `render.py` | the ladder, `Theme`, a11y wiring, template filters |
 | `messages.py` | error type + ctx → a sentence; replaceable catalog |
 
-Three things in there took more thought than expected and are worth calling out:
+Six things in there took more thought than expected and are worth calling out.
+The last three were bugs *in the prototype* that the research turned up after I'd
+written it, which is a decent argument for having done the reading:
 
 **Empty strings are not values.** HTML cannot express null: a cleared date input
 sends `""`, and `Optional[date]` rejects it — but the user meant "nothing". So the
@@ -548,6 +555,40 @@ always leaf-level.
 Stripping it needs to be schema-aware, not a heuristic — a plain union reports the
 *class name* (`"Email"`), a discriminated one reports the *tag* (`"email"`), and a
 field could legitimately be named either.
+
+**Stable row keys and positional indexes disagree.** This one was a real bug, and
+it is the kind that hides: rows are keyed by a *stable* index on the wire
+(`pets[1]`, `pets[2]`), but the pre-validation pass compacts them into a list, so
+pydantic reports `("pets", 0, "name")` for what the DOM calls `pets[1]`. Delete any
+row but the last and every subsequent error is filed against the wrong input,
+where it renders nowhere at all:
+
+```
+raw params : {'1': {'name': 'x'}, '2': {'name': 'also ok'}}
+error paths: [('pets', '0', 'name')]        # <- nothing is named pets[0] any more
+  row 1: owner[pets][1][name]   errors=[]   # the invalid row shows nothing
+  row 2: owner[pets][2][name]   errors=[]
+```
+
+The fix is to walk the raw params alongside the model when translating an error
+location, so a positional index resolves back to the key the row is rendered under.
+It is the direct cost of choosing stable keys over renumbering — worth paying, but
+it needs to be paid deliberately.
+
+**Aliases move the wire name.** pydantic reports error locations by
+*validation alias* and validates by alias, so a field declared
+`email_address: str = Field(alias="email")` errors at `("email",)`. Name the input
+after the Python attribute and params, errors and markup all disagree — silently.
+The alias now wins everywhere on the wire, while the Python attribute stays how you
+look the field up (`form.email_address` renders `name="contact[email]"`). Alias
+forms that do not reduce to a single name — `AliasChoices`, `AliasPath` — are
+rejected at construction, because a form has exactly one input per field and
+quietly picking one of several would mis-key every error on it.
+
+**"You haven't chosen yet" is not an error.** A blank discriminated union produces
+`union_tag_not_found` — *"Unable to extract tag using discriminator 'kind'"* — which
+by the rules above belongs with the absence errors that are held back until submit,
+not with the ones that turn the form red on the first keystroke.
 
 ### Verified in a browser, not just in tests
 
@@ -634,3 +675,38 @@ Collected from the failure modes in the research, so they don't get re-invented:
   excessively deep" on real models, and Python's type system is in a weaker
   position than TypeScript's here. `form.email` is dynamic and will not autocomplete;
   I think that is the right trade, but it is a trade.
+- **A string expression language for conditions** — Formily compiles `{{ aa > bb }}`
+  with `new Function`; ngx-formly has string `expressionProperties`. Both trade
+  typeability, testability and safety for authoring brevity we do not need. A
+  Python callable is right here.
+- **Expressing "hide this field" by mutating the data contract** — JSON Schema
+  `if/then/else` conflates validity with visibility. They are different questions
+  (and layout is a third), and the schema-form pain people report mostly traces
+  back to that conflation.
+- **`experimental_allow_partial`** — it looks like the answer to "validate a
+  half-filled form" and is not: it does not suppress `missing`, it only truncates a
+  trailing incomplete element of a sequence. It is a streaming-JSON feature.
+  Validate everything and filter the display by error *type* instead.
+
+## 6. Next, if this direction is right
+
+Roughly in order of value:
+
+1. **A ranked widget-selection registry**, JSONForms-style, instead of a flat
+   `widget: str` dispatch. Today, "textarea whenever `max_length > 500`" or "this
+   type always renders with my component" means forking `render.py`. A list of
+   `(tester, renderer)` pairs where the highest-scoring tester wins makes widget
+   *choice* extensible, not just widget implementations.
+2. **A `pv gen form` generator** that ejects the renderer into your project, per
+   §2.10. This is the answer to "I have outgrown the library" that does not involve
+   leaving it.
+3. **Visibility as its own layer** — a Python predicate over the current values,
+   kept separate from validity (pydantic) and layout (your template).
+4. **Async/server-side errors as a first-class step.** `add_error()` exists, but
+   the uniqueness-check shape — debounce, check, merge into the same error set,
+   render in the same place — deserves a worked example.
+5. **Multi-input widgets.** Colander's pstruct/cstruct split exists so a date widget
+   can take three inputs and produce one value. The prototype collapses that step,
+   which is fine until someone wants a split date or a currency field.
+6. **Normalize `choices` to `{value, label, disabled}`** rather than tuples, so no
+   widget ever re-derives them.
