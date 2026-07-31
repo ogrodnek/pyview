@@ -105,14 +105,5 @@ class FormsDemoLiveView(LiveView[FormsDemoContext]):
                 socket.context.saved = result.value
                 socket.context.owner = _new_changeset()
 
-        elif event == "add-pet":
-            # a phx-click payload carries the button's phx-value-*, not the form,
-            # so there is nothing to validate here: phx-change already synced
-            # every keystroke into the changeset.
-            owner.add_row("pets")
-
-        elif event == "drop-pet":
-            owner.drop_row("pets", payload["index"])
-
         elif event == "reset":
             socket.context = FormsDemoContext()

@@ -14,7 +14,7 @@ and swapping the catalog is the entire i18n story.
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 from .form import FormError
 
@@ -22,11 +22,20 @@ __all__ = ["DEFAULT_MESSAGES", "humanize", "set_messages"]
 
 
 #: ``type`` -> template. ``{label}`` is the field's label; everything else comes
-#: from pydantic's ``ctx``.
-DEFAULT_MESSAGES: dict[str, str] = {
+#: from pydantic's ``ctx``. A ``(one, other)`` pair selects on the numeric ctx
+#: value, because "must be at least 1 characters" is not a sentence.
+Message = Union[str, tuple[str, str]]
+
+DEFAULT_MESSAGES: dict[str, Message] = {
     "missing": "{label} is required.",
-    "string_too_short": "{label} must be at least {min_length} characters.",
-    "string_too_long": "{label} must be {max_length} characters or fewer.",
+    "string_too_short": (
+        "{label} is required.",
+        "{label} must be at least {min_length} characters.",
+    ),
+    "string_too_long": (
+        "{label} must be 1 character or fewer.",
+        "{label} must be {max_length} characters or fewer.",
+    ),
     "string_pattern_mismatch": "{label} is not in the expected format.",
     "value_error": "{label} is not valid.",
     "int_parsing": "{label} must be a whole number.",
@@ -43,18 +52,24 @@ DEFAULT_MESSAGES: dict[str, str] = {
     "less_than_equal": "{label} must be {le} or less.",
     "enum": "Choose one of the available options for {label}.",
     "literal_error": "Choose one of the available options for {label}.",
-    "too_short": "Add at least {min_length} to {label}.",
-    "too_long": "{label} allows at most {max_length}.",
+    "too_short": (
+        "Add at least one entry to {label}.",
+        "Add at least {min_length} entries to {label}.",
+    ),
+    "too_long": (
+        "{label} allows one entry at most.",
+        "{label} allows at most {max_length} entries.",
+    ),
     "url_parsing": "{label} must be a valid URL.",
     "uuid_parsing": "{label} must be a valid ID.",
 }
 
-_messages: dict[str, str] = dict(DEFAULT_MESSAGES)
+_messages: dict[str, Message] = dict(DEFAULT_MESSAGES)
 _fallback: Optional[Callable[[FormError, str], str]] = None
 
 
 def set_messages(
-    messages: dict[str, str], fallback: Optional[Callable[[FormError, str], str]] = None
+    messages: dict[str, Message], fallback: Optional[Callable[[FormError, str], str]] = None
 ) -> None:
     """Replace or extend the catalog. Pass a locale's dict here to translate.
 
@@ -77,6 +92,10 @@ def humanize(error: FormError, label: str = "This field") -> str:
     template = _messages.get(error.type)
     if template is None:
         return _fallback(error, label) if _fallback else error.msg
+
+    if isinstance(template, tuple):
+        counts = [v for v in error.ctx.values() if isinstance(v, int) and not isinstance(v, bool)]
+        template = template[0] if counts and counts[0] == 1 else template[-1]
 
     try:
         return template.format(label=label, **error.ctx)

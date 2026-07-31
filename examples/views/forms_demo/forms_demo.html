@@ -15,7 +15,12 @@
     </div>
     {% endif %}
 
-    <form phx-change="validate" phx-submit="save" autocomplete="off">
+    {# novalidate is deliberate. The model emits required/min/max, which is worth
+       having for screen readers, mobile keyboards and :user-invalid styling - but
+       the browser must not be the one to block a submit, or the server never sees
+       it and the user gets native bubbles instead of the accessible, consistent,
+       translatable errors below. Server-authoritative validation means novalidate. #}
+    <form phx-change="validate" phx-submit="save" autocomplete="off" novalidate>
 
       {# ---- tier 1: the field renderer, wrapper and all ---- #}
       {{ owner.form.name | input }}
@@ -53,7 +58,7 @@
         <div class="border border-gray-100 rounded p-3 mb-3 bg-gray-50">
           <div class="flex justify-between items-center mb-2">
             <span class="text-xs uppercase tracking-wide text-gray-500">Pet {{ index }}</span>
-            <button type="button" phx-click="drop-pet" phx-value-index="{{ index }}"
+            <button type="submit" formnovalidate name="_intent" value="drop:pets:{{ index }}"
                     class="text-sm text-red-600 hover:text-red-800">Remove</button>
           </div>
           <div class="grid grid-cols-3 gap-3">
@@ -66,7 +71,11 @@
         <p class="text-sm text-gray-500 mb-3">No pets yet.</p>
         {% endfor %}
 
-        <button type="button" phx-click="add-pet"
+        {# A real submit button carrying an intent: the browser sends everything
+           the user has typed along with it, and it still works with JS off.
+           formnovalidate matters - the model emits `required`, so without it the
+           browser refuses to submit an incomplete form and the click does nothing. #}
+        <button type="submit" formnovalidate name="_intent" value="add:pets"
                 class="text-sm px-3 py-1.5 rounded-md bg-gray-100 hover:bg-gray-200 border border-gray-300">
           Add a pet
         </button>

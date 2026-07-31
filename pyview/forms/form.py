@@ -170,8 +170,18 @@ class Changeset(Generic[M]):
         return self
 
     def submit(self, payload: dict[str, Any]) -> Result[M]:
-        """Handle a ``phx-submit``. Shows every error; returns the typed model if valid."""
+        """Handle a ``phx-submit``. Shows every error; returns the typed model if valid.
+
+        A submit carrying a row-mutation intent (see :meth:`apply_intent`) is not
+        a real submit: the user pressed "add a pet", so keep their input, add the
+        row, and do not light the form up with errors.
+        """
         self.params = self._cast(normalize_payload(payload))
+
+        if self.apply_intent(payload):
+            self.action = "validate"
+            return Result(False, None)
+
         self.action = "submit"
         self._revalidate()
         return Result(self.valid, self._value)
@@ -193,6 +203,42 @@ class Changeset(Generic[M]):
         self.action = self.action or "validate"
         self.touched.add(canon(key))
         return self
+
+    #: Reserved input name carrying a list mutation. See :meth:`apply_intent`.
+    INTENT = "_intent"
+
+    def apply_intent(self, payload: dict[str, Any]) -> bool:
+        """Apply an ``add``/``drop`` intent that rode along with the form data.
+
+        Borrowed from Conform (the Remix form library), which is the only design
+        in this space that is natively server-shaped. A row button is a real
+        submit button carrying a reserved name and an encoded instruction::
+
+            <button type="submit" name="_intent" value="add:pets">Add a pet</button>
+            <button type="submit" name="_intent" value="drop:pets:0">Remove</button>
+
+        Because it is part of the form, the browser sends *everything the user
+        has typed* along with it. A ``phx-click`` handler cannot do that - its
+        payload carries only the button's own values - so adding a row while a
+        debounce is still pending would silently discard the pending keystrokes.
+        It also degrades: with JavaScript off, this is just a form post.
+
+        Returns True if an intent was found and applied.
+        """
+        intent = normalize_payload(payload).get(self.INTENT)
+        if not isinstance(intent, str) or not intent:
+            return False
+
+        op, _, rest = intent.partition(":")
+        field, _, index = rest.partition(":")
+
+        if op == "add" and field:
+            self.add_row(field)
+            return True
+        if op == "drop" and field and index:
+            self.drop_row(field, index)
+            return True
+        return False
 
     def _cast(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Take the form's subtree out of the payload, honouring the whitelist."""
