@@ -94,7 +94,7 @@ class TestMarkupCorrectness:
 
 class TestTheme:
     def test_no_style_classes_leak_from_the_library(self, invalid):
-        html = str(render_form(invalid, Theme()))
+        html = str(render_form(invalid, None, Theme()))
         assert 'class=""' in html, "the default theme contributes nothing"
         assert "text-red" not in html and "px-3" not in html
 
@@ -102,3 +102,18 @@ class TestTheme:
         html = str(input(invalid.form.name, None, TAILWIND))
         assert TAILWIND.label in html
         assert TAILWIND.control_invalid.split()[0] in html, "invalid controls get the error style"
+
+
+class TestMiddleRung:
+    """Render most of the form, hand-write the rest."""
+
+    def test_exclude_leaves_fields_for_you(self, invalid):
+        html = str(render_form(invalid, {"exclude": ["name", "bio"]}))
+        assert 'name="prefs[name]"' not in html
+        assert 'name="prefs[bio]"' not in html
+        assert 'name="prefs[plan]"' in html
+
+    def test_only_renders_what_you_asked_for(self, invalid):
+        html = str(render_form(invalid, {"only": ["name"]}))
+        assert 'name="prefs[name]"' in html
+        assert 'name="prefs[plan]"' not in html

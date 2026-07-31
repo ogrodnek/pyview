@@ -19,6 +19,7 @@ import types
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime, time
 from decimal import Decimal
+from functools import cache
 from typing import Any, Literal, Optional, TypeGuard, Union, get_args, get_origin
 
 from annotated_types import Ge, Gt, Le, Lt, MaxLen, MinLen
@@ -179,8 +180,15 @@ def _humanize(name: str) -> str:
     return name.replace("_", " ").strip().capitalize()
 
 
+@cache
 def field_specs(model: type[BaseModel]) -> dict[str, FieldSpec]:
-    """Derive a :class:`FieldSpec` for every field on ``model``, in declaration order."""
+    """Derive a :class:`FieldSpec` for every field on ``model``, in declaration order.
+
+    Cached: this is a pure function of the model, and it is otherwise recomputed
+    for every nested field on every keystroke. On a server that diffs per event
+    that is real CPU, and it is the cost that produced the "typing in one input
+    re-renders every array cell" bugs in JSONForms.
+    """
     specs: dict[str, FieldSpec] = {}
 
     for name, info in model.model_fields.items():

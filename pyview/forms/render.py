@@ -222,13 +222,24 @@ def input(  # noqa: A001
 
 def render_form(
     source: Union[Changeset, FormView],
+    opts: Optional[dict[str, Any]] = None,
     theme: Optional[Theme] = None,
-    *,
-    only: Optional[list[str]] = None,
-    exclude: Optional[list[str]] = None,
 ) -> Markup:
-    """Every field, in declaration order. The rung you start on and later leave."""
+    """Fields in declaration order - the rung you start on, and the one below it.
+
+    ``opts`` takes ``only`` or ``exclude``, which is the rung most people actually
+    need: *my* markup for the two fields I care about, the library's for the rest::
+
+        {{ signup | render_form({"exclude": ["password", "confirm"]}) }}
+        {{ signup | render_form({"only": ["street", "city", "zip"]}) }}
+
+    Without it the ladder jumps straight from "everything" to "one field at a
+    time", and the moment one field needs custom markup you hand-write all twenty.
+    """
     t = theme or _theme
+    settings = opts or {}
+    only = settings.get("only")
+    exclude = settings.get("exclude")
     view = source.form if isinstance(source, Changeset) else source
 
     parts: list[Markup] = []
@@ -257,13 +268,13 @@ def render_form(
 def _render_group(view: FormView, t: Theme, legend: str) -> Markup:
     return Markup(
         "<fieldset class={cls}><legend class={lcls}>{legend}</legend>{body}</fieldset>"
-    ).format(cls=t.fieldset, lcls=t.legend, legend=legend, body=render_form(view, t))
+    ).format(cls=t.fieldset, lcls=t.legend, legend=legend, body=render_form(view, None, t))
 
 
 def _render_list(fl: FieldList, t: Theme) -> Markup:
     rows = Markup("").join(
         Markup('<fieldset class="{cls}">{body}</fieldset>').format(
-            cls=t.fieldset, body=render_form(row, t)
+            cls=t.fieldset, body=render_form(row, None, t)
         )
         for row in fl
     )
