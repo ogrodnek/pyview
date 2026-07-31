@@ -171,7 +171,9 @@ class TestNesting:
 
     def test_list_rows_are_addressable(self):
         cs = Changeset(Owner)
-        params = {"owner": {"pets": {"0": {"name": "Rex", "age": "3"}, "1": {"name": "A", "age": "2"}}}}
+        params = {
+            "owner": {"pets": {"0": {"name": "Rex", "age": "3"}, "1": {"name": "A", "age": "2"}}}
+        }
         cs.submit(payload(params))
 
         rows = list(cs.form.pets)

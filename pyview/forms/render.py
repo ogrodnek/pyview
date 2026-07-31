@@ -102,7 +102,11 @@ def control(
     """
     t = theme or _theme
     overrides = dict(opts or {})
-    widget = overrides.pop("widget", None) or f.widget
+    # "type" and "widget" mean the same thing at a call site: {"type": "password"}
+    # is what anyone writes, and it has to actually win over the inferred type.
+    explicit_widget = overrides.pop("widget", None)
+    explicit_type = overrides.pop("type", None)
+    widget = explicit_widget or explicit_type or f.widget
     css = overrides.pop("class", None)
 
     attrs: dict[str, Any] = {
@@ -239,7 +243,7 @@ def render_form(
             continue
 
         if isinstance(bound, FormField):
-            parts.append(input(bound, t))
+            parts.append(input(bound, None, t))
         elif isinstance(bound, FieldList):
             parts.append(_render_list(bound, t))
         else:

@@ -1,6 +1,6 @@
 """Forms for pyview - EXPERIMENTAL design spike.
 
-Status: a prototype accompanying ``docs/design/forms.md``. It is deliberately not
+Status: a prototype accompanying ``design/forms.md``. It is deliberately not
 exported from ``pyview`` yet and the API is expected to change. It exists so the
 design can be run and felt rather than only read.
 
