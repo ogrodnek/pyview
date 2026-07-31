@@ -2,7 +2,6 @@ import sys
 
 from .format_examples import ExampleEntry, ExampleRoute, format_examples
 from .views import (
-    CheckboxLiveView,
     CollabEditorLiveView,
     CountLiveView,
     CountLiveViewPubSub,
