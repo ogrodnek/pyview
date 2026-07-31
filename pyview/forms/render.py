@@ -247,10 +247,13 @@ def render_form(
         parts.append(errors(source, t))
 
     for bound in view:
-        name = bound.spec.name if hasattr(bound, "spec") else ""
-        if only and name not in only:
+        spec = getattr(bound, "spec", None)
+        # match on either the Python attribute or the wire name; they differ only
+        # for aliased fields and the caller should not have to know which
+        names = {spec.name, spec.attr} if spec else set()
+        if only and not names & set(only):
             continue
-        if exclude and name in exclude:
+        if exclude and names & set(exclude):
             continue
 
         if isinstance(bound, FormField):

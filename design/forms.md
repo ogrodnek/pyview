@@ -142,9 +142,20 @@ asdict()    [first render]  -> dict     # .attrs, .model, every method: gone
 
 So `{{ changeset.attrs.name }}` silently renders empty on first paint and starts
 working once the socket connects. Invisible on a blank create form, very visible
-on a pre-populated edit form. **Not yet fixed** — it is a one-line change
-(`render()` should use `serialize()` too) but it is a behaviour change for
-existing views, so it wants your call.
+on a pre-populated edit form.
+
+`asdict` only recurses into *dataclasses*, so what gets destroyed is precisely the
+things declared as dataclasses — which today's `ChangeSet` is:
+
+```
+old ChangeSet (a dataclass)   -> dict        # .attrs, .model, every method: gone
+new Changeset (a plain class) -> Changeset   # deep-copied, but intact
+```
+
+The prototype sidesteps it by not being a dataclass, which is a workaround, not a
+fix. **Not yet fixed** — it is a one-line change (`render()` should use
+`serialize()` too) but it is a behaviour change for existing views, so it wants
+your call.
 
 ---
 

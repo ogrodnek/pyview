@@ -317,8 +317,18 @@ class Changeset(Generic[M]):
 
     # -- dynamic rows ------------------------------------------------------
 
+    def _wire(self, name: str) -> str:
+        """Accept either the Python attribute name or the wire name.
+
+        They differ only for aliased fields, and a caller should not have to know
+        or care which one a given field uses.
+        """
+        spec = self._specs.get(name)
+        return spec.name if spec else name
+
     def add_row(self, name: str, initial: Optional[dict[str, Any]] = None) -> Changeset[M]:
         """Append a row to a repeated field, server-side, with no custom JS."""
+        name = self._wire(name)
         rows = _as_indexed(self.params.get(name))
         next_index = str(max((int(k) for k in rows if k.isdigit()), default=-1) + 1)
         rows[next_index] = initial or {}
@@ -328,6 +338,7 @@ class Changeset(Generic[M]):
 
     def drop_row(self, name: str, index: Union[str, int]) -> Changeset[M]:
         """Remove a row by its rendered index. Siblings keep their indexes."""
+        name = self._wire(name)
         rows = _as_indexed(self.params.get(name))
         rows.pop(str(index), None)
         self.params[name] = rows

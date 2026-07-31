@@ -57,6 +57,7 @@ class ui:  # noqa: N801 - reads as a declaration, not a class, at the call site
 class FieldSpec:
     """Everything the renderer needs to know about one leaf field."""
 
+    #: the name this field travels under: its alias if it has one
     name: str
     widget: str
     label: str
@@ -65,6 +66,10 @@ class FieldSpec:
     choices: Optional[list[tuple[str, str]]] = None
     help: Optional[str] = None
     hidden: bool = False
+
+    #: the Python attribute name, which is how you refer to the field in code
+    #: and in a template. Equal to `name` unless the field is aliased.
+    attr: str = ""
 
     # structural: set for fields that are themselves forms
     nested: Optional[type[BaseModel]] = None
@@ -201,6 +206,7 @@ def field_specs(model: type[BaseModel]) -> dict[str, FieldSpec]:
         if variants:
             specs[name] = FieldSpec(
                 name=wire,
+                attr=name,
                 widget="union",
                 label=hint.label or _humanize(name),
                 required=required,
@@ -216,6 +222,7 @@ def field_specs(model: type[BaseModel]) -> dict[str, FieldSpec]:
         if nested is not None:
             specs[name] = FieldSpec(
                 name=wire,
+                attr=name,
                 widget="fieldset",
                 label=hint.label or _humanize(name),
                 required=required,
@@ -250,6 +257,7 @@ def field_specs(model: type[BaseModel]) -> dict[str, FieldSpec]:
 
         specs[name] = FieldSpec(
             name=wire,
+            attr=name,
             widget=widget,
             label=hint.label or _humanize(name),
             required=required,

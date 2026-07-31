@@ -441,3 +441,19 @@ class TestAliases:
 
         with pytest.raises(TypeError, match="one input per field"):
             Changeset(Weird)
+
+    def test_row_operations_accept_either_name(self):
+        class Item(BaseModel):
+            label: str = "x"
+
+        class Cart(BaseModel):
+            line_items: list[Item] = Field(default_factory=list, alias="lines")
+
+        cs = Changeset(Cart)
+        cs.add_row("line_items")  # the Python attribute
+        cs.add_row("lines")  # the wire name
+        assert len(cs.form.line_items) == 2
+        assert list(cs.form.line_items)[0].label.name == "cart[lines][0][label]"
+
+        cs.drop_row("line_items", 0)
+        assert len(cs.form.line_items) == 1
