@@ -13,6 +13,18 @@ class ExampleEntry:
     tags: list[str] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class ExampleRoute:
+    entry_path: str
+    view: type[LiveView]
+    tags: tuple[str, ...] = ()
+    additional_paths: tuple[str, ...] = ()
+
+    @property
+    def registered_paths(self) -> tuple[str, ...]:
+        return (self.entry_path, *self.additional_paths)
+
+
 def format_example(
     url_path: str, lv: type[LiveView], tags: list[str] | None = None
 ) -> Optional[ExampleEntry]:
@@ -31,9 +43,9 @@ def format_example(
 
 
 def format_examples(
-    routes: list[tuple[str, type[LiveView], list[str]]],
+    routes: list[ExampleRoute],
 ) -> Iterator[ExampleEntry]:
-    for url, lv, tags in routes:
-        f = format_example(url, lv, tags)
+    for route in routes:
+        f = format_example(route.entry_path, route.view, list(route.tags))
         if f:
             yield f

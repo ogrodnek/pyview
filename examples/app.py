@@ -8,6 +8,7 @@ from pyview.vendor import ibis
 from pyview.vendor.ibis.loaders import FileReloader
 
 from .example_registry import routes
+from .views.collab_editor.collab_editor import expire_collab_rooms
 from .views.index import IndexLiveView
 
 app = PyView()
@@ -18,6 +19,7 @@ app.mount(
             ("pyview", "static"),
             ("examples.views.maps", "static"),
             ("examples.views.kanban", "static"),
+            ("examples.views.collab_editor", "static"),
         ]
     ),
     name="static",
@@ -69,6 +71,9 @@ css = """
 <!-- Sortable JS for kanban example -->
 <script src="https://unpkg.com/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="/static/kanban.js"></script>
+
+<!-- Collab Editor Hook -->
+<script src="/static/collab_editor.js"></script>
 """
 
 
@@ -105,5 +110,14 @@ ibis.loader = FileReloader(os.path.join(current_file_dir, "views"))
 
 app.add_live_view("/", IndexLiveView)
 
-for path, view, _tags in routes:
-    app.add_live_view(path, view)
+for example in routes:
+    for path in example.registered_paths:
+        app.add_live_view(path, example.view)
+
+app.live_handler.scheduler.add_job(
+    expire_collab_rooms,
+    trigger="interval",
+    seconds=5,
+    id="expire-collab-editor-rooms",
+    replace_existing=True,
+)

@@ -2,6 +2,7 @@
 import sys
 
 from .checkboxes import CheckboxLiveView
+from .collab_editor import CollabEditorLiveView
 from .count import CountLiveView
 from .count_pubsub import CountLiveViewPubSub
 from .fifa import FifaAudienceLiveView
@@ -42,6 +43,7 @@ __all__ = [
     "IncludesLiveView",
     "StreamsDemoLiveView",
     "FlashDemoLiveView",
+    "CollabEditorLiveView",
 ]
 
 if sys.version_info >= (3, 14):
