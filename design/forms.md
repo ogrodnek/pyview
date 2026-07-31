@@ -162,8 +162,10 @@ your call.
 ## 2. What everyone else has learned
 
 I read Ecto/Phoenix, WTForms, Django, Rails, Livewire, React Hook Form, TanStack
-Form, Conform, and the JSON-Schema-driven generators. The useful findings cluster
-into about ten ideas.
+Form, Conform, the JSON-Schema-driven generators, the Python pydantic-form
+ecosystem (colander/deform especially), the formlets lineage (digestive-functors,
+Yesod, Elm), and the accessibility design systems. The useful findings cluster into
+about a dozen ideas.
 
 ### 2.1 The state object and the render object are two different things
 
@@ -533,6 +535,76 @@ what stops the library from being a wall at month three. But I would want your r
 
 ---
 
+### 2.11 A field error is not an announcement
+
+The accessibility research changed my mind about something I had already built.
+I had `role="alert"` on every field error, reasoning that an error appearing after
+a server round trip should be announced. That is wrong for *this* architecture:
+
+> In a keystroke-validating, diff-patched form it re-announces on every patch, and
+> competing assertive regions cancel each other.
+
+GOV.UK's model is the one that fits: field errors are **silent**, reached through
+`aria-describedby` when the control takes focus; a single **error summary** at the
+top of the form is the one thing that announces. So the summary is now a component,
+with GOV.UK's rules baked in — only after a submit attempt, a fixed heading, one
+link per error pointing at the input's id, and link text *byte-identical* to the
+inline message (otherwise the user can't tell they're the same problem):
+
+```html
+{{ owner | error_summary }}
+```
+```
+There is a problem
+  Name must be at least 3 characters.   -> #owner_name
+  ZIP is not in the expected format.    -> #owner_address_zip
+  Email address is not in the expected format. -> #owner_contact_address
+```
+
+Related: `aria-describedby` is now a computed property on the field
+(`f.describedby`, hint before error) rather than something the renderer assembles
+privately — because on the bottom rung of the ladder you are writing that attribute
+by hand, and pointing it at an id that isn't on the page is worse than omitting it.
+
+### 2.12 Silent no-ops are the real DX problem
+
+The DX research measured what my own prototype did when held wrong. Seven ways,
+every one of them silent or cryptic:
+
+| you write | you used to get |
+|---|---|
+| `fields=["emial"]` | that field frozen forever, no signal |
+| `add_error("emial", …)` | an error stored where nothing renders it |
+| `add_row("email")` on a scalar | `{"0": {}}` written over the value |
+| a payload not under the form's name | `validate()` a permanent no-op |
+| `Changeset(Signup(...))` | `TypeError: unhashable type: 'Signup'` |
+| `Changeset(SomeDataclass)` | `AttributeError: ... has no attribute 'model_fields'` |
+
+Now each raises `FormUsageError` — deliberately a different type from `FormError`,
+because one is aimed at a developer and the other at whoever is filling in the
+form, and conflating those two audiences is how libraries end up showing stack
+traces to users:
+
+```
+FormUsageError: fields=: `Signup` has no field `emial` --
+                there is a field with a similar name: `email`
+
+FormUsageError: this changeset is named `signup`, so it expects its inputs to be
+                named `signup[...]`, but the payload only contains `email`.
+                Either render the inputs from this changeset
+                (`signup.form.<field> | input`), or construct it with the name
+                your inputs already use: Changeset(Signup, name="...")
+```
+
+`tests/forms/test_misuse.py` is the corpus, which is the point: it makes "good
+error messages" a property CI enforces rather than an aspiration. Elm keeps an
+error-message catalog for the same reason.
+
+One more DX finding worth acting on immediately: the demo used to open with
+`register_filters()` and `set_theme(TAILWIND)` before a single field was declared.
+A form library whose first two lines are setup has spent its budget before it
+starts. Filters now register on import.
+
 ## 3. What's in the prototype
 
 `pyview/forms/` — about 2,000 lines, 60 tests, not exported from `pyview` yet.
@@ -600,6 +672,34 @@ quietly picking one of several would mis-key every error on it.
 `union_tag_not_found` — *"Unable to extract tag using discriminator 'kind'"* — which
 by the rules above belongs with the absence errors that are held back until submit,
 not with the ones that turn the form red on the first keystroke.
+
+**A rejected submit must stay rejected.** `submit()` set `action = "submit"` to
+reveal everything; the next keystroke called `validate()`, set it back, and quietly
+un-revealed every error the user had not personally touched. The form appeared to
+forget it had been rejected. Fixed with a sticky `submitted` latch — the same shape
+as React Hook Form's `isSubmitted`, though RHF makes it *global* (one failed submit
+puts every field into complain-on-keystroke mode), which is the part not to copy.
+
+**A dropped row's index must never come back.** `add_row` computed `max(keys) + 1`,
+so adding 0/1/2, dropping 2, and adding again produced another `2` — and under
+morphdom the new row inherits the dropped row's DOM state and aria wiring. Indexes
+are now monotonic per field: `0, 1, 3`.
+
+**`{"class": …}` has to merge.** It replaced the theme's classes, so adding one
+utility class to one field silently turned off its error styling — a cliff in the
+middle of a ladder that is supposed to be steps.
+
+**HTML bounds are inclusive; `gt`/`lt` are not.** `Field(gt=0, lt=10)` emitted
+`min="0" max="10"`, so the browser accepted values the server would reject. On an
+integer the neighbouring value is exact, so it now narrows to `min="1" max="9"`.
+On a float it is left alone and the server stays the authority — the safe direction
+to be wrong in. (simple_form does exactly this, and it is the kind of detail you
+only find by reading someone else's fifteen years of bug reports.)
+
+**Error records need cleaning at ingest.** pydantic prefixes anything raised from a
+validator with `"Value error, "`, which is framework vocabulary leaking into
+user-facing copy, and it puts the live exception object in `ctx` — unserializable,
+and it pins a traceback in the socket's state for as long as the form is open.
 
 ### Verified in a browser, not just in tests
 
@@ -707,10 +807,45 @@ Collected from the failure modes in the research, so they don't get re-invented:
   trailing incomplete element of a sequence. It is a streaming-JSON feature.
   Validate everything and filter the display by error *type* instead.
 
-## 6. Next, if this direction is right
+## 6. What I read
+
+Twelve deep-dives and three cross-cutting syntheses, all against primary sources —
+docs, source, changelogs and issue threads rather than blog summaries:
+
+| | |
+|---|---|
+| Ecto.Changeset | the `data`/`params`/`changes` split, `action`, `cast_assoc`, `sort_param`/`drop_param` |
+| Phoenix LiveView forms | `FormData`, `to_form`, `inputs_for`, `used_input?`, the generated `core_components.ex` |
+| WTForms | the reserved-word trap, `FieldList` limits, the widget/validator seams |
+| Django forms | `BoundField`, the clean pipeline, formsets, the renderer/template-pack layer |
+| Rails + Livewire | `accepts_nested_attributes_for`, strong params, simple_form; `wire:model`, Form Objects |
+| RHF / TanStack / Formik / Conform | validation-timing state machines, field arrays, the intent protocol |
+| Schema-driven UI | rjsf, JSONForms, Formily, uniforms, AutoForm — and why they get a bad name |
+| Python pydantic-forms | colander/deform's pstruct/cstruct/appstruct, FastUI, Ludic, pydantic v2 mechanics |
+| Formlets | Cooper/Lindley/Wadler, digestive-functors, Yesod, Elm — composability and name scoping |
+| Param encoding | Plug/Rack/PHP/qs semantics, `_persistent_id`, DoS limits, the checkbox trick |
+| Validation UX & a11y | GOV.UK, USWDS, NN/g, WAI-ARIA APG, WHATWG constraint validation |
+| Developer UX | FastAPI, pydantic, Django admin, phx.gen, shadcn, rustc's diagnostics guide |
+
+Two factual corrections worth recording, because a secondary source would have led
+me wrong on both:
+
+- **`phx-feedback-for` vs `_unused_`.** LiveView 1.x removed `phx-feedback-for` in
+  favour of the client sending `_unused_<field>` sentinel params, consumed by
+  `used_input?/1`. pyview pins `phoenix_live_view ^0.20.17`, and I checked the
+  bundled `app.js` directly: it has `PHX_FEEDBACK_FOR` and zero occurrences of
+  `_unused_`. So the server-side touched set is not a stopgap for something the
+  client already sends — today it is the only mechanism available.
+- **`_target`'s location.** On the pinned client it rides inside the urlencoded
+  body. LiveView >= 1.0.6 moved it to `payload["meta"]`. Whoever upgrades the JS
+  client has to change the decode site too.
+
+## 7. Next, if this direction is right
 
 Roughly in order of value:
 
+0. **Decide the `<form>` tag question and the timing policy**, since both are
+   currently the user's problem and both fail quietly (§4).
 1. **A ranked widget-selection registry**, JSONForms-style, instead of a flat
    `widget: str` dispatch. Today, "textarea whenever `max_length > 500`" or "this
    type always renders with my component" means forking `render.py`. A list of
