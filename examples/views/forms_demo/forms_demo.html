@@ -1,0 +1,99 @@
+<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">Nested Forms</h1>
+    <p class="text-gray-600 mb-8">
+      Every label, input type, constraint, option list and error below is derived from
+      one pydantic model. The view handles four events and contains no HTML.
+    </p>
+
+    {% if saved %}
+    <div class="mb-6 rounded-md bg-green-50 border border-green-200 p-4">
+      <p class="text-sm text-green-800">
+        Saved <strong>{{ saved.name }}</strong> with {{ saved.pets|len }} pet(s),
+        contact via {{ saved.contact.kind }}.
+      </p>
+    </div>
+    {% endif %}
+
+    <form phx-change="validate" phx-submit="save" autocomplete="off">
+
+      {# ---- tier 1: the field renderer, wrapper and all ---- #}
+      {{ owner.form.name | input }}
+      {{ owner.form.joined | input({"label": "Member since"}) }}
+
+      {# ---- nested model: same call, one level down ---- #}
+      <fieldset class="border border-gray-200 rounded-md p-4 mb-6">
+        <legend class="text-sm font-semibold text-gray-900 px-1">Address</legend>
+        {{ owner.form.address.street | input }}
+        <div class="grid grid-cols-2 gap-4">
+          {{ owner.form.address.city | input }}
+          {{ owner.form.address.zip | input }}
+        </div>
+      </fieldset>
+
+      {# ---- conditional: the discriminator switches the sub-form ---- #}
+      <fieldset class="border border-gray-200 rounded-md p-4 mb-6">
+        <legend class="text-sm font-semibold text-gray-900 px-1">How should we reach you?</legend>
+        {{ owner.form.contact.kind | input({"label": "Contact method"}) }}
+
+        {% if owner.form.contact.kind.value == "phone" %}
+          {{ owner.form.contact.number | input }}
+          {{ owner.form.contact.sms_ok | input }}
+        {% else %}
+          {{ owner.form.contact.address | input }}
+          {{ owner.form.contact.newsletter | input }}
+        {% endif %}
+      </fieldset>
+
+      {# ---- dynamic rows: add and remove entirely on the server ---- #}
+      <fieldset class="border border-gray-200 rounded-md p-4 mb-6">
+        <legend class="text-sm font-semibold text-gray-900 px-1">Pets</legend>
+
+        {% for index, pet in owner.form.pets.rows %}
+        <div class="border border-gray-100 rounded p-3 mb-3 bg-gray-50">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-xs uppercase tracking-wide text-gray-500">Pet {{ index }}</span>
+            <button type="button" phx-click="drop-pet" phx-value-index="{{ index }}"
+                    class="text-sm text-red-600 hover:text-red-800">Remove</button>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            {{ pet.name | input }}
+            {{ pet.species | input }}
+            {{ pet.age | input }}
+          </div>
+        </div>
+        {% empty %}
+        <p class="text-sm text-gray-500 mb-3">No pets yet.</p>
+        {% endfor %}
+
+        <button type="button" phx-click="add-pet"
+                class="text-sm px-3 py-1.5 rounded-md bg-gray-100 hover:bg-gray-200 border border-gray-300">
+          Add a pet
+        </button>
+      </fieldset>
+
+      {# ---- form-level errors: whole-model validators land here ---- #}
+      {% if owner.errors %}
+      <div class="mb-4 rounded-md bg-red-50 border border-red-200 p-3">
+        {% for e in owner.errors %}
+        <p class="text-sm text-red-700" role="alert">{{ e }}</p>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <button type="submit" phx-disable-with="Saving..."
+              class="w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+        Save
+      </button>
+    </form>
+
+    {# ---- tier 3: hand-written HTML, still correctly bound ---- #}
+    <details class="mt-8">
+      <summary class="text-sm text-gray-600 cursor-pointer">What the bottom rung looks like</summary>
+      <pre class="mt-2 text-xs bg-gray-50 p-3 rounded overflow-x-auto">name  = {{ owner.form.address.city.name }}
+id    = {{ owner.form.address.city.id }}
+value = {{ owner.form.address.city.value }}
+valid = {{ owner.valid }}</pre>
+    </details>
+  </div>
+</div>

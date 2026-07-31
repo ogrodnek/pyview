@@ -95,7 +95,14 @@ class PartsTree:
     dynamics: list[Part] = field(default_factory=list)
 
     def add_static(self, s: str):
-        self.statics.append(s)
+        # Statics and dynamics must strictly alternate: the client rebuilds the
+        # markup as s[0] + d[0] + s[1] + d[1] + ... so every extra static shifts
+        # everything after it. Adjacent text (which a {# comment #} produces, by
+        # splitting one run of text in two) has to coalesce into one static.
+        if len(self.statics) == len(self.dynamics) + 1:
+            self.statics[-1] += s
+        else:
+            self.statics.append(s)
 
     def add_dynamic(self, d: Union[Part, list[Part], StreamComprehension]):
         if len(self.statics) < len(self.dynamics) + 1:

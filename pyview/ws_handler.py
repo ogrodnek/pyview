@@ -186,7 +186,13 @@ class LiveSocketHandler:
                 value = payload["value"]
 
                 if payload["type"] == "form":
-                    value = parse_qs(value)
+                    # keep_blank_values is not optional for forms. The client
+                    # serializes every input on each change, so a field the user
+                    # cleared arrives as `name=`; without this it is dropped from
+                    # the payload entirely and looks like "not on this form"
+                    # rather than "emptied". Phoenix's Plug.Conn.Query.decode
+                    # keeps blanks for the same reason.
+                    value = parse_qs(value, keep_blank_values=True)
                     socket.upload_manager.maybe_process_uploads(value, payload)
 
                 # Track event metrics

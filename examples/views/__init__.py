@@ -8,6 +8,7 @@ from .fifa import FifaAudienceLiveView
 from .file_upload import FileUploadDemoLiveView
 from .flash_demo import FlashDemoLiveView
 from .form_validation import PlantsLiveView
+from .forms_demo import FormsDemoLiveView
 from .includes import IncludesLiveView
 from .js_commands import JsCommandsLiveView
 from .kanban import KanbanLiveView
@@ -31,6 +32,7 @@ __all__ = [
     "PodcastLiveView",
     "PlantsLiveView",
     "RegistrationLiveView",
+    "FormsDemoLiveView",
     "CountLiveViewPubSub",
     "JsCommandsLiveView",
     "PingLiveView",
