@@ -2,7 +2,7 @@
 
 Everything on screen - labels, input types, min/max, the select options, the
 error messages, the accessibility wiring - comes from the model below. The view
-handles three events and touches no HTML.
+handles two events and touches no HTML.
 """
 
 from dataclasses import dataclass, field
@@ -13,10 +13,8 @@ from typing import Annotated, Literal, Optional, Union
 from pydantic import BaseModel, Field, model_validator
 
 from pyview import LiveView, LiveViewSocket
-from pyview.forms import Changeset, ui
-from pyview.forms.render import TAILWIND, register_filters, set_theme
+from pyview.forms import TAILWIND, Changeset, set_theme, ui
 
-register_filters()
 set_theme(TAILWIND)
 
 

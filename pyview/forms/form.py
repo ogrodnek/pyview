@@ -28,10 +28,11 @@ Four ideas carry the whole design, each stolen from somewhere that proved it.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Generic, Iterable, Iterator, Optional, TypeVar, Union
+from typing import Any, Generic, Iterable, Iterator, Mapping, Optional, TypeVar, Union
 
 from pydantic import BaseModel, ValidationError
 
+from .errors import FormUsageError, format_keys, unknown_field
 from .params import normalize_payload
 from .paths import Path, canon, get_in, unwrap
 from .schema import (
@@ -133,12 +134,24 @@ class Changeset(Generic[M]):
         name: Optional[str] = None,
         fields: Optional[Iterable[str]] = None,
     ):
+        _check_usable(model)
         _check_model(model)
 
         self.model = model
         self.name = name if name is not None else default_name(model)
         self.action: Optional[str] = None
+
+        #: Once a submit has been attempted, errors stay visible. Without the
+        #: latch the next keystroke sets action back to "validate" and quietly
+        #: un-reveals every error the user has not personally touched - the form
+        #: appears to forget it was rejected.
+        self.submitted: bool = False
         self.touched: set[Path] = set()
+
+        #: High-water mark per repeated field, so a dropped row's index is never
+        #: handed out again. Reusing it makes the new row inherit the old one's
+        #: DOM state and its aria wiring.
+        self._row_seq: dict[str, int] = {}
 
         #: Trusted starting point: whatever we were editing. Never comes from
         #: the browser. Ecto calls this `data` and keeps it strictly apart from
@@ -157,6 +170,12 @@ class Changeset(Generic[M]):
         self._absent: set[Path] = set()
         self._value: Optional[M] = None
         self._specs = field_specs(model)
+
+        if self.permitted is not None:
+            known = set(self._specs) | {spec.name for spec in self._specs.values()}
+            for name in sorted(self.permitted - known):
+                raise unknown_field(model.__name__, name, sorted(known), "fields=")
+
         self._revalidate()
 
     # -- lifecycle ---------------------------------------------------------
@@ -164,7 +183,7 @@ class Changeset(Generic[M]):
     def validate(self, payload: dict[str, Any]) -> Changeset[M]:
         """Handle a ``phx-change``. Re-validates; shows errors only where touched."""
         normalized = normalize_payload(payload)
-        self.params = self._cast(normalized)
+        self.params = self._cast(payload)
 
         # The client serializes the whole form every time; `_target` only names
         # the input that fired. It decides what to *show*, never what to validate.
@@ -192,12 +211,14 @@ class Changeset(Generic[M]):
             return Result(False, None)
 
         self.action = "submit"
+        self.submitted = True
         self._revalidate()
         return Result(self.valid, self._value)
 
     def reveal(self) -> Changeset[M]:
         """Show every error without submitting."""
         self.action = "submit"
+        self.submitted = True
         return self
 
     def add_error(self, path: Union[str, tuple[str, ...]], message: str) -> Changeset[M]:
@@ -208,6 +229,8 @@ class Changeset(Generic[M]):
         same place. Ecto does this with ``add_error/3`` and constraint errors.
         """
         key = (path,) if isinstance(path, str) else path
+        if key and str(key[0]) not in self._by_wire_name():
+            raise unknown_field(self.model.__name__, str(key[0]), self._by_wire_name(), "add_error")
         self._errors.setdefault(canon(key), []).append(FormError(msg=message, type="custom"))
         self.action = self.action or "validate"
         self.touched.add(canon(key))
@@ -249,9 +272,32 @@ class Changeset(Generic[M]):
             return True
         return False
 
+    def _check_payload(self, normalized: dict[str, Any]) -> None:
+        """Catch a payload this form's inputs could not have produced.
+
+        A form named ``signup`` renders inputs called ``signup[...]``, so its data
+        arrives under that key. If it is absent the form would silently reset to
+        its starting values on every keystroke, which looks like "validation does
+        nothing" and is nearly impossible to work back from.
+        """
+        if self.name is None or self.name in normalized:
+            return
+        found = format_keys(normalized)
+        if found is None:
+            return
+        raise FormUsageError(
+            f"this changeset is named `{self.name}`, so it expects its inputs to be "
+            f"named `{self.name}[...]`, but the payload only contains {found}.\n"
+            f"Either render the inputs from this changeset (`{self.name}.form.<field> | input`), "
+            f"or construct it with the name your inputs already use: "
+            f'Changeset({self.model.__name__}, name="...")'
+        )
+
     def _cast(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Take the form's subtree out of the payload, honouring the whitelist."""
-        incoming = unwrap(normalize_payload(payload), self.name)
+        normalized = normalize_payload(payload)
+        self._check_payload(normalized)
+        incoming = unwrap(normalized, self.name)
         if self.permitted is None:
             return _overlay(self.data, incoming)
         allowed = {k: v for k, v in incoming.items() if k in self.permitted}
@@ -266,9 +312,7 @@ class Changeset(Generic[M]):
             self._value = None
             for err in exc.errors():
                 path = clean_loc(self.model, err["loc"], self.params)
-                self._errors.setdefault(path, []).append(
-                    FormError(msg=err["msg"], type=err["type"], ctx=dict(err.get("ctx") or {}))
-                )
+                self._errors.setdefault(path, []).append(_to_form_error(err))
                 if err["type"] in _ABSENCE:
                     self._absent.add(path)
 
@@ -293,6 +337,21 @@ class Changeset(Generic[M]):
         """Form-level errors: whole-model validators, which pydantic reports at ``()``."""
         return self.errors_at(())
 
+    def errors_under(self, prefix: Path = ()) -> list[tuple[Path, FormError]]:
+        """Every *shown* error at or below ``prefix``, in field order.
+
+        This is what a fieldset needs to know it contains a problem, what a list
+        container needs to mark a bad row, and what the error summary iterates.
+        Conform builds the same thing with `isPathPrefix`; digestive-functors
+        calls it `subView`.
+        """
+        out: list[tuple[Path, FormError]] = []
+        for path in self._errors:
+            if path[: len(prefix)] != prefix:
+                continue
+            out.extend((path, e) for e in self.errors_at(path))
+        return out
+
     def all_errors(self) -> dict[Path, list[FormError]]:
         """Every error, shown or not. For tests and for an error summary."""
         return dict(self._errors)
@@ -307,7 +366,7 @@ class Changeset(Generic[M]):
         found = self._errors.get(path)
         if not found:
             return []
-        if self.action == "submit":
+        if self.action == "submit" or self.submitted:
             return found
         if self.action is None:
             return []
@@ -316,6 +375,22 @@ class Changeset(Generic[M]):
         return found if path in self.touched else []
 
     # -- dynamic rows ------------------------------------------------------
+
+    def _by_wire_name(self) -> dict[str, FieldSpec]:
+        return {spec.name: spec for spec in self._specs.values()}
+
+    def _repeated(self, name: str) -> FieldSpec:
+        """Resolve a repeated field, or explain why it is not one."""
+        spec = self._specs.get(name) or self._by_wire_name().get(name)
+        if spec is None:
+            raise unknown_field(self.model.__name__, name, self._by_wire_name(), "row operation")
+        if not spec.repeated:
+            raise FormUsageError(
+                f"row operation: `{self.model.__name__}.{spec.attr or spec.name}` is not a list, "
+                f"so it has no rows to add or remove. Row operations apply to fields "
+                f"annotated `list[SomeModel]`."
+            )
+        return spec
 
     def _wire(self, name: str) -> str:
         """Accept either the Python attribute name or the wire name.
@@ -328,9 +403,12 @@ class Changeset(Generic[M]):
 
     def add_row(self, name: str, initial: Optional[dict[str, Any]] = None) -> Changeset[M]:
         """Append a row to a repeated field, server-side, with no custom JS."""
-        name = self._wire(name)
+        name = self._repeated(name).name
         rows = _as_indexed(self.params.get(name))
-        next_index = str(max((int(k) for k in rows if k.isdigit()), default=-1) + 1)
+        highest = max((int(k) for k in rows if k.isdigit()), default=-1)
+        nxt = max(highest + 1, self._row_seq.get(name, 0))
+        self._row_seq[name] = nxt + 1
+        next_index = str(nxt)
         rows[next_index] = initial or {}
         self.params[name] = rows
         self._revalidate()
@@ -338,7 +416,7 @@ class Changeset(Generic[M]):
 
     def drop_row(self, name: str, index: Union[str, int]) -> Changeset[M]:
         """Remove a row by its rendered index. Siblings keep their indexes."""
-        name = self._wire(name)
+        name = self._repeated(name).name
         rows = _as_indexed(self.params.get(name))
         rows.pop(str(index), None)
         self.params[name] = rows
@@ -467,6 +545,28 @@ class FormField:
     def id(self) -> str:
         """A DOM id from the same path, so ``<label for>`` always matches."""
         return "_".join((*_root(self.changeset), *self.path))
+
+    @property
+    def error_id(self) -> str:
+        """The id of this field's error node, for ``aria-describedby``."""
+        return f"{self.id}_error"
+
+    @property
+    def hint_id(self) -> str:
+        """The id of this field's help text, for ``aria-describedby``."""
+        return f"{self.id}_help"
+
+    @property
+    def describedby(self) -> Optional[str]:
+        """Exactly what belongs in ``aria-describedby``, hint before error.
+
+        Exposed as one property so a hand-written template cannot mis-wire it:
+        pointing at an id that is not on the page is worse than omitting it.
+        """
+        ids = [self.hint_id] if self.spec.help else []
+        if self.errors:
+            ids.append(self.error_id)
+        return " ".join(ids) or None
 
     @property
     def value(self) -> Any:
@@ -618,6 +718,21 @@ def _root(cs: Changeset[Any]) -> tuple[str, ...]:
 # ---------------------------------------------------------------------------
 
 
+def _to_form_error(err: Mapping[str, Any]) -> FormError:
+    """Normalise one pydantic error into something renderable and serializable.
+
+    Two fixes: pydantic prefixes messages raised from a validator with
+    ``"Value error, "`` (and ``"Assertion failed, "`` for asserts), which is
+    framework vocabulary leaking into user-facing copy; and ``ctx`` carries the
+    live exception object, which cannot be serialized and keeps a traceback alive.
+    """
+    ctx = dict(err.get("ctx") or {})
+    raised = ctx.pop("error", None)
+    msg = str(raised) if raised is not None else err["msg"]
+    ctx = {k: v for k, v in ctx.items() if isinstance(v, (str, int, float, bool, type(None)))}
+    return FormError(msg=msg, type=err["type"], ctx=ctx)
+
+
 def default_name(model: type[BaseModel]) -> str:
     """``Signup`` -> ``"signup"``; ``UserProfile`` -> ``"user_profile"``."""
     out: list[str] = []
@@ -641,6 +756,28 @@ def _target_path(target: Any, form_name: Optional[str]) -> list[str]:
     if form_name and path and path[0] == form_name:
         return path[1:]
     return path
+
+
+def _check_usable(model: Any) -> None:
+    """Reject things that are not a pydantic model class, in their own words."""
+    if isinstance(model, BaseModel):
+        raise FormUsageError(
+            f"Changeset() takes the model class, not an instance. You passed a "
+            f"`{type(model).__name__}` object -- pass the class, and the instance as "
+            f"the data to edit:\n\n"
+            f"    Changeset({type(model).__name__}, data=that_instance)"
+        )
+    if not (isinstance(model, type) and issubclass(model, BaseModel)):
+        extra = ""
+        if hasattr(model, "__dataclass_fields__"):
+            extra = (
+                " Dataclasses are not supported yet; pydantic can adopt one with "
+                "`pydantic.dataclasses.dataclass`, or declare the model as a BaseModel."
+            )
+        raise FormUsageError(
+            f"Changeset() needs a pydantic BaseModel subclass, but got "
+            f"`{getattr(model, '__name__', type(model).__name__)}`.{extra}"
+        )
 
 
 def _check_model(model: type[BaseModel], seen: Optional[set[type]] = None) -> None:

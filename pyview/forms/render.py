@@ -29,8 +29,18 @@ from pyview.vendor.ibis import filters
 
 from .form import Changeset, FieldList, FormField, FormView, errors_of, name_of
 from .messages import humanize
+from .paths import Path
 
-__all__ = ["Theme", "DEFAULT_THEME", "set_theme", "control", "input", "errors", "render_form"]
+__all__ = [
+    "Theme",
+    "DEFAULT_THEME",
+    "set_theme",
+    "control",
+    "input",
+    "errors",
+    "render_form",
+    "error_summary",
+]
 
 
 @dataclass(frozen=True)
@@ -47,6 +57,9 @@ class Theme:
     control_invalid: str = ""
     error: str = ""
     help: str = ""
+    summary: str = ""
+    summary_heading: str = ""
+    summary_list: str = ""
     checkbox_wrapper: str = ""
     checkbox_label: str = ""
     checkbox_control: str = ""
@@ -81,14 +94,10 @@ def _attrs(pairs: dict[str, Any]) -> str:
 
 
 def _describedby(f: FormField) -> Optional[str]:
-    """Wire the control to its error and help text, which is what a screen
-    reader needs to read them out when the control takes focus."""
-    ids = []
-    if f.errors:
-        ids.append(f"{f.id}_error")
-    if f.help:
-        ids.append(f"{f.id}_help")
-    return " ".join(ids) or None
+    """Wire the control to its hint and error, which is what a screen reader
+    reads out when the control takes focus. Hint first, then error - GOV.UK's
+    order, so the user hears what is wanted before what went wrong."""
+    return f.describedby
 
 
 def control(
@@ -107,12 +116,16 @@ def control(
     explicit_widget = overrides.pop("widget", None)
     explicit_type = overrides.pop("type", None)
     widget = explicit_widget or explicit_type or f.widget
-    css = overrides.pop("class", None)
+
+    # Classes merge rather than replace. Replacing silently drops the theme's
+    # invalid style, so adding one utility class to one field turns off its error
+    # styling - a cliff in the middle of the ladder rather than a step down it.
+    css = " ".join(x for x in (t.for_control(f.invalid), overrides.pop("class", None)) if x)
 
     attrs: dict[str, Any] = {
         "id": f.id,
         "name": f.name,
-        "class": css if css is not None else t.for_control(f.invalid),
+        "class": css,
         # aria-invalid is the machine-readable half of "this field is wrong";
         # the red border is only the half sighted users get.
         "aria-invalid": "true" if f.invalid else None,
@@ -167,10 +180,13 @@ def errors(
 
     anchor = getattr(target, "id", None) or name_of(target)
     label = getattr(target, "label", "") or "This field"
+    # Deliberately no role="alert". pyview re-validates on keystroke and patches
+    # the DOM, so an assertive field error would re-announce on every patch, and
+    # competing assertive regions drop each other's messages. GOV.UK's model:
+    # field errors are silent and reached through aria-describedby; the error
+    # summary at the top of the form is the one thing that announces.
     return Markup("").join(
-        # role=alert so a screen reader announces an error that appears after a
-        # server round trip, rather than leaving it silently on screen
-        Markup('<p id="{id}" class="{cls}" role="alert">{msg}</p>').format(
+        Markup('<p id="{id}" class="{cls}">{msg}</p>').format(
             id=f"{anchor}_error", cls=t.error, msg=humanize(e, label)
         )
         for e in found
@@ -203,7 +219,7 @@ def input(  # noqa: A001
         )
 
     help_html = (
-        Markup('<p id="{id}_help" class="{cls}">{txt}</p>').format(id=f.id, cls=t.help, txt=f.help)
+        Markup('<p id="{id}" class="{cls}">{txt}</p>').format(id=f.hint_id, cls=t.help, txt=f.help)
         if f.help
         else Markup("")
     )
@@ -286,6 +302,67 @@ def _render_list(fl: FieldList, t: Theme) -> Markup:
     ).format(cls=t.fieldset, lcls=t.legend, legend=fl.label, rows=rows)
 
 
+def error_summary(
+    cs: Changeset,
+    opts: Optional[dict[str, Any]] = None,
+    theme: Optional[Theme] = None,
+) -> Markup:
+    """A linked list of every problem, at the top of the form.
+
+    The single biggest accessibility win available here, and pure server
+    rendering. GOV.UK's rules, which are what this implements: show it only after
+    a submit attempt; head it with a fixed phrase; give one link per error whose
+    text is *byte-identical* to the inline message; and point each link at the
+    input's id so activating it moves focus to the field.
+
+    It is also the one place ``role="alert"`` belongs. Per-field errors must stay
+    silent - this form re-validates on keystroke and patches the DOM, so an
+    assertive field error would re-announce on every patch and competing regions
+    drop each other's messages.
+    """
+    t = theme or _theme
+    settings = opts or {}
+    if not cs.submitted:
+        return Markup("")
+
+    found = cs.errors_under(())
+    if not found:
+        return Markup("")
+
+    items = []
+    for path, err in found:
+        anchor = "_".join((cs.name, *path)) if cs.name else "_".join(path)
+        label = _label_at(cs, path)
+        items.append(
+            Markup('<li><a href="#{anchor}">{msg}</a></li>').format(
+                anchor=anchor, msg=humanize(err, label)
+            )
+        )
+
+    return Markup(
+        '<div class="{cls}" role="alert" tabindex="-1">'
+        '<h2 class="{hcls}">{heading}</h2>'
+        '<ul class="{lcls}">{items}</ul></div>'
+    ).format(
+        cls=t.summary,
+        hcls=t.summary_heading,
+        heading=settings.get("heading", "There is a problem"),
+        lcls=t.summary_list,
+        items=Markup("").join(items),
+    )
+
+
+def _label_at(cs: Changeset, path: Path) -> str:
+    """The label of the field a path points at, for the summary's link text."""
+    node: Any = cs.form
+    try:
+        for segment in path:
+            node = node[segment]
+    except (AttributeError, KeyError, TypeError):
+        return "This field"
+    return getattr(node, "label", None) or "This field"
+
+
 # ---------------------------------------------------------------------------
 # template integration
 # ---------------------------------------------------------------------------
@@ -300,6 +377,7 @@ def register_filters() -> None:
     filters.register("control")(control)
     filters.register("errors")(errors)
     filters.register("render_form")(render_form)
+    filters.register("error_summary")(error_summary)
 
 
 def themed(base: Theme, **changes: str) -> Theme:
@@ -316,6 +394,9 @@ TAILWIND = Theme(
     control_invalid="border-red-400 focus:border-red-500 focus:ring-red-500",
     error="mt-1 text-sm text-red-600",
     help="mt-1 text-sm text-gray-500",
+    summary="mb-6 rounded-md border-2 border-red-500 p-4",
+    summary_heading="text-lg font-semibold text-red-800 mb-2",
+    summary_list="list-disc pl-5 space-y-1 text-sm text-red-700 underline",
     checkbox_wrapper="mb-4",
     checkbox_label="flex items-center gap-2 text-sm font-medium text-gray-700",
     checkbox_control="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500",

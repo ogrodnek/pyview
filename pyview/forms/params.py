@@ -33,6 +33,14 @@ __all__ = ["decode", "decode_target", "encode_name"]
 
 _SUBKEY = re.compile(r"\[([^\[\]]*)\]")
 
+#: Caps on what a single form body may decode to. A form event is attacker-shaped
+#: input like any other request body: the client can send anything. Plug caps
+#: nesting at 32 groups and Rack caps total params at 4096; these match, and the
+#: failure mode is an exception rather than PHP-style silent truncation, because
+#: silently discarding half a form is worse than refusing it.
+MAX_DEPTH = 32
+MAX_PARAMS = 4096
+
 
 def _split_path(key: str) -> Optional[tuple[str, list[str]]]:
     """Split ``"a[b][]"`` into ``("a", ["b", ""])``.
@@ -48,6 +56,13 @@ def _split_path(key: str) -> Optional[tuple[str, list[str]]]:
     parts = _SUBKEY.findall(rest)
     if "".join(f"[{p}]" for p in parts) != rest:
         return None
+    if len(parts) > MAX_DEPTH:
+        raise ValueError(f"form key `{key[:60]}` nests deeper than {MAX_DEPTH} levels")
+    if any(p.startswith("__") for p in (root, *parts)):
+        # Python has no prototype chain to pollute, but a decoded key still ends
+        # up as a dict key and, one layer up, as a model field name. Dunder
+        # segments have no legitimate use here and every illegitimate one.
+        raise ValueError(f"form key `{key[:60]}` contains a dunder segment")
     return root, parts
 
 
@@ -84,7 +99,11 @@ def decode(query: str) -> dict[str, Any]:
     """Decode a urlencoded form body into nested dicts and lists."""
     acc: dict[str, Any] = {}
 
-    for pair in query.split("&"):
+    pairs = query.split("&")
+    if len(pairs) > MAX_PARAMS:
+        raise ValueError(f"form body has more than {MAX_PARAMS} parameters")
+
+    for pair in pairs:
         if not pair:
             continue
         raw_key, _, raw_value = pair.partition("=")

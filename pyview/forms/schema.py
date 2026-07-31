@@ -127,7 +127,7 @@ def _hint(info: FieldInfo) -> ui:
     return ui()
 
 
-def _constraints(info: FieldInfo, widget: str) -> dict[str, Any]:
+def _constraints(info: FieldInfo, widget: str, annotation: Any = None) -> dict[str, Any]:
     """pydantic constraints double as HTML validation attributes.
 
     Free client-side pre-validation and correct mobile keyboards, with nothing
@@ -142,11 +142,14 @@ def _constraints(info: FieldInfo, widget: str) -> dict[str, Any]:
         elif isinstance(meta, Ge):
             attrs["min"] = meta.ge
         elif isinstance(meta, Gt):
-            attrs["min"] = meta.gt
+            # HTML min/max are inclusive; gt/lt are not. On an integer field the
+            # neighbouring value is exact, so narrow it - otherwise the browser
+            # happily accepts a value the server will reject.
+            attrs["min"] = _exclusive(meta.gt, +1, annotation)
         elif isinstance(meta, Le):
             attrs["max"] = meta.le
         elif isinstance(meta, Lt):
-            attrs["max"] = meta.lt
+            attrs["max"] = _exclusive(meta.lt, -1, annotation)
 
     if widget in ("number", "range"):
         attrs.pop("minlength", None)
@@ -156,6 +159,19 @@ def _constraints(info: FieldInfo, widget: str) -> dict[str, Any]:
         attrs.pop("min", None)
         attrs.pop("max", None)
     return attrs
+
+
+def _exclusive(bound: Any, step: int, annotation: Any) -> Any:
+    """Convert an exclusive bound to the inclusive one HTML wants.
+
+    Only possible on integers, where the neighbouring value is exact. On a float
+    the bound is left as-is and the server remains the authority - the browser
+    will accept the boundary value, which is the safe direction to be wrong in.
+    """
+    ann, _ = unwrap_optional(annotation) if annotation is not None else (None, False)
+    if ann is int and isinstance(bound, int):
+        return bound + step
+    return bound
 
 
 def _infer_widget(annotation: Any) -> tuple[str, Optional[list[tuple[str, str]]]]:
@@ -240,7 +256,7 @@ def field_specs(model: type[BaseModel]) -> dict[str, FieldSpec]:
                 widget = "select" if choices else widget
         widget = hint.widget or widget
 
-        attrs = _constraints(info, widget)
+        attrs = _constraints(info, widget, info.annotation)
         if required:
             attrs["required"] = True
         if hint.placeholder:

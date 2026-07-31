@@ -22,6 +22,10 @@
        translatable errors below. Server-authoritative validation means novalidate. #}
     <form phx-change="validate" phx-submit="save" autocomplete="off" novalidate>
 
+      {# The one place role="alert" belongs. Field errors stay silent and are
+         reached through aria-describedby; this announces once, after a submit. #}
+      {{ owner | error_summary }}
+
       {# ---- tier 1: the field renderer, wrapper and all ---- #}
       {{ owner.form.name | input }}
       {{ owner.form.joined | input({"label": "Member since"}) }}

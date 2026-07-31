@@ -33,6 +33,7 @@ and in the template::
     </form>
 """
 
+from .errors import FormUsageError
 from .form import (
     Changeset,
     FieldList,
@@ -47,7 +48,22 @@ from .form import (
 from .messages import DEFAULT_MESSAGES, humanize, set_messages
 from .params import decode, decode_target, encode_name, normalize_payload
 from .paths import Path
+from .render import (
+    TAILWIND,
+    Theme,
+    control,
+    error_summary,
+    errors,
+    input,
+    register_filters,
+    render_form,
+    set_theme,
+)
 from .schema import FieldSpec, field_specs, ui
+
+# Template filters register themselves on import. A form library whose first two
+# lines are setup has already spent its budget: importing it is the opt-in.
+register_filters()
 
 __all__ = [
     "Changeset",
@@ -63,6 +79,16 @@ __all__ = [
     "FieldSpec",
     "field_specs",
     "ui",
+    "Theme",
+    "TAILWIND",
+    "set_theme",
+    "input",
+    "control",
+    "errors",
+    "render_form",
+    "error_summary",
+    "register_filters",
+    "FormUsageError",
     "humanize",
     "set_messages",
     "DEFAULT_MESSAGES",

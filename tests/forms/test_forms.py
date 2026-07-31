@@ -455,3 +455,91 @@ class TestAliases:
 
         cs.drop_row("line_items", 0)
         assert len(cs.form.line_items) == 1
+
+
+class TestDecodeLimits:
+    def test_dunder_segments_are_refused(self):
+        with pytest.raises(ValueError, match="dunder"):
+            decode("owner[__class__][x]=1")
+
+    def test_absurd_nesting_is_refused(self):
+        key = "a" + "[b]" * 40
+        with pytest.raises(ValueError, match="deeper than"):
+            decode(f"{key}=1")
+
+    def test_ordinary_nesting_is_fine(self):
+        assert decode("a[b][c][d]=1") == {"a": {"b": {"c": {"d": "1"}}}}
+
+
+class TestLifecycleLatch:
+    def test_a_rejected_submit_stays_rejected(self):
+        cs = Changeset(Owner)
+        cs.submit({"owner": {"name": "x"}})
+        assert cs.form.address.city.errors
+
+        # without a sticky latch, the next keystroke sets action back to
+        # "validate" and quietly un-reveals every untouched error
+        cs.validate({"owner": {"name": "xy"}, "_target": ["owner", "name"]})
+        assert cs.form.address.city.errors, "the form must not forget it was rejected"
+        assert cs.submitted
+
+
+class TestRowIdentity:
+    def test_a_dropped_index_is_never_handed_out_again(self):
+        cs = Changeset(Owner)
+        for _ in range(3):
+            cs.add_row("pets")
+        cs.drop_row("pets", "2")
+        cs.add_row("pets")
+
+        # reusing index 2 would make the new row inherit the dropped row's DOM
+        # state (focus, selection, aria wiring) under morphdom
+        assert list(cs.params["pets"]) == ["0", "1", "3"]
+
+
+class TestErrorRecordHygiene:
+    def test_validator_messages_lose_the_framework_prefix(self):
+        class Reg(BaseModel):
+            a: str = "x"
+
+            @model_validator(mode="after")
+            def check(self):
+                raise ValueError("they must match")
+
+        cs = Changeset(Reg)
+        cs.submit({"reg": {"a": "y"}})
+        assert cs.errors[0].msg == "they must match", "not 'Value error, they must match'"
+
+    def test_ctx_stays_serializable(self):
+        class Reg(BaseModel):
+            a: str = "x"
+
+            @model_validator(mode="after")
+            def check(self):
+                raise ValueError("nope")
+
+        cs = Changeset(Reg)
+        cs.submit({"reg": {"a": "y"}})
+        # pydantic puts the live exception in ctx; keeping it would make the
+        # error unserializable and pin a traceback in the socket's state
+        assert all(
+            isinstance(v, (str, int, float, bool, type(None))) for v in cs.errors[0].ctx.values()
+        )
+
+
+class TestConstraintAttrs:
+    def test_exclusive_bounds_narrow_on_integers(self):
+        class Order(BaseModel):
+            qty: int = Field(gt=0, lt=10)
+
+        attrs = Changeset(Order).form.qty.attrs
+        # HTML min/max are inclusive; leaving gt=0 as min=0 lets the browser
+        # accept a value the server rejects
+        assert attrs["min"] == 1 and attrs["max"] == 9
+
+    def test_exclusive_bounds_are_left_alone_on_floats(self):
+        class Order(BaseModel):
+            ratio: float = Field(gt=0, lt=1)
+
+        attrs = Changeset(Order).form.ratio.attrs
+        assert attrs["min"] == 0 and attrs["max"] == 1

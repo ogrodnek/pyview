@@ -6,7 +6,15 @@ import pytest
 from pydantic import BaseModel, Field
 
 from pyview.forms import Changeset, ui
-from pyview.forms.render import TAILWIND, Theme, control, input, render_form
+from pyview.forms.render import (
+    TAILWIND,
+    Theme,
+    control,
+    error_summary,
+    errors,
+    input,
+    render_form,
+)
 
 
 class Address(BaseModel):
@@ -39,11 +47,18 @@ class TestLadder:
         html = str(input(invalid.form.name))
         assert 'for="prefs_name"' in html and "<label" in html
         assert 'name="prefs[name]"' in html
-        assert 'role="alert"' in html
+        assert 'id="prefs_name_error"' in html
 
     def test_overrides_win_over_inference(self, invalid):
         html = str(input(invalid.form.name, {"type": "password", "class": "mine"}))
-        assert 'type="password"' in html and 'class="mine"' in html
+        assert 'type="password"' in html and "mine" in html
+
+    def test_a_class_override_merges_rather_than_replacing(self, invalid):
+        html = str(input(invalid.form.name, {"class": "mine"}, TAILWIND))
+        assert "mine" in html
+        assert TAILWIND.control_invalid.split()[0] in html, (
+            "replacing would silently turn off the theme's error styling"
+        )
 
     def test_bare_control_has_no_wrapper(self, invalid):
         html = str(control(invalid.form.name))
@@ -68,6 +83,21 @@ class TestMarkupCorrectness:
         html = str(input(invalid.form.bio))
         assert 'aria-describedby="prefs_bio_help"' in html
         assert 'id="prefs_bio_help"' in html
+
+    def test_field_errors_are_not_assertive_live_regions(self, invalid):
+        # pyview re-validates per keystroke and patches the DOM; role="alert"
+        # here would re-announce on every patch and drown out the real one
+        html = str(input(invalid.form.name))
+        assert 'role="alert"' not in html
+
+    def test_describedby_lists_the_hint_before_the_error(self):
+        cs = Changeset(Prefs)
+        cs.submit({"prefs": {"bio": "", "address": {"city": ""}}})
+        cs.add_error("bio", "too dull")
+        f = cs.form.bio
+        assert f.describedby == f"{f.hint_id} {f.error_id}"
+        assert f'id="{f.hint_id}"' in str(input(f))
+        assert f'id="{f.error_id}"' in str(input(f))
 
     def test_checkbox_emits_the_hidden_false_input(self, invalid):
         html = str(input(invalid.form.subscribe))
@@ -117,3 +147,30 @@ class TestMiddleRung:
         html = str(render_form(invalid, {"only": ["name"]}))
         assert 'name="prefs[name]"' in html
         assert 'name="prefs[plan]"' not in html
+
+
+class TestErrorSummary:
+    def test_nothing_before_a_submit_is_attempted(self):
+        cs = Changeset(Prefs)
+        cs.validate({"prefs": {"name": "x"}, "_target": ["prefs", "name"]})
+        assert str(error_summary(cs)) == ""
+
+    def test_links_point_at_the_inputs(self, invalid):
+        html = str(error_summary(invalid))
+        assert 'href="#prefs_name"' in html
+        assert 'href="#prefs_address_city"' in html, "nested fields are linked too"
+
+    def test_summary_text_matches_the_inline_message(self, invalid):
+        summary = str(error_summary(invalid))
+        inline = str(errors(invalid.form.name))
+        # GOV.UK: the summary link and the field error must read identically,
+        # or the user cannot tell they refer to the same problem
+        assert "Name must be at least 3 characters." in summary
+        assert "Name must be at least 3 characters." in inline
+
+    def test_the_summary_is_the_one_thing_that_announces(self, invalid):
+        assert 'role="alert"' in str(error_summary(invalid))
+        assert 'role="alert"' not in str(input(invalid.form.name))
+
+    def test_it_is_focusable_so_it_can_be_moved_to(self, invalid):
+        assert 'tabindex="-1"' in str(error_summary(invalid))
