@@ -36,6 +36,7 @@ from .params import normalize_payload
 from .paths import Path, canon, get_in, unwrap
 from .schema import (
     FieldSpec,
+    check_aliases,
     clean_loc,
     field_specs,
     prepare,
@@ -61,7 +62,15 @@ M = TypeVar("M", bound=BaseModel)
 
 #: pydantic error types that mean "you have not filled this in yet" rather than
 #: "what you typed is wrong". Held back until submit so an untouched form is calm.
-_ABSENCE = frozenset({"missing", "missing_argument", "model_attributes_type"})
+_ABSENCE = frozenset(
+    {
+        "missing",
+        "missing_argument",
+        "model_attributes_type",
+        # "you have not picked a variant yet" for a blank discriminated sub-form
+        "union_tag_not_found",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -256,7 +265,7 @@ class Changeset(Generic[M]):
         except ValidationError as exc:
             self._value = None
             for err in exc.errors():
-                path = clean_loc(self.model, err["loc"])
+                path = clean_loc(self.model, err["loc"], self.params)
                 self._errors.setdefault(path, []).append(
                     FormError(msg=err["msg"], type=err["type"], ctx=dict(err.get("ctx") or {}))
                 )
@@ -635,6 +644,7 @@ def _check_model(model: type[BaseModel], seen: Optional[set[type]] = None) -> No
     if model in seen:
         return
     seen.add(model)
+    check_aliases(model)
 
     for name, info in model.model_fields.items():
         variants = union_variants(info.annotation)

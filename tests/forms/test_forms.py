@@ -372,3 +372,72 @@ class TestMessages:
     def test_unknown_error_types_fall_back_to_pydantics_message(self):
         err = FormError(msg="something specific went wrong", type="not_in_catalog")
         assert humanize(err, "Field") == "something specific went wrong"
+
+
+class TestStableRowKeys:
+    """Rows keep their rendered index; errors have to follow them there."""
+
+    def test_errors_follow_the_row_key_not_the_list_position(self):
+        cs = Changeset(Owner)
+        for name in ("Rex", "x", "Ace"):
+            cs.add_row("pets", {"name": name, "age": "3"})
+        cs.drop_row("pets", "0")
+        cs.reveal()
+
+        # rows are keyed 1 and 2 now; pydantic validates a compacted list and
+        # reports index 0, which is row 1 on the wire
+        assert list(cs.params["pets"]) == ["1", "2"]
+        assert ("pets", "1", "name") in cs.all_errors()
+
+        rows = dict(cs.form.pets.rows)
+        assert rows["1"].name.errors, "the bad row shows its error"
+        assert not rows["2"].name.errors, "and the good row does not"
+
+    def test_dropping_the_middle_row_keeps_the_rest_addressable(self):
+        cs = Changeset(Owner)
+        for name in ("Rex", "Ace", "y"):
+            cs.add_row("pets", {"name": name, "age": "3"})
+        cs.drop_row("pets", "1")
+        cs.reveal()
+
+        rows = dict(cs.form.pets.rows)
+        assert list(rows) == ["0", "2"]
+        assert rows["2"].name.name == "owner[pets][2][name]"
+        assert rows["2"].name.errors and not rows["0"].name.errors
+
+
+class TestBlankDiscriminator:
+    def test_an_unchosen_variant_does_not_shout_on_first_change(self):
+        cs = Changeset(Owner)
+        cs.validate({"owner": {"name": "Fern"}, "_target": ["owner", "name"]})
+
+        # "Unable to extract tag using discriminator" means "you have not picked
+        # yet", which is not something to turn the form red over
+        assert cs.form.contact.kind.errors == []
+        assert ("contact",) in cs.all_errors()
+
+
+class TestAliases:
+    def test_an_aliased_field_agrees_on_one_wire_name(self):
+        class Contact(BaseModel):
+            email_address: str = Field(alias="email", min_length=5)
+
+        cs = Changeset(Contact)
+        field = cs.form.email_address
+
+        # pydantic reports errors under the alias, so the input has to use it too
+        assert field.name == "contact[email]"
+        cs.submit({"contact": {"email": "a"}})
+        assert field.errors, "otherwise the error is filed under a name nothing renders"
+
+        cs.submit({"contact": {"email": "someone@example.com"}})
+        assert cs.value is not None and cs.value.email_address == "someone@example.com"
+
+    def test_multi_source_aliases_are_rejected_with_a_reason(self):
+        from pydantic import AliasChoices
+
+        class Weird(BaseModel):
+            token: str = Field(validation_alias=AliasChoices("token", "api_key"))
+
+        with pytest.raises(TypeError, match="one input per field"):
+            Changeset(Weird)

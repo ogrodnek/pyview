@@ -101,6 +101,19 @@ def sub_model(annotation: Any) -> Optional[type[BaseModel]]:
     return None
 
 
+def wire_name(name: str, info: FieldInfo) -> str:
+    """The name this field travels under: its alias if it has one.
+
+    pydantic reports error locations by *validation alias*, and validates by
+    alias unless the model opts into ``populate_by_name``. If the input were
+    named after the Python attribute instead, params, error locations and markup
+    would all disagree - so the alias wins everywhere on the wire, and the Python
+    attribute stays the way you look the field up in a template.
+    """
+    alias = info.validation_alias if isinstance(info.validation_alias, str) else None
+    return alias or (info.alias if isinstance(info.alias, str) else None) or name
+
+
 def _hint(info: FieldInfo) -> ui:
     for meta in info.metadata:
         if isinstance(meta, ui):
@@ -172,13 +185,14 @@ def field_specs(model: type[BaseModel]) -> dict[str, FieldSpec]:
 
     for name, info in model.model_fields.items():
         hint = _hint(info)
+        wire = wire_name(name, info)
         annotation, optional = unwrap_optional(info.annotation)
         required = info.is_required() and not optional
 
         variants = union_variants(info.annotation)
         if variants:
             specs[name] = FieldSpec(
-                name=name,
+                name=wire,
                 widget="union",
                 label=hint.label or _humanize(name),
                 required=required,
@@ -193,7 +207,7 @@ def field_specs(model: type[BaseModel]) -> dict[str, FieldSpec]:
 
         if nested is not None:
             specs[name] = FieldSpec(
-                name=name,
+                name=wire,
                 widget="fieldset",
                 label=hint.label or _humanize(name),
                 required=required,
@@ -227,7 +241,7 @@ def field_specs(model: type[BaseModel]) -> dict[str, FieldSpec]:
         attrs.update(hint.attrs or {})
 
         specs[name] = FieldSpec(
-            name=name,
+            name=wire,
             widget=widget,
             label=hint.label or _humanize(name),
             required=required,
@@ -265,18 +279,28 @@ def _discriminator_value(variant: type[BaseModel], tag: str) -> bool:
     return False
 
 
-def clean_loc(model: type[BaseModel], loc: tuple[Any, ...]) -> tuple[str, ...]:
+def clean_loc(
+    model: type[BaseModel], loc: tuple[Any, ...], params: Optional[Any] = None
+) -> tuple[str, ...]:
     """Translate a pydantic error location into a form path.
 
-    pydantic reports union errors with the variant spliced into the location:
-    a discriminated union yields ``("contact", "email", "address")`` and a plain
-    one yields ``("contact", "Email", "address")``. Neither matches the input's
-    name, which is ``owner[contact][address]``. Walking the location against the
-    model lets us drop exactly the segments that are variant tags and keep the
-    ones that are real fields or list indexes.
+    Two mismatches have to be repaired, and both fail silently if they are not.
+
+    **Union tags.** pydantic splices the variant into the location: a discriminated
+    union yields ``("contact", "email", "address")`` and a plain one yields
+    ``("contact", "Email", "address")``. Neither matches the input's name, which is
+    ``owner[contact][address]``.
+
+    **List indexes.** Rows are keyed by a stable index on the wire
+    (``pets[1]``, ``pets[2]``), and :func:`prepare` compacts them into a list before
+    validation - so pydantic reports ``("pets", 0, "name")`` for what the DOM calls
+    ``pets[1]``. Walking ``params`` alongside the model recovers the original key.
+    Without this, deleting any row but the last files every subsequent error against
+    the wrong input, and it renders nowhere at all.
     """
     out: list[str] = []
     current: Any = model
+    raw: Any = params
 
     for segment in loc:
         key = str(segment)
@@ -288,13 +312,15 @@ def clean_loc(model: type[BaseModel], loc: tuple[Any, ...]) -> tuple[str, ...]:
                 None,
             )
             if chosen is not None:
-                current = chosen  # the tag addresses a variant, not a field: drop it
+                # the tag addresses a variant, not a level: keep `raw` where it is
+                current = chosen
                 continue
 
         if is_model(current):
-            info = current.model_fields.get(key)
+            info = _field_by_wire_name(current, key)
             if info is not None:
                 current = info.annotation
+                raw = raw.get(key) if isinstance(raw, dict) else None
                 out.append(key)
                 continue
 
@@ -302,14 +328,36 @@ def clean_loc(model: type[BaseModel], loc: tuple[Any, ...]) -> tuple[str, ...]:
         if get_origin(inner) in (list, tuple, set):
             args = get_args(inner)
             current = args[0] if args else None
-            out.append(key)
+            actual, raw = _row_key(raw, key)
+            out.append(actual)
             continue
 
         # unrecognised - keep it so the error is at least addressable
         current = None
+        raw = None
         out.append(key)
 
     return tuple(out)
+
+
+def _field_by_wire_name(model: type[BaseModel], key: str) -> Optional[FieldInfo]:
+    for name, info in model.model_fields.items():
+        if wire_name(name, info) == key:
+            return info
+    return None
+
+
+def _row_key(raw: Any, position: str) -> tuple[str, Any]:
+    """Map a positional list index back to the key the row is rendered under."""
+    if isinstance(raw, dict):
+        keys = sorted((k for k in raw if str(k).isdigit()), key=int)
+        if position.isdigit() and int(position) < len(keys):
+            actual = keys[int(position)]
+            return actual, raw.get(actual)
+        return position, None
+    if isinstance(raw, list) and position.isdigit() and int(position) < len(raw):
+        return position, raw[int(position)]
+    return position, None
 
 
 # ---------------------------------------------------------------------------
@@ -346,6 +394,34 @@ def _pick_variant(
     return None
 
 
+def check_aliases(model: type[BaseModel], seen: Optional[set[type]] = None) -> None:
+    """Reject alias forms that do not reduce to one wire name.
+
+    ``AliasChoices``/``AliasPath`` let a field be populated from several places.
+    A form has exactly one input per field, so there is no single name to render,
+    and silently picking one would mis-key every error on that field.
+    """
+    seen = seen or set()
+    if model in seen:
+        return
+    seen.add(model)
+
+    for name, info in model.model_fields.items():
+        for kind, alias in (("validation_alias", info.validation_alias), ("alias", info.alias)):
+            if alias is not None and not isinstance(alias, str):
+                raise TypeError(
+                    f"{model.__name__}.{name} uses a non-string {kind} "
+                    f"({type(alias).__name__}). A form renders one input per field, "
+                    f"so it needs a single name to put in the markup. Use a plain "
+                    f'string alias, e.g. Field(alias="{name}").'
+                )
+        nested = sub_model(info.annotation)
+        if nested is not None:
+            check_aliases(nested, seen)
+        for variant in union_variants(info.annotation) or []:
+            check_aliases(variant, seen)
+
+
 def prepare(model: type[BaseModel], data: Any) -> Any:
     """Turn a raw params tree into something pydantic can validate.
 
@@ -369,6 +445,7 @@ def prepare(model: type[BaseModel], data: Any) -> Any:
     out: dict[str, Any] = {}
 
     for name, info in model.model_fields.items():
+        name = wire_name(name, info)
         annotation = info.annotation
         raw = data.get(name)
         nested = sub_model(annotation)
