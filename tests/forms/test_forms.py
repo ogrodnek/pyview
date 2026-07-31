@@ -2,7 +2,7 @@ from datetime import date
 from typing import Annotated, Literal, Optional, Union
 
 import pytest
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AliasChoices, BaseModel, Field, model_validator
 
 from pyview.forms import DEFAULT_MESSAGES, Changeset, humanize, set_messages, ui
 from pyview.forms.form import FormError
@@ -434,8 +434,6 @@ class TestAliases:
         assert cs.value is not None and cs.value.email_address == "someone@example.com"
 
     def test_multi_source_aliases_are_rejected_with_a_reason(self):
-        from pydantic import AliasChoices
-
         class Weird(BaseModel):
             token: str = Field(validation_alias=AliasChoices("token", "api_key"))
 

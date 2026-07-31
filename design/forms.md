@@ -609,8 +609,16 @@ The demo at `/forms` was driven with Playwright:
 - flipping the contact select swaps the sub-form's fields
 - add/remove rows preserve everything typed, and survivors keep their indexes
 - an invalid nested list row shows its error on that row's input, with the bad
-  value still in the box
+  value still in the box — including after deleting an earlier row, which is the
+  case that was broken
 - submit reveals every error at once, humanised
+- the server-rendered HTML and the connected DOM are byte-identical on load, which
+  is the check that would have caught the statics/dynamics bug in §1
+
+Some of it only shows up in a browser. `type="number"` inferred from `age: int`
+means Chromium physically refuses to accept `"abc"` — the inference is doing
+client-side validation for free. And the two `novalidate` findings in §2.7 are
+invisible to a test suite: the symptom is a button that does nothing at all.
 
 ---
 
