@@ -230,8 +230,9 @@ window.Hooks.CollabEditor = {
     // prefix of any batch we've already incorporated.
     const skip = synced - from_version;
     if (skip < 0) {
-      // A gap means we somehow missed a broadcast
+      // A gap means we somehow missed a broadcast; reload to re-init from server.
       console.warn(`collab: update gap (synced ${synced}, got ${from_version})`);
+      this.resync();
       return;
     }
     if (skip >= updates.length) return;
