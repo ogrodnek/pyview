@@ -20,4 +20,4 @@ COPY --from=build /app /app
 
 WORKDIR /app/examples
 
-CMD [ "uvicorn", "--host",  "0.0.0.0", "examples.app:app" ]
+CMD [ "uvicorn", "--host", "0.0.0.0", "--ws", "wsproto", "--ws-max-size", "262144", "examples.app:app" ]
