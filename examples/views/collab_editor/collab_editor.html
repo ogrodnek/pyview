@@ -1,0 +1,79 @@
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">📝 Collaborative Editor</h1>
+            {% if current_user %}
+            <p class="text-gray-600">
+                You are editing as
+                <span class="font-semibold" style="color: {{current_user.color}};">{{current_user.name}}</span>
+            </p>
+            {% endif %}
+        </div>
+
+        {% if status == "available" %}
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                    <p class="text-sm font-medium text-blue-900">Temporary, unlisted document</p>
+                    <p class="text-sm text-blue-700 mt-1">
+                        Anyone with this link can edit. It is deleted after one hour,
+                        or 15 minutes after everyone leaves.
+                    </p>
+                </div>
+                <a href="{{room_url}}"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="inline-flex shrink-0 items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                    Open collaborator window
+                </a>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center">
+                <div class="flex -space-x-2 mr-3">
+                    {% for editor in editors %}
+                    <div class="w-8 h-8 rounded-full ring-2 ring-white flex items-center justify-center text-white text-xs font-bold"
+                         style="background-color: {{editor.user.color}};"
+                         title="{{editor.user.name}}">
+                        {{editor.user.name|slice(0, 1)}}
+                    </div>
+                    {% endfor %}
+                </div>
+                <span class="text-sm text-gray-500">{{editors|len}} editing</span>
+            </div>
+            <div class="text-xs text-gray-400 font-mono">
+                v{{version}} &middot; {{doc_bytes}} / {{max_doc_bytes}} bytes
+            </div>
+        </div>
+
+        <p id="collab-editor-notice"
+           class="hidden mb-3 rounded-md border px-3 py-2 text-sm"
+           role="status"
+           aria-live="polite"></p>
+
+        <div id="collab-editor-wrap" phx-update="ignore">
+            <div id="collab-editor"
+                 phx-hook="CollabEditor"
+                 class="border border-gray-300 rounded-lg overflow-hidden">
+            </div>
+        </div>
+        {% else %}
+        {% if status == "creating" %}
+        <div class="rounded-lg border border-blue-200 bg-blue-50 p-6 text-center">
+            <h2 class="text-lg font-semibold text-blue-900">Creating a temporary document…</h2>
+            <p class="mt-2 text-sm text-blue-800">You’ll be redirected to its unlisted link.</p>
+        </div>
+        {% else %}
+        <div class="rounded-lg border border-amber-200 bg-amber-50 p-6 text-center">
+            <h2 class="text-lg font-semibold text-amber-900">{{unavailable_title}}</h2>
+            <p class="mt-2 text-sm text-amber-800">{{unavailable_message}}</p>
+            <a href="/collab_editor"
+               class="mt-5 inline-flex items-center justify-center rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800">
+                Create a new document
+            </a>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+</div>

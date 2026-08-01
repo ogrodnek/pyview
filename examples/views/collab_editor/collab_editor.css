@@ -1,0 +1,44 @@
+#collab-editor .cm-editor {
+    font-size: 14px;
+    min-height: 24rem;
+}
+
+#collab-editor .cm-editor.cm-focused {
+    outline: none;
+}
+
+#collab-editor .cm-scroller {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    line-height: 1.6;
+}
+
+/* Remote selections: translucent tint in the peer's avatar color
+   (color is applied inline as an 8-digit hex). */
+.remote-selection {
+    border-radius: 2px;
+}
+
+/* Remote carets: a zero-width span with a colored left border, plus a
+   name flag floating above. */
+.remote-caret {
+    position: relative;
+    border-left: 2px solid;
+    margin-left: -1px;
+    display: inline;
+}
+
+.remote-caret-label {
+    position: absolute;
+    top: -1.35em;
+    left: -2px;
+    padding: 0 5px;
+    border-radius: 3px 3px 3px 0;
+    font-size: 0.65rem;
+    font-family: Inter, system-ui, sans-serif;
+    font-weight: 600;
+    color: white;
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: none;
+    z-index: 10;
+}
