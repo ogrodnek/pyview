@@ -175,6 +175,13 @@ class CollabRoom:
             return True
         return self.empty_since is not None and now - self.empty_since >= empty_lifetime
 
+    def join(self, editor: Editor) -> bool:
+        if len(self.editors) >= MAX_COLLABORATORS:
+            return False
+        self.editors[editor.client_id] = editor
+        self.empty_since = None
+        return True
+
     def clear(self) -> None:
         self.authority.clear()
         self.editors.clear()
@@ -224,14 +231,6 @@ class RoomStore:
         if room.is_expired(self.clock(), self.room_lifetime, self.empty_lifetime):
             self._delete(room_id)
             return None
-        return room
-
-    def join(self, room_id: str, editor: Editor) -> Optional[CollabRoom]:
-        room = self.get(room_id)
-        if room is None or len(room.editors) >= MAX_COLLABORATORS:
-            return None
-        room.editors[editor.client_id] = editor
-        room.empty_since = None
         return room
 
     def leave(self, room_id: str, client_id: str) -> Optional[CollabRoom]:

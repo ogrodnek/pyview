@@ -61,8 +61,15 @@ class CollabEditorContext:
         self.version = room.authority.version
         self.doc_bytes = utf8_len(room.authority.doc)
 
-    def set_unavailable(self) -> None:
+    def set_unavailable(
+        self,
+        *,
+        title: str = "Document unavailable",
+        message: str = "This temporary document does not exist or has expired.",
+    ) -> None:
         self.status = "unavailable"
+        self.unavailable_title = title
+        self.unavailable_message = message
         self.editors = []
         self.version = 0
         self.doc_bytes = 0
@@ -93,9 +100,10 @@ class CollabEditorLiveView(LiveView[CollabEditorContext]):
                 try:
                     room = ROOMS.create()
                 except RoomCapacityReached:
-                    ctx.status = "unavailable"
-                    ctx.unavailable_title = "Editor is at capacity"
-                    ctx.unavailable_message = "Please try creating a document again shortly."
+                    ctx.set_unavailable(
+                        title="Editor is at capacity",
+                        message="Please try creating a document again shortly.",
+                    )
                     return
                 ctx.room_id = room.room_id
                 await socket.replace_navigate(f"/collab_editor/{room.room_id}")
@@ -110,16 +118,13 @@ class CollabEditorLiveView(LiveView[CollabEditorContext]):
 
         if is_connected(socket) and not ctx.client_id:
             editor = Editor(client_id=uuid.uuid4().hex[:12], user=Avatar.generate())
-            joined_room = ROOMS.join(document_id, editor)
-            if joined_room is None:
-                ctx.status = "unavailable"
-                ctx.unavailable_title = "Document is full"
-                ctx.unavailable_message = (
-                    f"This document already has {MAX_COLLABORATORS} collaborators."
+            if not room.join(editor):
+                ctx.set_unavailable(
+                    title="Document is full",
+                    message=f"This document already has {MAX_COLLABORATORS} collaborators.",
                 )
                 return
 
-            room = joined_room
             ctx.client_id = editor.client_id
             ctx.current_user = editor.user
             socket.live_title = f"{editor.user.name} · Collab Editor"
