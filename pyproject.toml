@@ -5,7 +5,7 @@ description = "LiveView in Python"
 authors = [{ name = "Larry Ogrodnek", email = "ogrodnek@gmail.com" }]
 license = { text = "MIT" }
 readme = "readme.md"
-requires-python = ">=3.11,<3.15"
+requires-python = ">=3.11"
 keywords = ["web", "api", "LiveView"]
 
 classifiers = [

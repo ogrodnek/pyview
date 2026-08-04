@@ -4,7 +4,7 @@ version = "0.1.0"
 description = ""
 authors = [{ name = "Larry Ogrodnek", email = "ogrodnek@gmail.com" }]
 readme = "README.md"
-requires-python = ">=3.11,<3.15"
+requires-python = ">=3.11"
 
 dependencies = [
     "pyview-web",
