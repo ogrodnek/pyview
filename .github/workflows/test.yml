@@ -11,9 +11,13 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # 3.15 is still a prerelease; report failures without gating PRs.
+    # Drop this (and the allow-prereleases input below) once 3.15 is GA.
+    continue-on-error: ${{ matrix.python-version == '3.15' }}
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
     steps:
       - name: Check out repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
@@ -24,6 +28,9 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: ${{ matrix.python-version }}
+          # Matches prereleases only when no GA release exists, so "3.15"
+          # tracks rc builds now and switches to 3.15.0 automatically at GA.
+          allow-prereleases: true
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
