@@ -8,6 +8,7 @@ event routing, and state persistence.
 from typing import TypedDict
 from unittest.mock import AsyncMock, MagicMock
 
+from pyview import Depends
 from pyview.components.base import ComponentSocket, LiveComponent
 from pyview.components.manager import ComponentsManager
 from pyview.meta import PyViewMeta
@@ -187,6 +188,59 @@ class TestComponentsManagerLifecycle:
 
         # Mount should still be 1, update was called instead
         assert mount_count == 1
+
+
+class TestComponentsManagerDepends:
+    """Tests for Depends() integration in component lifecycle."""
+
+    async def test_depends_resolves_in_component_lifecycle(self):
+        """Verify Depends() resolves in mount/update/handle_event for components."""
+
+        async def get_greeting(assigns):
+            return f"hi {assigns['name']}"
+
+        async def get_update_note(assigns):
+            return assigns["note"]
+
+        async def get_delta(payload):
+            return payload.get("delta", 1)
+
+        class DependsComponent(LiveComponent[dict]):
+            async def mount(self, socket, assigns, greeting=Depends(get_greeting)):
+                socket.context = {"greeting": greeting, "updates": [], "count": 0}
+
+            async def update(self, socket, assigns, note=Depends(get_update_note)):
+                socket.context["updates"].append(note)
+
+            async def handle_event(self, event, payload, socket, delta=Depends(get_delta)):
+                if event == "add":
+                    socket.context["count"] += delta
+
+            def template(self, assigns, meta):
+                return ""
+
+        parent = MockParentSocket()
+        manager = ComponentsManager(parent)
+
+        cid = manager.register(DependsComponent, "dep-1", {"name": "Alice", "note": "init"})
+        await manager.run_pending_lifecycle()
+
+        context = manager.get_context(cid)
+        assert context["greeting"] == "hi Alice"
+        assert context["updates"] == ["init"]
+        assert context["count"] == 0
+
+        # Update with new assigns (triggers update lifecycle again)
+        manager.register(DependsComponent, "dep-1", {"name": "Alice", "note": "changed"})
+        await manager.run_pending_lifecycle()
+        assert manager.get_context(cid)["updates"] == ["init", "changed"]
+
+        # Event handling with Depends-injected payload
+        await manager.handle_event(cid, "add", {"delta": 3})
+        assert manager.get_context(cid)["count"] == 3
+
+        await manager.handle_event(cid, "add", {})
+        assert manager.get_context(cid)["count"] == 4
 
 
 class TestComponentsManagerEventHandling:
