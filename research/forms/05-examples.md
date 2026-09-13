@@ -1,43 +1,44 @@
 # Part 5 — Worked examples against the proposed API
 
-These are the examples the design must make easy. They use the API from Part 4; the data/validation halves run today in the spike (Part 7), the rendering helpers are specified but not yet built.
+These are the examples the design must make easy. The data/validation halves run in the spike (Part 7); the rendering helpers are specified in Part 4 and every Ibis line uses only syntax that parses after the phase-2 `splitc` patch (dict and list literals as filter arguments, plus the `{% input %}` tag).
 
-## 5.1 Edit an existing record (initial values, save, reset)
+## 5.1 Edit an existing record (initial values, partial template, save, reset)
 
 ```python
 class Plant(BaseModel):
-    name: str = Field(min_length=3, max_length=20)
+    name: str = Field(min_length=3, max_length=20, title="Plant name")
     watering_schedule_days: int = Field(ge=1, le=30, title="Watering schedule (days)")
+    note: str | None = None
     last_watered: datetime = Field(default_factory=datetime.now)
 
 class PlantEditView(BaseEventHandler, LiveView):
     async def handle_params(self, socket, plant_id: str):
         plant = await plants.get(plant_id)
-        socket.context = {"plant": plant, "form": Form(Plant, data=plant, as_="plant")}
+        socket.context = {"plant": plant, "form": Form(Plant, data=plant)}
 
     @event("validate")
-    async def validate(self, socket, payload: dict):
-        socket.context["form"].validate(payload)
+    async def validate(self, socket, params: Params):
+        socket.context["form"].validate(params)
 
     @event("save")
-    async def save(self, socket, payload: dict):
-        form = socket.context["form"].submit(payload)
+    async def save(self, socket, params: Params):
+        form = socket.context["form"].submit(params)
         if form.valid:
             await plants.update(socket.context["plant"].id, form.model)
             socket.put_flash("info", "Saved")
-            socket.context["form"] = Form(Plant, data=form.model, as_="plant")   # reset to the saved state
+            socket.context["form"] = Form(Plant, data=form.model)     # reset to the saved state
 ```
 
 ```html
-<form id="plant-form" phx-change="validate" phx-submit="save">
-  {{ form.name | field }}
-  {{ form.watering_schedule_days | field }}
-  {{ form.last_watered | field }}
+<form id="plant" phx-change="validate" phx-submit="save" phx-auto-recover="validate">
+  {{ form.name | form_field }}
+  {{ form.watering_schedule_days | form_field }}
+  {{ form.note | form_field }}
   <button type="submit" phx-disable-with="Saving…">Save</button>
 </form>
 ```
 
-What the user sees: initial values from the instance; `type="number" min="1" max="30" step="1" required` on the schedule input; `type="datetime-local"` with the ISO value; errors only after leaving a field or submitting.
+`last_watered` is not rendered, so it is absent from every payload and keeps its initial value (Ecto cast semantics, verified). Clearing `note` submits `""` and yields `None` — a real change. The schedule input renders `type="number" min="1" max="30" step="1" required`.
 
 ## 5.2 Addresses: add, remove, reorder (list of models)
 
@@ -48,33 +49,31 @@ class Address(BaseModel):
     primary: bool = False
 
 class Profile(BaseModel):
-    name: str
+    name: str = Field(min_length=3)
     addresses: list[Address] = Field(min_length=1, max_length=5)
 ```
 
 ```html
-<form phx-change="validate" phx-submit="save">
-  {{ form.name | field }}
+<form id="profile" phx-change="validate" phx-submit="save">
+  {{ form.name | form_field }}
   <fieldset>
     <legend>Addresses</legend>
     {% for row in form.addresses %}
-      <div id="{{ row.id }}" class="row">
-        {{ row | key_input }}                       {# hidden profile[addresses][0][_key] #}
-        {{ row.street | field }} {{ row.city | field }} {{ row.primary | field }}
-        {{ row | intent_button("move:up", "↑") }} {{ row | intent_button("move:down", "↓") }}
-        {{ row | intent_button("remove", "Remove") }}
-      </div>
+      {{ row | form_row_start }}                    {# <fieldset id="profile_addresses_k7f3"> + hidden _key + legend "Address 1" #}
+        {{ row.street | form_field }} {{ row.city | form_field }} {{ row.primary | form_field }}
+        {{ row | form_intent("move:up", "↑") }} {{ row | form_intent("move:down", "↓") }} {{ row | form_intent("remove", "Remove") }}
+      {{ row | form_row_end }}
     {% endfor %}
-    {{ form.addresses | errors }}                  {# "Add at least 1 address" / "At most 5" #}
-    {{ form.addresses | intent_button("add", "Add address") }}
+    {{ form.addresses | form_errors }}              {# "Add at least 1 item to Addresses" / "Addresses can have at most 5 items" #}
+    {{ form.addresses | form_intent("add", "Add address") }}
   </fieldset>
   <button type="submit">Save</button>
 </form>
 ```
 
-or, at level 0, `{{ form.addresses | field }}` renders exactly that fieldset. The handlers are the same two methods as in 5.1: intents arrive as ordinary `validate` events (`profile[addresses][_intent]=remove:k2` is the submitter pair the client injects), and `Form.validate()` applies them before validating. Row DOM ids are `profile_addresses_k2`, so removing the first row does not re-id the others; names are renumbered (`profile[addresses][0][street]`) which the client tolerates because it never value-patches the focused input.
+or, at level 0, `{{ form.addresses | form_field }}` renders that whole fieldset. The handlers are the same two methods as in 5.1: intents arrive inside ordinary `validate` events (`profile[addresses][_intent]=remove:k7f3` is the submitter pair the client injects when the named button dispatches `change`), `Params.decode` turns them into `params.intents`, and `Form.validate()` applies them before validating and records them in `form.applied_intents`. Row DOM ids use the key (`profile_addresses_k7f3`), so removing the first row does not re-id the others; names are renumbered (`profile[addresses][0][street]`), which the client tolerates because it never value-patches the focused input. A freshly added row shows no errors until the user types in it (verified).
 
-## 5.3 Personal or business account (discriminated union)
+## 5.3 Personal or business account (discriminated union, variant-named inputs)
 
 ```python
 class Personal(BaseModel):
@@ -92,86 +91,85 @@ class Signup(BaseModel):
 ```
 
 ```html
-{{ form.email | field }}
-{{ form.account.kind | field({"widget": "radio", "labels": {"personal": "Personal", "business": "Business"}}) }}
-{% if form.account.kind.value == "business" %}
-  {{ form.account.company | field }} {{ form.account.vat_id | field }}
+{{ form.email | form_field }}
+{% input form.account.kind widget="radio" %}              {# name="signup[account][kind]", options from the union tags #}
+{% if form.account.kind.typed == "business" %}
+  {{ form.account.business.company | form_field }}       {# name="signup[account][business][company]" #}
+  {{ form.account.business.vat_id | form_field }}
 {% else %}
-  {{ form.account.nickname | field }}
+  {{ form.account.personal.nickname | form_field }}
 {% endif %}
 ```
 
-`{{ form.account | field }}` does the branching itself. Changing the radio is a normal `phx-change`; the server re-renders the other branch; values typed into the previous branch come back if the user switches again (shelf). Errors inside a variant (`('account', 'business', 'company')` in pydantic) show on `form.account.company`.
+`{{ form.account | form_field }}` does the branching itself. Changing the radio is a normal `phx-change`; the payload still contains the old variant's inputs (they are in the DOM at that moment), but they arrive under their own tag, so nothing is polluted and switching back restores what was typed (verified with that ordering). Variant errors map 1:1: pydantic's `('account', 'business', 'company')` *is* the input name.
 
 ## 5.4 Country → state (dependent select)
 
 ```python
 class Shipping(BaseModel):
-    country: Annotated[str, Input(options=COUNTRIES)]
-    state: Annotated[str, Input(options=lambda form: STATES.get(form.country.value, []))]
+    country: Annotated[str, Input(options=COUNTRIES, autocomplete="country")]
+    state: Annotated[str, Input(options=lambda form: STATES.get(form.country.typed, []))]
 ```
 
 ```python
 @event("validate")
-async def validate(self, socket, payload: dict):
-    form = socket.context["form"].validate(payload)
-    if form.target == ("country",):                # the _target path of this change
-        form.set("state", "")                      # clear the dependent value
+async def validate(self, socket, params: Params):
+    form = socket.context["form"].validate(params)
+    if form.target == ("country",):
+        form.params["state"] = ""                    # clear the stale dependent value
 ```
 
-The `options` callable is evaluated at render time with the current form, so the state list follows the country; the handler only resets the stale selection.
+The `options` callable runs at render time with the current form; `form.target` is the decoded `_target` path (`None` on submit).
 
-## 5.5 Three-step wizard on one model
+## 5.5 Three-step wizard — one model per step (recommended), or one model with step gating
 
 ```python
-class Onboarding(BaseModel):
-    # step 1
-    name: str = Field(min_length=2)
-    email: EmailStr
-    # step 2
+class Step1(BaseModel):
+    name: str = Field(min_length=2); email: EmailStr
+class Step2(BaseModel):
     addresses: list[Address] = Field(min_length=1)
-    # step 3
-    plan: Literal["free", "pro"] = "free"
-    accept_terms: bool
+class Step3(BaseModel):
+    plan: Literal["free", "pro"] = "free"; accept_terms: bool
+class Onboarding(Step1, Step2, Step3): ...
 
-STEPS = [["name", "email"], ["addresses"], ["plan", "accept_terms"]]
+STEPS = [Step1, Step2, Step3]
 
 class OnboardingView(BaseEventHandler, LiveView):
     async def mount(self, socket, session):
-        socket.context = {"form": Form(Onboarding, as_="onboarding"), "step": 0}
+        socket.context = {"step": 0, "done": {}, "form": Form(Step1, as_="onboarding")}
 
     @event("validate")
-    async def validate(self, socket, payload: dict):
-        socket.context["form"].validate(payload)
+    async def validate(self, socket, params: Params):
+        socket.context["form"].validate(params)
 
     @event("next")
-    async def next(self, socket, payload: dict):
+    async def next(self, socket, params: Params):
         ctx = socket.context
-        step = ctx["form"].submit(payload).step(STEPS[ctx["step"]])   # gate errors to this step's paths
-        if step.valid:
+        form = ctx["form"].submit(params)
+        if form.valid:
+            ctx["done"].update(form.model.model_dump())
             ctx["step"] += 1
+            if ctx["step"] < len(STEPS):
+                ctx["form"] = Form(STEPS[ctx["step"]], as_="onboarding")
+            else:
+                await onboard(Onboarding(**ctx["done"]))
 
     @event("back")
     async def back(self, socket):
-        socket.context["step"] -= 1
-
-    @event("finish")
-    async def finish(self, socket, payload: dict):
-        form = socket.context["form"].submit(payload)
-        if form.valid:
-            await onboard(form.model)
+        ctx = socket.context
+        ctx["step"] -= 1
+        ctx["form"] = Form(STEPS[ctx["step"]], data=STEPS[ctx["step"]].model_validate(ctx["done"]), as_="onboarding")
 ```
 
 ```html
-<form phx-change="validate" phx-submit="{% if step == 2 %}finish{% else %}next{% endif %}">
-  {{ form | render(steps[step]) }}
-  {% for name in form.hidden_fields(exclude=steps[step]) %}{{ name | hidden_input }}{% endfor %}
+<form id="onboarding" phx-change="validate" phx-submit="next">
+  {{ form | render_form }}
   {% if step > 0 %}<button type="button" phx-click="back">Back</button>{% endif %}
   <button type="submit">{% if step == 2 %}Finish{% else %}Next{% endif %}</button>
 </form>
 ```
 
-Whole-model validation runs every time; `form.step(paths)` only changes what is *visible* and what "valid" means for the Next button. Values from other steps are carried as hidden inputs (or kept server-side with `Form(..., merge_params=True)`), so Back never loses data and recovery after a reconnect restores the whole form.
+No new API: each step is an ordinary form; Back re-creates the previous step's form from the saved data. The single-model alternative (`form.step(paths)` + `{{ form | form_hidden(exclude=paths) }}`) is specified in 4.8 for wizards where every step shares one model.
 
 ## 5.6 Bring your own HTML (level 3) with a Tailwind theme (level 4)
 
@@ -186,42 +184,50 @@ forms.configure(theme=TAILWIND)
 ```html
 <div class="grid grid-cols-2 gap-4">
   <div>
-    <label for="{{ form.name.id }}" class="label">Name</label>
-    <input name="{{ form.name.name }}" id="{{ form.name.id }}" value="{{ form.name.value }}"
-           {{ form.name.attrs }} phx-debounce="blur" class="input {% if form.name.errors %}input-error{% endif %}">
-    {{ form.name | errors }}
+    <label for="{{ form.name.html.id }}" class="label">{{ form.name.html.label }}</label>
+    <input name="{{ form.name.html.name }}" id="{{ form.name.html.id }}" value="{{ form.name.html.value }}"
+           {{ form.name.html.attrs }} class="input {% if form.name.html.errors %}input-error{% endif %}">
+    {{ form.name | form_errors }}
   </div>
-  {{ form.email | field }}     {# mixing levels in one form is fine #}
+  {{ form.email | form_field }}     {# mixing levels in one form is fine #}
 </div>
 ```
 
-`form.name.attrs` renders `required minlength="2" maxlength="40" aria-describedby="profile_name-hint profile_name-error" aria-invalid="true"` (the aria parts only when there is a hint / a visible error).
+`form.name.html.attrs` renders `required minlength="2" maxlength="40" phx-debounce="blur" aria-describedby="profile_name-hint profile_name-error" aria-invalid="true"` (the aria parts only when a hint / a visible error exists, verified).
 
-## 5.7 Custom widget and server-side uniqueness check
+## 5.7 Custom widget and a server-side uniqueness check
 
 ```python
 def color_picker(field: Field, theme: Theme, **attrs) -> Markup:
-    return Markup(f'<input type="color" name="{field.name}" id="{field.id}" value="{field.value or "#000000"}" {field.attrs}>')
+    h = field.html
+    return Markup(f'<input type="color" name="{h.name}" id="{h.id}" value="{h.value or "#000000"}" {h.attrs}>')
 
-async def unique_email(model: Signup, form: Form) -> list[FormError]:
-    if await users.exists(email=model.email):
-        return [FormError(("email",), "unique", {}, "That email is already registered")]
-    return []
+forms.configure(widgets={"color": color_picker})
 
-Form(Signup, widgets={"color": color_picker}, checks=[unique_email])
+class Settings(BaseModel):
+    accent: Annotated[str, Input(widget="color")] = "#336699"
+
+@event("save")
+async def save(self, socket, params: Params):
+    form = socket.context["form"].submit(params)
+    if form.valid and await users.exists(email=form.model.email):
+        form.add_error("email", "unique", "That email is already registered")   # shown until the next submit
+    if form.valid:
+        ...
 ```
-
-The check runs on submit after pydantic passes; the error is displayed on `email` and survives re-validation until the email changes.
 
 ## 5.8 Testing without a socket
 
 ```python
 def test_signup_business_requires_company():
-    form = Form(Signup, as_="signup").submit({"signup": {"email": "a@b.co", "account": {"kind": "business", "company": ""}}})
+    form = Form(Signup).submit("signup%5Bemail%5D=a%40b.co&signup%5Baccount%5D%5Bkind%5D=business&signup%5Baccount%5D%5Bbusiness%5D%5Bcompany%5D=")
     assert not form.valid
-    assert form["account"]["company"].errors == ["This field is required"]
+    assert form.account.business.company.html.errors == ["Company name is required"]
 
 def test_add_address_intent():
-    form = Form(Profile, as_="profile").validate(encode({"profile": {"name": "L", "addresses": [{}]}}, intent="profile[addresses][_intent]=add"))
-    assert len(form.rows("addresses")) == 2
+    form = Form(Profile)
+    form.validate(wire(form, {"name": "Larry"}, target="profile[addresses][_intent]", submitter=("profile[addresses][_intent]", "add")))
+    assert len(list(form.addresses)) == 1 and form.applied_intents[0].op == "add"
 ```
+
+`submit()`/`validate()` accept the raw wire string, a `parse_qs` dict, pairs, or a `Params`; `wire()` produces what the client would send for the currently rendered inputs.

@@ -1,76 +1,76 @@
 # Part 4 — Proposed design: `pyview.forms`
 
-This part turns the research into a concrete proposal. It is opinionated on purpose; every choice names the library it was taken from and the alternative that was rejected. Everything marked **(verified)** was exercised against pydantic 2.13 / the Phoenix 0.20.17 client source in the prototype spike (see Part 7).
+This part turns the research into a concrete proposal. It is opinionated on purpose; every choice names the library it was taken from and the alternative that was rejected. Everything marked **(verified)** runs in the spike (`prototype/pyview_forms_proto3.py` + `test_proto3.py`, Part 7) against pydantic 2.13 and the payload shapes the 0.20.17 client produces. This is the second revision: an independent counter-design and an adversarial critique (Part 8) changed the wire contract, the merge semantics, the union naming, the template contract and the Ibis syntax.
 
 ## 4.0 Design principles
 
-1. **The pydantic model is the schema.** Names, types, defaults, constraints, nesting, lists and unions all come from the model. No parallel form class (Django/WTForms) unless the user wants one. *(Django ModelForm, simple_form, AshPhoenix auto forms, superforms constraints.)*
-2. **One object to pass around.** A `Form` holds raw params, typed data, errors, "used" state and an action; a `Field` is a computed view onto it (`name`, `id`, `value`, `errors`, `attrs`). Templates and widgets only ever touch `Field`. *(Phoenix `FormField`, Conform metadata.)*
-3. **Params in, model out, errors as data.** Whole-model validation on every change (it costs ~20 µs); errors are `(path, code, params, message)` records addressed by the same paths as input names. *(Ecto `{msg, opts}`, pydantic `loc`/`type`/`ctx`, Standard Schema issues.)*
-4. **Show errors only for inputs the user has used, or after a submit.** Two orthogonal gates: `used` paths (from `_target`) and `action` (`None` → `"validate"` → `"submit"`). *(Phoenix `action` + `used_input?`, Conform `touchedFields`, RHF `onTouched`, GOV.UK/Baymard timing research.)*
-5. **Attempted values always survive.** Re-render from raw params, never from the model. *(Ecto `params`, ASP.NET `ModelState.AttemptedValue`, Conform `initialValue`.)*
-6. **Rendering is layered and every layer is optional**: auto-render → per-field helpers → attribute helpers → hand-written HTML with `name=` only. *(Conform's "helpers are optional", Phoenix escape hatches, RJSF templates.)*
-7. **Widgets are functions, themes are class maps.** No CSS in the library; a theme is a dict of class strings; markup is overridable per widget. *(FormKit `rootClasses`/sections, simple_form wrappers, Phoenix "generate the component into the app".)*
-8. **Lists and conditionals are protocol, not user code.** Add/remove/reorder rows and switching union variants are handled by the form object through generated markup; users never write index arithmetic or management forms. *(Ecto `sort_param`/`drop_param` + LiveView `inputs_for`, Conform intents, AshPhoenix `add_form`.)*
-9. **Server state is the truth, the client is Phoenix's.** We keep the accumulated params on the socket, decode the client's bracket names exactly like `Plug.Conn.Query`, and use only client features that exist in 0.20.17 (`_target`, submitter buttons, `JS.dispatch`, `phx-debounce`, `phx-feedback-for`), with a clear upgrade path to the 1.x `_unused_` protocol.
-10. **Testable without a socket.** `Form(Model).submit({...})` in a unit test, no websocket, no template.
-11. **Human messages by default, i18n by design.** A catalog maps pydantic error codes to plain-language templates; apps override per app/model/field; gettext plugs in at render time. *(Rails/Ecto/Laravel/Django all separate code from message; GOV.UK content rules.)*
-12. **Progressive, not magical.** Level 0 is two lines; each further level is a small, local delta; nothing at a lower level breaks when you go up a level.
+1. **The pydantic model is the schema.** Names, types, defaults, constraints, nesting, lists and unions come from the model; no parallel form class. *(Django ModelForm, simple_form, AshPhoenix auto forms, superforms constraints.)*
+2. **One object to pass around.** A `Form` holds attempted params, initial data, the validated model, errors, used paths and an action; a `Field` is a computed view onto it. Templates and widgets only ever touch `Field`. *(Phoenix `FormField`, Conform metadata.)*
+3. **Params in, model out, errors as data.** Whole-model validation on every change (≈20 µs); errors are `(path, code, params, message)` records addressed by the same paths as input names. *(Ecto `{msg, opts}`, pydantic `loc`/`type`/`ctx`, Standard Schema issues.)*
+4. **Cast like Ecto.** Fields absent from the payload keep their initial data (edit forms render what they want); an empty value becomes the field's default or `None` *and counts as a change*; the attempted string always survives for re-rendering. *(Ecto `cast` + `empty_values`, ASP.NET `AttemptedValue`.)*
+5. **Show errors only for inputs the user has used, or after a submit.** Two orthogonal gates, `used` (from `_target`, intents, recovery, submit) and `action` (`None` → `"validate"` → `"submit"`), tracked on the server. *(Phoenix `action` + `used_input?`, Conform `touchedFields`, GOV.UK/Baymard timing research.)*
+6. **Rendering is layered and every layer is optional**: auto-render → per-field helpers → attribute helpers → hand-written HTML with `name=` only. *(Conform "helpers are optional", Phoenix escape hatches.)*
+7. **Widgets are functions, themes are class maps, and a copyable components module is the exit.** No CSS in the library. *(FormKit sections/classes, simple_form wrappers, Phoenix "generate the component into the app".)*
+8. **Lists and unions are protocol, not user code.** Add/remove/move rows and switching union variants go through generated markup that the form object interprets; users never write index arithmetic or management forms. *(Ecto `sort_param`/`drop_param` + LiveView `inputs_for`, Conform intents, AshPhoenix `_add_x`/`_drop_x`.)*
+9. **The client is Phoenix's; the server decodes exactly what it sends.** Bracket names verbatim, `_target`, submitter buttons, `JS.dispatch("change")`, debounce, recovery — and nothing that Phoenix has deprecated (`phx-feedback-for`).
+10. **Testable without a socket.** `Form(Model).submit({...})` in a unit test; a `wire()` helper produces exactly the pairs the client would send for the rendered inputs.
+11. **Human, label-aware messages by default; i18n by design.** A catalog keyed by pydantic error code with `{label}` and `ctx` interpolation, overridable per app/model/field, translated at render time.
+12. **Progressive, not magical.** Level 0 is a model plus two three-line handlers; each further level is a small, local delta.
 
 ## 4.1 Mental model and vocabulary
 
 ```
-                 phx-change / phx-submit (urlencoded, names like profile[addresses][0][city])
-   browser ───────────────────────────────────────────────────────────────────────▶ ws_handler
-                                                                                     │ parse_qsl (ordered)
-                                                                                     ▼
-                                                                              decode_form()      ← Plug.Conn.Query rules
-                                                                                     │ {"profile": {...}}, meta {_target: path}
-                                                                                     ▼
-              ┌───────────────────────────────  Form[Profile]  ─────────────────────────────────┐
-              │ params  : dict   raw strings, nested, exactly what the user typed (attempted values)│
-              │ data    : Profile | None   the instance the form was opened with (edit forms)       │
-              │ model   : Profile | None   the validated instance, when valid                        │
-              │ errors  : list[FormError]  (path, code, params, message, input)                      │
-              │ used    : set[path]        inputs the user interacted with (_target, intents, submit)│
-              │ action  : None | "validate" | "submit"                                              │
-              │ keys    : row identity per list path (persistent ids for DOM ids)                   │
-              └────────────────────────────────────────────────────────────────────────────────────┘
-                                                                                     │ form["addresses"][0]["city"]
-                                                                                     ▼
-                                       Field(name, id, value, errors, label, hint, attrs, type, options, rows…)
-                                                                                     │
-                                            Ibis filters  /  t-string helpers  /  auto-render  /  raw HTML
+ browser ── phx-change / phx-submit ──▶ ws_handler: parse_qsl(keep_blank_values=True)
+                                              │
+                                              ▼
+                                      Params.decode(pairs, prefix="profile")
+                                      ┌──────────────────────────────────────────────────────┐
+                                      │ data     nested dict under the prefix, meta-free      │
+                                      │ target   ("addresses", 0, "city") | None on submit    │
+                                      │ intents  [Intent(op="add", path=("addresses",))]      │
+                                      │ meta     _csrf_token, phx-value-*, submitter pairs …  │
+                                      │ unused   1.x client _unused_ paths                    │
+                                      │ recovered  True for a phx-auto-recover replay         │
+                                      └──────────────────────────────────────────────────────┘
+                                              │ form.validate(params) / form.submit(params)
+                                              ▼
+                 Form[Profile]  ── params (attempted strings, shelved union variants, row keys)
+                                ── data (initial instance) · model (typed, when valid)
+                                ── errors + external_errors · used · action · flags
+                                              │ form.addresses[0].city  /  form["addresses"]["0"]["city"]
+                                              ▼
+                                      Field(path) ── .html (name, id, value, errors, label, hint, attrs, type, key)
+                                                  ── .typed · .used · rows via iteration
+                                              │
+                          Ibis filters / t-string helpers / auto-render / hand-written HTML
 ```
 
 | pyview | Phoenix / Ecto | Conform | Django |
 |---|---|---|---|
-| `Form(Model, data=…)` | `to_form(changeset)` + `changeset.data` | `useForm({defaultValue})` | `Form(instance=…)` (unbound) |
-| `form.validate(payload)` | `changeset \|> Map.put(:action, :validate)` | `validate` intent | `Form(data=…)` + `is_valid()` |
-| `form.submit(payload)` | `apply_action(cs, :insert)` | submit → `parseWithZod` | `is_valid()` on POST |
+| `Form(Model, data=…)` | `to_form(changeset)` + `changeset.data` | `useForm({defaultValue})` | `Form(instance=…)` |
+| `form.validate(params)` | `cast … \|> Map.put(:action, :validate)` | `validate` intent | bound `Form(data=…)` |
+| `form.submit(params)` | `apply_action(cs, :insert)` | submit → `parseWithZod` | `is_valid()` on POST |
 | `form.params` | `changeset.params` | `submission.payload` | `form.data` |
-| `form.model` | `apply_changes(cs)` | `submission.value` | `cleaned_data` (as object) |
+| `form.model` | `apply_changes(cs)` | `submission.value` | `cleaned_data` |
 | `form.errors` | `traverse_errors` | `submission.error` | `form.errors` |
-| `form.used` | `used_input?` / `phx-feedback-for` | `touchedFields` | — |
-| `form["email"]` | `@form[:email]` (FormField) | `fields.email` | `form["email"]` (BoundField) |
-| `form["addresses"]` rows | `<.inputs_for>` | `getFieldList()` | formset |
+| `form.used` | `used_input?` | `touchedFields` | — |
+| `form.email` / `form["email"]` | `@form[:email]` | `fields.email` | `form["email"]` (BoundField) |
+| `for row in form.addresses` | `<.inputs_for>` | `getFieldList()` | formset |
 | intents `add/remove/move` | `sort_param`/`drop_param` | `insert/remove/reorder` | management form |
 
-Vocabulary note: the research suggested keeping the word *changeset* for the data layer. Since pydantic already owns casting and validation, a separate changeset object would be an empty shell; we therefore use **Form** for the stateful object and keep `pyview.changesets.ChangeSet` as a compatibility wrapper (see 4.11).
+*Vocabulary.* The counter-design argued for keeping a separate `Changeset` because the maintainer said changesets resonated. The recommendation is one object named `Form`, with the changeset vocabulary — *cast*, *params*, *changes*, *action* — used in the API and docs so the mental model transfers; a second object would hold nothing that `Form` does not.
 
 ## 4.2 The golden path (level 0)
-
-Ibis (`registration.py` + `registration.html`):
 
 ```python
 from pydantic import BaseModel, EmailStr, Field, SecretStr
 from pyview import LiveView, LiveViewSocket
 from pyview.events import BaseEventHandler, event
-from pyview.forms import Form
+from pyview.forms import Form, Params
 
 class Registration(BaseModel):
     name: str = Field(min_length=3, max_length=40, title="Full name")
-    email: EmailStr
+    email: EmailStr                                     # needs the `email-validator` extra
     password: SecretStr = Field(min_length=8)
 
 class RegistrationView(BaseEventHandler, LiveView):
@@ -78,393 +78,387 @@ class RegistrationView(BaseEventHandler, LiveView):
         socket.context = {"form": Form(Registration)}
 
     @event("validate")
-    async def validate(self, socket, payload: dict):
-        socket.context["form"].validate(payload)
+    async def validate(self, socket, params: Params):
+        socket.context["form"].validate(params)
 
     @event("save")
-    async def save(self, socket, payload: dict):
-        form = socket.context["form"].submit(payload)
+    async def save(self, socket, params: Params):
+        form = socket.context["form"].submit(params)
         if form.valid:
-            await users.create(form.model)          # a Registration instance
+            await users.create(form.model)              # a Registration instance
             socket.put_flash("info", "Welcome!")
             await socket.push_navigate("/")
 ```
 
 ```html
-<form phx-change="validate" phx-submit="save">
-  {{ form | render }}
+<form id="registration" phx-change="validate" phx-submit="save" phx-auto-recover="validate">
+  {{ form | render_form }}
   <button type="submit" phx-disable-with="Creating…">Create account</button>
 </form>
 ```
 
-That is the whole thing: labels from `title`/field names, `type="email"`/`"password"` inferred from `EmailStr`/`SecretStr`, `required`/`minlength`/`maxlength` from the constraints, errors shown per field after the user touches it, all values preserved on re-render, and a typed `Registration` on success.
+Labels come from `title`/field names, `type="email"`/`"password"` from `EmailStr`/`SecretStr`, `required`/`minlength`/`maxlength` from the constraints, errors show per field after the user leaves it, values are preserved on re-render (never the password), and success yields a typed `Registration`. The form `id` is mandatory: the client keys form recovery by it. `Params` is injected by pyview's signature binding (`payload: dict` still works).
 
 t-string version (Python 3.14):
 
 ```python
-from pyview.forms.html import render
+from pyview.forms.html import render_form
 
-class RegistrationView(AutoEventDispatch, TemplateView, LiveView):
-    ...
-    def template(self, assigns, meta):
-        form = assigns["form"]
-        return t"""<form phx-change="{self.validate}" phx-submit="{self.save}">
-            {render(form)}
-            <button type="submit" phx-disable-with="Creating…">Create account</button>
-        </form>"""
+def template(self, assigns, meta):
+    form = assigns["form"]
+    return t"""<form id="registration" phx-change="{self.validate}" phx-submit="{self.save}">
+        {render_form(form)}
+        <button type="submit" phx-disable-with="Creating…">Create account</button>
+    </form>"""
 ```
-
-**Open decision (recommendation: later phase).** An even shorter path is possible by letting the form route its own events: `socket.context["form"] = Form(Registration, on_submit=self.register)` renders `phx-change="form:registration:validate"` and the LiveView base class dispatches those events to the form before `handle_event`. It removes the two three-line handlers but adds a hidden dispatch rule. Ship the explicit handlers first; add auto-routing once the core is stable.
 
 ## 4.3 The progressive-disclosure ladder
 
 | Level | You write | You get |
 |---|---|---|
-| 0 | `{{ form \| render }}` | every field, in model order, default widgets, default theme |
-| 1 | `{{ form.email \| field }}` per field, your own layout HTML around them | label + input + hint + errors per field, still themed |
-| 2 | `{{ form.email \| input({"type": "email", "placeholder": "you@…", "class": "…"}) }}` + `{{ form.email \| label }}` + `{{ form.email \| errors }}` | individual pieces |
-| 3 | `<input name="{{ form.email.name }}" id="{{ form.email.id }}" value="{{ form.email.value }}" {{ form.email.attrs }}>` | raw HTML; only names/ids/values/attrs come from the form |
-| 4 | `Form(Model, widgets={...}, theme=MyTheme, messages={...})`, `Annotated[str, Input(widget="textarea", rows=6, hint="…")]`, custom widget functions, custom intents | customised auto-render |
+| 0 | `{{ form \| render_form }}` | every field, model order, default widgets, default theme |
+| 1 | `{{ form.email \| form_field }}` per field inside your own layout | label + input + hint + errors, themed |
+| 2 | `{{ form.email \| form_input({"type": "email", "placeholder": "you@…", "class": "w-full"}) }}` + `form_label` + `form_errors`, or `{% input form.email type="email" class="w-full" %}` | individual pieces with options |
+| 3 | `<input name="{{ form.email.html.name }}" id="{{ form.email.html.id }}" value="{{ form.email.html.value }}" {{ form.email.html.attrs }}>` | raw HTML; only names/ids/values/attrs from the form |
+| 4 | `Form(Model, messages=…, labels=…)`, `Annotated[str, Input(widget="textarea", rows=6)]`, custom widget functions, a copied `components.py`, a `Theme` | customised auto-render |
 
-Level 1 example (Ibis), a typical hand-laid-out form:
+**Ibis syntax, decided.** The vendored Ibis splits filter arguments on commas without tracking brackets, so a two-key dict argument is a `TemplateSyntaxError` today **(verified)**. Phase 2 therefore ships two things: a six-line bracket-aware `splitc` in `pyview/vendor/ibis/utils.py` (verified to make `{"type": "email", "class": "w-full"}` and list arguments parse) and a `{% input %}`/`{% field %}` tag for keyword syntax. Filters are prefixed (`render_form`, `form_field`, `form_input`, `form_label`, `form_errors`, `form_debug`) because Ibis has one global filter map. Every example in Parts 4 and 5 uses only syntax that parses after that patch.
+
+Level 1 (Ibis):
 
 ```html
-<form phx-change="validate" phx-submit="save" class="space-y-6">
+<form id="profile" phx-change="validate" phx-submit="save" class="space-y-6">
   <div class="grid grid-cols-2 gap-4">
-    {{ form.name | field }}
-    {{ form.email | field }}
+    {{ form.name | form_field }}
+    {{ form.email | form_field }}
   </div>
-  {{ form.password | field({"hint": "At least 8 characters"}) }}
-  {{ form | errors }}                       {# form-level errors (model validators) #}
+  {{ form.password | form_field({"hint": "At least 8 characters"}) }}
+  {{ form | form_errors }}                       {# error summary + form-level errors #}
   <button type="submit" phx-disable-with="Saving…">Save</button>
 </form>
 ```
 
-Level 3 example (exactly what the existing `registration.html` does today, minus the hand-rolled filters):
+Level 3 (what `registration.html` does today, minus the hand-rolled filters):
 
 ```html
-<label for="{{ form.email.id }}">Email</label>
-<input type="email" name="{{ form.email.name }}" id="{{ form.email.id }}"
-       value="{{ form.email.value }}" phx-debounce="blur" {{ form.email.attrs }}>
-{% for msg in form.email.errors %}<p class="text-red-600">{{ msg }}</p>{% endfor %}
+<label for="{{ form.email.html.id }}">Email</label>
+<input type="email" name="{{ form.email.html.name }}" id="{{ form.email.html.id }}"
+       value="{{ form.email.html.value }}" {{ form.email.html.attrs }}>
+{% for msg in form.email.html.errors %}<p class="error" id="{{ form.email.html.id }}-error">{{ msg }}</p>{% endfor %}
 ```
+
+`html.attrs` already contains `phx-debounce` per the form's timing policy and the `aria-*` wiring, so hand-written inputs get the same behaviour as generated ones.
 
 ## 4.4 Core API
 
 ```python
+Path = tuple[str | int, ...]
+
+@dataclass(frozen=True)
+class Intent:
+    op: Literal["add", "remove", "move"]; path: Path; key: str | None = None; arg: str | None = None
+
+class Params(Mapping):                   # produced by ws_handler / binding, or by Params.decode in tests
+    data: dict                           # nested, string-valued, under the form prefix, meta-free
+    target: Path | None                  # trailing [] stripped; None on submit
+    intents: list[Intent]
+    meta: dict                           # _csrf_token, phx-value-*, submitter pairs outside the prefix
+    unused: set[Path]                    # 1.x client only
+    recovered: bool
+    @classmethod
+    def decode(cls, payload: str | dict | list[tuple[str, str]], *, prefix: str, recovered=False) -> Params
+
 class Form(Generic[M]):
-    def __init__(self, model: type[M] | TypeAdapter, data: M | dict | None = None, *,
-                 as_: str | None = None,            # name prefix; default = snake_case(Model)  ("registration")
-                 id: str | None = None,             # DOM id prefix; default = as_
-                 widgets: dict | None = None, theme: Theme | None = None,
-                 messages: Messages | None = None,  # catalog overrides
-                 context: Any = None,               # pydantic validation context (current user, db)
-                 checks: list[Check] = ())          # post-validation server checks (uniqueness, ...)
+    def __init__(self, model: type[M], data: M | None = None, *, as_: str | None = None, id: str | None = None,
+                 messages: Messages | None = None, labels: dict[str, str] | None = None,
+                 empty_values: tuple = ("",), show_errors: Literal["blur", "live", "submit"] = "blur",
+                 context: Any = None)
+    # events (return self)
+    def validate(self, params: Params | dict | list, *, recovered: bool = False) -> Form[M]
+    def submit(self, params) -> Form[M]
+    def add_error(self, path: str | Path, code: str, message: str, **params) -> Form[M]
+    def reset(self, data: M | None = None) -> Form[M]
+    # state
+    params: dict; data: M | None; model: M | None; valid: bool; changed: bool
+    errors: list[FormError]; external_errors: list[FormError]
+    action: None | "validate" | "submit"; used: set[Path]
+    submitted_once: bool; just_submitted: bool; applied_intents: list[Intent]; target: Path | None
+    def errors_for(self, path, *, gated=True) -> list[FormError]
+    def visible(self, path) -> bool
+    def label_for(self, path) -> str
+    def __getitem__(self, name) -> Field;  def __getattr__(self, name) -> Field   # model field names only
+    def debug(self) -> str
 
-    # ---- events (all return self so they chain) ----
-    def validate(self, payload: dict | list[tuple[str, str]]) -> Form[M]   # phx-change
-    def submit(self, payload) -> Form[M]                                     # phx-submit
-    def reset(self, data: M | dict | None = None) -> Form[M]
-    def apply(self, intent: Intent) -> Form[M]                              # add/remove/move rows, set a value
-
-    # ---- state ----
-    params: dict            # attempted values (nested, strings/lists)
-    data: M | None          # initial instance
-    model: M | None         # validated instance, when valid
-    valid: bool
-    errors: list[FormError] # ALL errors (ungated)
-    action: Literal[None, "validate", "submit"]
-    used: set[Path]
-    def errors_for(self, path: Path, *, gated=True) -> list[FormError]
-    def visible_errors(self) -> list[FormError]           # for an error summary
-    def field(self, path: str | Path) -> Field            # "addresses.0.city" or ("addresses", 0, "city")
-    def __getitem__(self, name) -> Field                  # form["email"], form["addresses"][0]["city"]
-    def __getattr__(self, name) -> Field                  # form.email  (only for model field names)
-    def rows(self, path) -> list[Field]                   # list field rows
-    def debug(self) -> str                                # params/errors/used dump for a <details> panel
-
-class Field:
-    name: str          # "registration[email]" / "profile[addresses][0][city]"
-    id: str            # "registration_email" / "profile_addresses_k7f3_city"  (row key, not index)
-    path: Path
-    value: Any         # attempted value (string), else initial value serialised for HTML
-    errors: list[str]  # GATED, translated messages
-    all_errors: list[FormError]
+@dataclass(frozen=True)
+class Field:                             # sub-fields by attribute or item: form.addresses[0].city, form["addresses"]["0"]["city"]
+    form: Form; path: Path
+    html: Html                           # the template contract (below)
+    typed: Any                           # value after cast (data + params), for derived state
     used: bool
-    label: str         # Field(title=) or humanised name
-    hint: str | None   # Field(description=) or Input(hint=)
-    required: bool
-    attrs: Attrs       # required/minlength/maxlength/min/max/step/pattern/aria-* (renders as HTML attrs)
-    input_type: str    # inferred: text/email/password/number/checkbox/select/date/datetime-local/textarea/file/…
-    options: list[Option] | None   # for Enum/Literal/bool selects
-    checked: bool                  # for checkboxes
-    key: str | None    # stable row key when this field is a list row
-    def __getitem__(self, key) -> Field      # nested / row access
-    def __iter__(self) -> Iterator[Field]    # rows of a list field
-    def intent(self, op: str, **kw) -> Attrs # attributes for add/remove/move buttons (see 4.8)
+    def __iter__(self) -> Iterator[Field] # rows of a list field
+
+@dataclass(frozen=True)
+class Html:
+    name: str            # "profile[addresses][0][city]"
+    id: str              # "profile_addresses_k7f3_city"  (row key, not index)
+    value: str | list[str]
+    errors: list[str]    # gated, translated
+    label: str; hint: str | None; required: bool
+    type: str            # inferred input type
+    attrs: Markup        # required/minlength/maxlength/min/max/step/pattern/aria-describedby/aria-invalid/phx-debounce
+    key: str | None      # row key when this field is a list row
+    options: list[tuple[str, str]] | None; checked: bool
 
 @dataclass(frozen=True)
 class FormError:
-    path: Path              # ("addresses", 0, "city"); () = form level
-    code: str               # pydantic error type or custom code ("string_too_short", "unique")
-    params: dict            # ctx: {"min_length": 3}
-    message: str            # translated, human
-    input: Any = None
+    path: Path; code: str; params: dict; message: str; input: Any = None
 ```
 
-`Form` is a plain object stored in `socket.context` like any other assign. It is not tied to a socket, so tests construct it directly.
+**Why `.html`.** Ibis resolves `a.b` by attribute first, so a `Field` with attributes `name`, `id`, `value`, `label` would shadow model fields with those names — `{{ row.name }}` on an `Item(name: str)` would silently return the HTML name string. Sub-field navigation is the common case at every level; template-facing metadata therefore lives under one namespace, `field.html`, and Python widget code uses the same. Model fields named `form`, `path`, `html`, `typed`, `used` are reachable via `form["path"]`. Digit strings index rows (`form.addresses.0.city` works in Ibis) **(verified)**.
 
-**Binding integration (nice-to-have).** pyview's signature binding can inject the payload already; a follow-up could let handlers declare `form: Form[Registration]` to receive the context's form with the payload applied. Not required for v1.
+**`Params` is the wire→handler contract.** After phase 0, `ws_handler` decodes with `parse_qsl(keep_blank_values=True)` and hands handlers a `Params` (the raw `dict[str, list[str]]` stays available as `payload` for the existing binding, uploads and the `ChangeSet` shim). It accepts both client generations: metadata at the tail of the urlencoded string (0.20.17) and the `meta` JSON key (1.0.6+), and detects the 1.x `_unused_` prefix on the *last* bracket segment (`user[addresses][0][_unused_city]`) **(verified)**.
 
 ## 4.5 Data in
 
-**Name grammar** — Phoenix bracket syntax, verbatim, because the JS client, `_target`, `phx-feedback-for` and the future `_unused_` protocol all assume it:
+**Name grammar.** Phoenix bracket syntax, verbatim:
 
 | name | decoded |
 |---|---|
-| `profile[name]` | `{"profile": {"name": v}}` |
-| `profile[tags][]` (multi-select, checkbox group) | `{"profile": {"tags": [v1, v2]}}` |
-| `profile[addresses][0][city]` | `{"profile": {"addresses": [{"city": v}]}}` |
-| `profile[addresses][2][city]` after row 1 was removed | index maps are compacted in numeric order → `[..., {"city": v}]` |
-| `profile[account][kind]` + `profile[account][company]` | `{"profile": {"account": {"kind": …, "company": …}}}` |
-| `a=1&a=2` (plain repeated key) | last wins (Plug/Rack semantics); use `[]` for lists |
+| `profile[name]` | `{"name": v}` |
+| `profile[tags][]` (multi-select, checkbox group) | `{"tags": [v1, v2]}` |
+| `profile[addresses][0][city]`, `…[2][city]` (row 1 removed client-side) | `[{"city": …}, {"city": …}]` — digit keys are collected then ordered numerically |
+| `profile[account][kind]` + `profile[account][business][company]` | `{"account": {"kind": "business", "business": {"company": …}}}` (variant-named, 4.8) |
+| `profile[addresses][_intent]=remove:k7f3` | popped into `params.intents` |
+| `a=1&a=2` (plain repeated key) | last wins; use `[]` for lists |
+| `profile[items][][name]` | rejected: `[]` may only be the last segment (Plug calls this ambiguous) |
+| `profile[__class__]`, `…[__proto__]…` | rejected |
 
-The decoder is ~60 lines **(verified, prototype `decode_form`)**: split on brackets, `[]` appends, digit segments become dict keys first and are converted to ordered lists afterwards (so sparse indices after a client-side removal still work), depth limit 32, `__proto__`/dunder segments rejected, plain repeated keys last-wins. `_target` (sent by the client as the input *name string*) is decoded into a path tuple the same way, e.g. `("profile", "addresses", 0, "city")` — which is exactly what LiveView's channel does server-side.
+Limits: depth 32, 10 000 pairs; anything outside the form prefix (`_csrf_token`, `phx-value-*` pairs, another form's inputs) is `meta`, so `phx-value-*` can never collide with a field **(verified)**.
 
-**What the client actually sends (verified against the 0.20.17 and 1.x sources, see Appendix `phoenix_client_js.md`).** The payload is `new FormData(form)` → `URLSearchParams`: names verbatim, document order, repeated keys kept, `File` entries removed, unchecked checkboxes and disabled inputs absent. In 0.20.17 the metadata rides *inside* the string, appended after the fields: `_target=<input name>` on change (absent on submit; the first non-hidden input's name on form recovery) and each `phx-value-*` of the `<form>`; from 1.0.6 the same data moves to a `meta` JSON key on the event, and 1.x adds `_unused_<name>=` siblings (`user[addresses][0][_unused_city]=`) for inputs never used. The decoder therefore (a) must use `parse_qsl(keep_blank_values=True)` — pyview's current `parse_qs(value)` **silently drops `name=` pairs, so clearing a field never reaches the changeset today** — and (b) reads meta from the tail of the string *or* from `payload["meta"]`, so a client upgrade is a one-line switch.
+**What the client sends (verified against the 0.20.17 and 1.x sources; appendix `phoenix_client_js.md`).** `new FormData(form)` → `URLSearchParams`: names verbatim, document order, repeated keys kept, `File` entries removed, unchecked checkboxes and disabled inputs absent. In 0.20.17 `_target=<input name>` and each `phx-value-*` of the `<form>` are appended *inside* the string; from 1.0.6 they move to a `meta` key. `_target` is absent on submit and is the first non-hidden input's name on a recovery replay. pyview's current `parse_qs(value)` **silently drops `name=` pairs, so clearing a field never reaches the changeset today**; `parse_qsl(keep_blank_values=True)` fixes it.
 
-**Meta keys** stripped from the form namespace: `_target`, `_csrf_token`, `_method`, `_unused_*` (1.x client), and top-level `phx-value-*` keys, which arrive outside the `as_` prefix anyway.
+**Cast (Ecto semantics) (verified).** The validation input is built per model field:
 
-**Empty values (the Ecto rule).** Before validation the payload is normalised: strings are stripped, and `""` is treated as *absent*. pydantic then reports `missing` for required fields and applies defaults for optional ones, instead of `int_parsing` on `""` **(verified: `""` fails for int, float, Decimal, bool, date, datetime, Enum and even `Optional[int]` in lax mode)**. A `str` field with `min_length` gets `missing`, not `string_too_short`, which reads better ("This field is required"). Opt-out per form: `Form(..., empty_values=())`.
+- absent from the payload → keep the initial `data` value (so an edit template may omit `id`, `created_at`, `last_watered`); no data → pydantic reports `missing` if required;
+- present and empty (`""` after stripping, configurable `empty_values`) → the field's default, else `None` for `Optional`, else removed so pydantic reports `missing`. This *is* a change: clearing `note` on an edit form yields `None`, not the old text;
+- present otherwise → the stripped string, handed to pydantic in lax mode;
+- inside `list[...]`, empty elements are dropped; a list in the payload replaces the whole list;
+- control keys (`_key`, `_intent`) never reach the model.
 
-**Coercion table** (lax mode does the rest; only the gaps are handled by the form layer):
+| HTML input | wire value | outcome |
+|---|---|---|
+| text-like | `"abc"` / `""` | str / default-or-None-or-missing |
+| number | `" 21 "`, `"21.0"` → 21; `"1e3"` → `int_parsing`; `"1,5"` → `decimal_parsing` | lax pydantic **(verified)** |
+| checkbox (`bool`) | absent / `"on"` | widgets render hidden `false` + checkbox `true` (Phoenix trick), so absence never happens; `"on"/"true"/"1"/"yes"` → True, `"off"/"false"/"0"/"no"` → False **(verified)**; a hand-written checkbox without the hidden twin keeps `data` when unchecked (documented) |
+| checkbox group / select multiple → `list[...]` | repeated `name[]` | list; a single selection is still a list because of `[]` |
+| select with prompt | `""` | default / None / missing |
+| date / datetime-local / time | ISO strings | `date`, `datetime`, `time` **(verified)** |
+| textarea | `"line1\r\nline2"` | newlines kept, ends stripped |
+| password (`SecretStr`) | `"…"` | validated, **never re-rendered** (`html.value == ""`) **(verified)** |
+| file | excluded by the client | uploads (4.9) |
 
-| HTML input | wire value | form layer | pydantic (lax) |
-|---|---|---|---|
-| text / email / url / tel / search / password | `"abc"` | strip | str |
-| number | `" 21 "`, `"21.0"`, `"1e3"` | strip | `int` accepts `"21"`, `"21.0"`; rejects `"1e3"` (`int_parsing`) **(verified)** |
-| number with `,` decimal (locale) | `"1,5"` | optional locale hook | `decimal_parsing` **(verified)** |
-| checkbox (single `bool`) | absent / `"on"` | rendered with hidden `false` + checkbox `true` (Phoenix trick) so absence never happens; `"on"`,`"true"`,`"1"`,`"yes"` → True, `"off"`,`"false"`,`"0"`,`"no"` → False **(verified)** | bool |
-| checkbox group → `list[str]`/`list[Enum]` | repeated `name[]` | `[]` decoding | list |
-| select | `""` for the prompt option | absent → default/missing | Enum/Literal |
-| select multiple | repeated `name[]` | list; a single value is still a list because of `[]` | list |
-| date / datetime-local / time | ISO strings | pass through | `date`, `datetime`, `time` **(verified for date & datetime-local)** |
-| textarea | `"line1\r\nline2"` | keep newlines; strip only ends | str |
-| file | excluded by the client | uploads API (4.9) | — |
-| hidden `_key` | row key | identity only | — |
-
-**Attempted values.** `form.params` is replaced by each decoded payload (Phoenix semantics: the client always serialises the whole form). `Field.value` reads params first, then the initial `data`, serialised for HTML (`bool` → `"true"`, `datetime` → ISO without `Z`, `Enum` → `.value`). This is why an invalid `"abc"` in an `int` field is re-rendered as typed.
-
-**Initial data.** `Form(Profile, data=profile_instance)` (edit) or `data={"name": "…"}` (partial defaults). Nested lists render one row per element; `Form(Profile)` renders `min_length` empty rows for lists with a minimum, otherwise none plus an add button.
+**Attempted values.** `form.params` holds each decoded payload (Phoenix replace semantics — the client always serialises the whole form) plus two things the client cannot send: shelved union variants and row keys. `Field.html.value` reads params first, then the serialised initial data (`bool` → `"true"`, `datetime` → `YYYY-MM-DDTHH:MM`, `Enum` → `.value`, `SecretStr` → `""`), so an invalid `"abc"` in an `int` field is re-rendered as typed **(verified)**.
 
 ## 4.6 Validation and errors
 
-**When.** `validate()` runs `Model.model_validate(normalised_params, context=…)` on every `phx-change`. Cost ≈ 20 µs for a 60-field nested model **(verified)**; per-keystroke traffic is controlled by `phx-debounce` (default emitted by the widgets: `phx-debounce="blur"` for text-like inputs — the timing GOV.UK/Baymard research supports: validate when the user leaves the field, re-validate live once a field has an error). `submit()` runs the same validation, then the `checks` (server checks that need I/O), and sets `action="submit"`.
+**When.** `validate()` runs `Model.model_validate(cast(...), context=…)` on every `phx-change` (≈20 µs). Traffic is shaped by the `show_errors` policy the widgets encode as `phx-debounce`: `"blur"` (default; the first event for a field arrives when the user leaves it — the Wroblewski/Baymard result), `"live"` (`phx-debounce="300"`), `"submit"` (GOV.UK: no change-time errors at all). Hand-written inputs get the same behaviour from `html.attrs`. `submit()` validates, sets `action="submit"`, `submitted_once` and `just_submitted`, and clears `external_errors`.
 
-**Gating (what the user sees).**
+**Gating (verified).**
 
 ```
-visible(field) = action is not None and (action == "submit" or field.path (or a prefix/child of it) ∈ used)
+visible(path) ⇔ action == "submit"  or  ∃ u ∈ used : u[:len(path)] == path
 ```
 
-A per-field/per-form **`show_errors` knob** (FormKit's `validation-visibility`) tunes this: `"blur"` (default: the widget emits `phx-debounce="blur"`, so the first event for a field arrives when the user leaves it), `"live"` (`phx-debounce="300"`), `"submit"` (never before submit — the GOV.UK policy), `"dirty"` (as soon as the value differs from the initial one). `Input(show_errors="live")` on a field, `Form(show_errors=...)` for the whole form.
+A path is visible when it was itself used or when it is an *ancestor* of a used path (Phoenix `used_input?` recursion: a list shows its "add at least one" error once any row was touched); children never inherit used-ness, so a freshly added row shows nothing until typed in. `used` grows by: the `_target` path of every change; the list path of every intent; every non-blank path on a recovery replay; everything on submit. On a 1.x client the `_unused_` paths are authoritative and simply remove entries. Errors the server added deliberately (`add_error`) are never gated.
 
-`used` grows by: the `_target` path of every `phx-change`; the list path of every intent; all present paths on submit. A parent path counts as used when any child is (LiveView `used_input?` semantics). Form-level errors (path `()`) show only after submit, or when *every* field they name is used — model validators should therefore attach errors to fields (next paragraph). This server-side tracking works with the 0.20.17 client as is; the widgets additionally emit `phx-feedback-for="{name}"` on error containers so the client-side hiding still applies during form recovery. When pyview upgrades the client to 1.x, `used` is simply seeded from the `_unused_*` keys instead.
+**No `phx-feedback-for`.** The first draft emitted it "for recovery"; the client research shows the client re-adds `phx-no-feedback` after *every* patch to containers whose input was never focused — which would hide list-level errors after an intent and server errors after `add_error`. Phoenix deprecated the mechanism for the same reasons. Recovery is handled explicitly instead: `phx-auto-recover="validate"` on the form makes the client replay one `phx-change` after a reconnect; `Params.recovered` marks every non-blank path used, the closest server-side equivalent of the client's copied focus flags **(verified)**.
 
-**Cross-field errors on specific fields (the Ecto `add_error` ergonomics).** Two idioms, both **(verified)**:
+**Cross-field errors on specific fields.** Two idioms, both **(verified)**:
 
 ```python
 class Registration(BaseModel):
     password: SecretStr = Field(min_length=8)
     password_confirmation: SecretStr
 
-    # idiom 1: field_validator with info.data → error lands on password_confirmation
-    @field_validator("password_confirmation")
+    @field_validator("password_confirmation")           # idiom 1: error lands on the confirmation field
     @classmethod
     def match(cls, v, info: ValidationInfo):
-        if "password" in info.data and v != info.data["password"]:
+        if "password" in info.data and v.get_secret_value() != info.data["password"].get_secret_value():
             raise PydanticCustomError("mismatch", "Passwords do not match")
         return v
 
 class Booking(BaseModel):
     start: date
     end: date
-    # idiom 2: model_validator raising field-targeted errors via a tiny helper
-    @model_validator(mode="after")
+    @model_validator(mode="after")                        # idiom 2: model-level rule, field-targeted error
     def order(self):
         if self.end < self.start:
-            raise field_errors(end=("after_start", "Must be after {start}", {"start": self.start}))
+            raise field_errors(end=("after_start", "{label} must be after {start}", {"start": self.start}))
         return self
 ```
 
-`field_errors(**{field: (code, template, ctx)})` builds `ValidationError.from_exception_data(...)` with the right `loc`; the paths compose correctly inside nested lists (`("items", 1, "hi")`). Errors from a plain `raise ValueError("…")` keep loc `()` and become form-level errors.
+`field_errors(**{field: (code, template, ctx)})` wraps `ValidationError.from_exception_data(...)`; paths compose inside lists (`("items", 1, "hi")`). A plain `raise ValueError("…")` keeps `loc == ()` in a `model_validator` (form-level, shown in the summary after submit) but gets the field's loc in a `field_validator`. After-validators do not run while field errors exist, so cross-field messages appear once the fields parse.
 
-**Error records and messages.** Every pydantic error becomes `FormError(path=loc, code=type, params=ctx, message=…)`. The message comes from a catalog keyed by code, with `str.format`-style templates over `ctx`; the default catalog is human ("Must be at least {min_length} characters", "Enter a whole number", "This field is required") and covers the ~30 codes forms actually hit; unknown codes fall back to pydantic's `msg`. Overrides, most specific wins:
+**Error records and messages.** Every pydantic error becomes `FormError(path, code, params, message)`; smart-union member names are stripped from `loc`, discriminated-union tags are kept (they are part of the name, 4.8). The message comes from a catalog keyed by code, with `str.format` templates over `ctx` plus a guaranteed `{label}` (GOV.UK: a message reuses the words of the question): "Full name is required", "Watering schedule (days) must be at least 1", "Company name must be at least 2 characters" **(verified)**. Plural entries are `(singular, plural, count_key)` routed through `ngettext`. Lookup is most-specific-first with list indices stripped: `("addresses.zip", code)` → `(Model, code)` → `code` → catalog → pydantic's `msg`, so nothing crashes on an unknown code. A `ValueError` from a user validator is shown verbatim; anything that needs translation raises `PydanticCustomError(code, template, ctx)`.
 
 ```python
-Form(Profile, messages={
-    "string_too_short": "Use at least {min_length} characters",         # per form, per code
-    ("name", "string_too_short"): "Your name needs {min_length}+ letters",  # per field
-})
-forms.configure(messages={...}, translate=gettext.gettext)            # app-wide + i18n hook
+Form(Profile, messages={"string_too_short": "Use at least {min_length} characters",
+                        ("name", "string_too_short"): "{label} needs {min_length}+ letters"},
+              labels={"addresses.zip": "Postcode"})
+forms.configure(messages={...}, translate=gettext.gettext, ntranslate=gettext.ngettext)   # app-wide; per-Form wins
 ```
 
-`translate(template) -> template` is applied before formatting so `.po` files contain the templates; plural forms go through `ngettext` when `params` has a `count`-like key. Labels: `Field(title=)` → `Input(label=)` → humanised name; `Field(description=)` becomes the hint.
+Labels: `Field(title=)` → `labels=` override → humanised name; `Field(description=)` is the hint; `Field(examples=)` the placeholder. An `errors.pot` is extractable from the catalog (Phoenix's `priv/gettext/errors.pot`).
 
-**Server checks** (uniqueness, remote lookups — things pydantic cannot do): `Form(..., checks=[unique_email])` where `async def unique_email(model, form) -> list[FormError]` runs on submit after pydantic passes, mirroring Ecto constraints ("after the fact") and Conform's server-only validation. `form.add_error("email", "unique", "Already registered")` covers the post-save `IntegrityError` case.
+**Server-side checks** (uniqueness, remote lookups) live in the handler, not in the form object — I/O stays out of the data structure (the SOLID critique of Ecto changesets):
 
-**External errors survive re-validation.** Errors added by `checks` or `form.add_error(...)` are kept in a separate `external_errors` list (Superforms' `setError` caveat: schema re-validation on the next keystroke must not silently wipe "email already taken"). They are cleared when the field they name changes (`_target`), on the next submit, or explicitly.
+```python
+@event("save")
+async def save(self, socket, params: Params):
+    form = socket.context["form"].submit(params)
+    if form.valid and await users.exists(email=form.model.email):
+        form.add_error("email", "unique", "That email is already registered")
+    if form.valid:
+        ...
+```
 
-**Errors as a tree, too.** `form.errors` is a flat list of records (easy to iterate for a summary); `form.error_tree` exposes the Superforms/Zod-v4 shape (`{"address": {"city": [...]}, "items": [{"qty": [...]}], "_errors": [...]}`) for templates and JSON APIs.
+External errors survive re-validation until the next submit (Superforms' `setError` caveat) and are always visible **(verified)**.
 
-**Validation context.** `Form(..., context={"user": user, "db": db})` is passed to `model_validate(context=)` so validators can read it through `ValidationInfo.context`.
+**Error summary and flags.** `{{ form | form_errors }}` renders the GOV.UK error-summary pattern (`role="alert"`, one link per visible error to `{id}`, focus moved there when `just_submitted`), and the same message strings appear inline. `submitted_once`, `just_submitted` and `changed` are the flags templates keep needing (AshPhoenix, elm-form). `form.error_tree` exposes the Superforms/Zod-v4 nested shape for JSON APIs.
+
+**Validation context.** `Form(..., context={"user": user})` is passed to `model_validate(context=)` for validators that read `ValidationInfo.context`.
 
 ## 4.7 Rendering
 
-**The `Field` object is the contract** (4.4). All rendering helpers are functions of a `Field` plus optional overrides; the same helpers are exposed as Ibis filters and as t-string functions, and all of them are ~5-line wrappers over the widget registry, so users can copy them.
+**The `Field.html` object is the contract.** All helpers are functions of a `Field` plus options; Ibis filters and t-string functions wrap the same widget layer (≈5 lines each).
 
-Ibis (filters take positional args; a dict literal carries options):
+Ibis (after the phase-2 `splitc` patch; keyword syntax via the tag):
 
 ```html
-{{ form | render }}                                     {# whole form, level 0 #}
-{{ form | render(["name", "email"]) }}                  {# subset, in this order #}
-{{ form.email | field }}                                {# label + input + hint + errors #}
-{{ form.email | field({"hint": "We never share it"}) }}
-{{ form.email | input({"type": "email", "placeholder": "you@example.com", "class": "w-full"}) }}
-{{ form.email | label }} {{ form.email | errors }}
-{{ form.bio | input({"widget": "textarea", "rows": 6}) }}
-{{ form.role | input({"options": roles}) }}             {# override options for a select #}
-{{ form | errors }}                                     {# form-level errors / summary #}
-{% for row in form.addresses %} … {{ row.city | field }} … {% endfor %}
+{{ form | render_form }}                                  {# level 0 #}
+{{ form | render_form(["name", "email"]) }}               {# subset, in this order #}
+{{ form.email | form_field }}                             {# label + input + hint + errors #}
+{{ form.email | form_field({"hint": "We never share it"}) }}
+{{ form.email | form_input({"type": "email", "placeholder": "you@example.com", "class": "w-full"}) }}
+{% input form.email type="email" class="w-full" %}        {# same, keyword syntax #}
+{{ form.email | form_label }} {{ form.email | form_errors }}
+{{ form.bio | form_input({"widget": "textarea", "rows": 6}) }}
+{{ form.role | form_input({"options": roles}) }}          {# a context variable as option list (works after the patch) #}
+{{ form | form_errors }}                                  {# summary + form-level errors #}
+{% for row in form.addresses %} … {{ row.city | form_field }} … {% endfor %}
+{{ form | form_debug }}
 ```
 
-(An optional `{% input form.email type="email" %}` tag would give keyword syntax; deferred.)
+t-strings (`pyview.forms.html`): `render_form(form, only=[...])`, `field(form.email, hint=…)`, `input(form.email, type="email", **attrs)`, `label(...)`, `errors(field_or_form)`, `debug(form)`; rows by iterating the field.
 
-t-strings (`pyview.forms.html`):
-
-```python
-render(form); render(form, only=["name"]); field(form.email, hint="…"); input(form.email, type="email", **attrs)
-label(form.email); errors(form.email); errors(form); rows(form.addresses)  # -> list[Field]
-```
-
-**Auto-render inference** (type → widget), overridable by `Annotated[..., Input(...)]` or `Field(json_schema_extra={"widget": ...})`:
+**Inference (type → widget)**, overridable by `Annotated[..., Input(...)]` or `Field(json_schema_extra={"widget": ...})`:
 
 | annotation | widget | notes |
 |---|---|---|
-| `str` | text | `SecretStr` → password, `EmailStr` → email, `HttpUrl`/`AnyUrl` → url, `constr(max_length>256)` or `Input(widget="textarea")` → textarea |
-| `int`, `float`, `Decimal` | number | `step="1"` for int, `"any"` otherwise; `ge/le/gt/lt` → `min`/`max`; `multiple_of` → `step` |
+| `str` | text | `SecretStr` → password (never re-rendered), `EmailStr` → email, `HttpUrl` → url, `Input(widget="textarea")` → textarea |
+| `int`, `float`, `Decimal` | number | `step="1"` for int; `ge/le` → `min/max`; `multiple_of` → `step` |
 | `bool` | checkbox | hidden `false` + checkbox `true` |
 | `Enum`, `Literal[...]` | select | prompt option when optional; `Input(widget="radio")` for radios |
-| `list[Enum]`, `list[Literal]` | select multiple / checkbox group | name gets `[]` |
+| `list[Enum]`, `list[Literal]` | checkbox group / select multiple | name gets `[]` |
 | `list[str]`, `list[int]` | repeatable input rows | add/remove intents |
 | `date`, `datetime`, `time` | date / datetime-local / time | |
-| `Optional[T]`, default present | same widget, not `required` | |
+| `Optional[T]` / default | same widget, not required, label gets "(optional)" | |
 | `BaseModel` | fieldset with legend | nested names |
 | `list[BaseModel]` | fieldset per row + add/remove/move buttons | 4.8 |
 | discriminated `Union` | select for the tag + the active variant's fieldset | 4.8 |
 | `Annotated[..., Upload("avatar")]` | `live_file_input` | 4.9 |
 
-UI hints live next to the type so the model stays the single source of truth:
+UI hints next to the type keep the model the single source of truth; a side-car `Form(Model, ui={"bio": Input(widget="textarea")})` serves models you do not own:
 
 ```python
 class Profile(BaseModel):
     bio: Annotated[str, Input(widget="textarea", rows=5, hint="Markdown is fine")] = ""
-    country: Annotated[str, Input(options=COUNTRIES, placeholder="Choose…")]
-    secret: Annotated[str, Input(exclude=True)]      # never auto-rendered
+    country: Annotated[str, Input(options=COUNTRIES, autocomplete="country")]
+    state: Annotated[str, Input(options=lambda form: STATES.get(form.country.typed, []))]
+    api_key: Annotated[str, Input(exclude=True)]          # never auto-rendered
 ```
 
-Conditional visibility is a closure, resolved with pyview's signature-driven binding (Filament's `fn (Get $get)` idea): `Input(visible=lambda form: form.kind.value == "business")` or `Input(visible=lambda account: account.kind == "business")` (typed access via the partially validated model when available). A field hidden by a rule is not rendered **and its value is dropped before validation** (JSON Forms `HIDE` and RJSF stale-`oneOf` data are the cautionary tales), so a hidden required field cannot block submission.
+`Input(...)` is a plain marker (like `annotated_types`), ignored by pydantic. Conditional *visibility* is template logic or a discriminated union — **hidden is not deleted**: a field hidden by an `{% if %}` keeps its params and is validated as usual; if a branch is truly optional, model it as `Optional`/a union (the first draft's "drop hidden values" rule would have produced `missing` errors and was withdrawn).
 
-`Input(...)` is a plain dataclass marker (like `annotated_types` constraints); it is ignored by pydantic and read by the renderer. `model_config["form"] = {"order": [...], "fieldsets": {...}}` covers model-level layout hints.
+**Widget registry.** Resolution by tester rank (JSON Forms): each widget declares `matches(field) -> int`; `is_enum` (2) beats `is_str` (1); an app-registered `is_country_code` (5) beats both; `Input(widget=…)` wins outright. A widget is `def textarea(field: Field, theme: Theme, **attrs) -> Markup`. Wrapper templates (`form_field` = label + control + hint + errors) are replaceable independently of controls, and every default widget accepts `attrs`, so most customisations *wrap* a default rather than reimplement it.
 
-**Widget registry.** Resolution is by tester rank (JSON Forms): each registered widget declares `matches(field) -> int` (0 = no, higher wins), so `is_enum` (2) beats `is_str` (1) and an app-registered `is_country_code` (5) beats both without touching the defaults; `Input(widget=...)` is rank ∞. A widget is `def textarea(field: Field, theme: Theme, **attrs) -> Markup`. `Form(widgets={"textarea": my_textarea})` or `forms.configure(widgets={...})` replaces one; `Input(widget=callable)` uses a one-off. Default widgets emit accessible markup: `<label for>`, `aria-describedby` pointing at hint and error ids, `aria-invalid="true"` when errors are visible, `required`/`minlength`/… from `attrs`, `phx-debounce="blur"` on text-like inputs, `phx-feedback-for` on the error container.
+**Default markup = the GOV.UK form-group contract**: `<label for="{id}">`, hint at `{id}-hint`, error at `{id}-error` with a visually hidden "Error:" prefix, `aria-describedby="{id}-hint {id}-error"` (only the parts that exist), `aria-invalid="true"` while an error is visible, error class on wrapper and control, `required`/`minlength`/… (a `novalidate` option for submit-only policies), "(optional)" on optional labels, `autocomplete`/`inputmode` from hints, `phx-debounce` per policy. List rows are `<fieldset>` + `<legend>` ("Address 2"); a polite live region announces add/remove and focus moves to the new row's first input via `push_event` + the shipped hook. Submit buttons are never disabled until valid, only during submission (`phx-disable-with`).
 
-**Theme = class map + wrappers.**
+**Theme = class map; `components.py` = the exit.**
 
 ```python
 @dataclass(frozen=True)
 class Theme:
-    field: str = "field"          # wrapper div
-    label: str = "label"
-    input: str = "input"
-    input_error: str = "input-error"
-    hint: str = "hint"
-    error: str = "error"
-    fieldset: str = "fieldset"; legend: str = "legend"
-    row: str = "row"; row_actions: str = "row-actions"; button: str = "button"
+    field: str = "field"; label: str = "label"; input: str = "input"; input_error: str = "input-error"
+    hint: str = "hint"; error: str = "error"; fieldset: str = "fieldset"; legend: str = "legend"
+    row: str = "row"; row_actions: str = "row-actions"; button: str = "button"; summary: str = "error-summary"
 
-TAILWIND = Theme(input="w-full rounded-md border-gray-300 …", input_error="border-red-300 …", error="text-sm text-red-600 mt-1", …)
-Form(Profile, theme=TAILWIND)   /   forms.configure(theme=TAILWIND)
+forms.configure(theme=TAILWIND)      # or Form(Profile, theme=…)
 ```
 
-Wrapper templates (`field` = label + control + hint + errors) are replaceable independently of the control widgets, and every default widget accepts the standard `attrs`, so most customisations *wrap* a default rather than reimplement it (RJSF's "wrapping BaseInputTemplate" lesson). Unstyled semantic markup is the default (works with Pico/water.css out of the box); `pyview.forms.themes` ships `TAILWIND` and `DAISY`. Anything beyond class names is done by overriding the widget function — the same escape Phoenix offers by generating `core_components.ex` into the app, without the copy step.
-
-**Escape hatch.** Hand-written HTML needs only `field.name`, `field.id`, `field.value`, `field.attrs` and `field.errors`; auto-render is never required, and mixing levels in one form is fine.
+Unstyled semantic markup is the default; `pyview.forms.themes` ships `TAILWIND` and `DAISY`. Beyond class names, users copy `pyview/forms/components.py` (the default widgets, ~150 lines) into their project and register their versions — Phoenix's `core_components.ex` stance, so the "customisation wall" of schema-driven UIs has a documented door.
 
 ## 4.8 Nested, dynamic and conditional forms
 
-**Nested models** need nothing: `form.address.city` is a `Field` with name `profile[address][city]`, and `{{ form.address | field }}` renders a `<fieldset>`.
+**Nested models** need nothing: `form.address.city.html.name` is `profile[address][city]`; `{{ form.address | form_field }}` renders a `<fieldset>`.
 
-**List rows.** `{% for row in form.addresses %}` yields one `Field` per current row (from `params` or `data`); `row.city.name` is `profile[addresses][0][city]` and `row.id` is `profile_addresses_k7f3` — the DOM id uses a **stable row key**, not the index, so reordering or removing rows does not re-id inputs and the browser keeps focus and scroll (LiveView's `_persistent_id` lesson). The key travels in a hidden `profile[addresses][0][_key]` input.
+**List rows.** Iterating `form.addresses` yields one `Field` per current row; `row.city.html.name` is `profile[addresses][0][city]` and `row.html.id` is `profile_addresses_k7f3` — a **stable row key** in the DOM id, so removing or reordering rows does not re-id inputs and the browser keeps focus and scroll (LiveView's `_persistent_id`). The key travels in a hidden `profile[addresses][0][_key]` input **(verified)**.
 
-**Intents: add / remove / move.** The Phoenix client only serialises the form on `phx-change`/`phx-submit`; a `phx-click` on a button carries no form data. Phoenix's recipe (named `type="button"` + `JS.dispatch("change")`) makes the click *become* a change event whose submitter is the button, so its `name`/`value` ride along with all current values. pyview already exposes `js.dispatch("change")`, so the helper generates:
+**Intents (verified against the client mechanics).** A `phx-click` carries no form values; only `phx-change`/`phx-submit` serialise the form, and a named `<button>` that dispatches a `change` event is treated as the submitter, so its `name`/`value` ride along with every current value. The row helpers emit exactly that:
 
 ```html
-<button type="button" name="profile[addresses][_intent]" value="add"
-        phx-click='[["dispatch",{"event":"change"}]]'>Add address</button>
+<button type="button" name="profile[addresses][_intent]" value="add" phx-click='[["dispatch",{"event":"change"}]]'>Add address</button>
 <button type="button" name="profile[addresses][_intent]" value="remove:k7f3" phx-click='[["dispatch",{"event":"change"}]]'>Remove</button>
-<button type="button" name="profile[addresses][_intent]" value="move:k7f3:up"  …>↑</button>
+<button type="button" name="profile[addresses][_intent]" value="move:k7f3:up" …>↑</button>
 ```
 
-`Form.validate()` sees `_intent` under a list path, applies it to `params` (append a blank row, drop the row with that key, swap) *before* validation, marks the list path used, and re-renders. No management form, no index arithmetic, no JS beyond what the client already ships **(verified in the 0.20.17 source: `pushInput` sets `meta.submitter = inputEl` when the dispatching element is a `<button>`, and `serializeForm` injects the submitter's `name`/`value` as a hidden pair at the button's DOM position — the exact mechanic behind LiveView's own add/remove-row recipe)**. Fallback for apps that prefer plain events: `phx-click="form:intent" phx-value-path=… phx-value-op=…` applies the same intent to the *last known* params (which the server keeps), at the cost of possibly missing keystrokes typed since the last change event.
+`Params.decode` pops the control key into `params.intents`; `Form.validate()` applies them to `params` before validation, marks the list path used and records them in `form.applied_intents`, so a handler can react (refuse an add, focus the new row, announce it) and a test can assert what happened. An intent event is a `validate`, never a save. Pending debounce timers flush on blur and submit, so clicking a button after typing loses nothing; the focused input is never value-patched, so renumbering names under a focused row is safe. Fallback without JS commands: a `<button type="submit" name="profile[addresses][_intent]" formnovalidate>` placed *after* the real submit button (Enter-key implicit submission picks the first submit button). Minimum/maximum rows come from `Field(min_length=, max_length=)`; an empty list with a minimum renders that many blank rows; very large repeaters belong in LiveComponents or streams.
 
-Two client facts shape the details: pending `phx-debounce` timers are flushed on blur and on submit, so clicking an add/remove button (which blurs the input) does not lose the last keystrokes; and the *focused* input is never value-patched during a DOM update, so a server-side reformat of the field being typed in (e.g. `" 1,000 "` → `1000`) only appears after blur — display normalisation must be designed for blur/submit re-renders, not keystrokes.
-
-Minimum/maximum rows come from `Field(min_length=, max_length=)`; the add button is omitted at the max and remove buttons at the min. An empty list with a minimum renders that many blank rows.
-
-**Discriminated unions (conditional nesting).**
+**Discriminated unions with variant-named inputs (verified with the real client ordering).**
 
 ```python
 class Personal(BaseModel):
-    kind: Literal["personal"] = "personal"
-    nickname: str = Field(min_length=2)
-
+    kind: Literal["personal"] = "personal"; nickname: str = Field(min_length=2)
 class Business(BaseModel):
-    kind: Literal["business"] = "business"
-    company: str = Field(min_length=2)
-    vat: str | None = None
-
+    kind: Literal["business"] = "business"; company: str = Field(min_length=2, title="Company name"); vat_id: str | None = None
 class Profile(BaseModel):
     account: Annotated[Personal | Business, Field(discriminator="kind")]
 ```
 
-Auto-render emits a select for `kind` and the fieldset of the *selected* variant only; changing the select is an ordinary `phx-change`, the server re-validates and re-renders the other fieldset. Errors inside a variant carry the tag in their pydantic `loc` (`("account", "business", "company")`) and are mapped back onto `form.account.company` by skipping the tag segment **(verified)**. Values typed into the previously selected variant are kept on a per-tag shelf inside the form (`form.params` only holds the active variant; `form.shelf["account"]["personal"]`) so switching back and forth is lossless — the one thing Conform cannot do because it trusts the DOM only. Manual templates branch on `form.account.kind.value`.
+The tag select is `profile[account][kind]`; the variant inputs are **namespaced by tag**: `profile[account][business][company]`, `profile[account][personal][nickname]`. Cast lifts the active variant (`{"kind": tag, **params["account"][tag]}`) and keeps the other variants in `params` untouched. Consequences: pydantic's `loc` `('account', 'business', 'company')` *is* the input name — no tag stripping; when the user switches the select, the client sends the old fieldset's values together with the new tag (the old inputs are still in the DOM at that moment) and nothing is polluted, because they arrive under their own tag; switching back restores the typed values; `extra="forbid"` models are safe. The first draft's same-named inputs plus a "shelf" was tested against an ordering the client cannot produce and was withdrawn (Part 8). Errors on the tag (`union_tag_invalid`, `missing`) render at `form.account.kind`.
 
-**Dependent fields (country → state).** Nothing special: the state select's `options` are computed in the handler from `form.country.value` (or a callable `Input(options=lambda form: states_for(form.country.value))`), and `_target` tells the handler which field changed.
+**Dependent fields (country → state).** `Input(options=lambda form: …)` is evaluated at render time; the handler resets the stale value when `form.target == ("country",)`.
 
-**Wizards.** Whole-model validation makes steps a *view* concern: `form.step(["name", "email"])` returns a proxy whose visible errors are limited to those paths and whose `valid` means "no errors under these paths"; "Next" is enabled when the step is valid, "Back" keeps params. Alternatively use one model per step and compose at the end; both are documented.
+**Wizards.** (a) One model per step, composed at the end — the nested-forms research's recommendation when steps differ; each step is an ordinary `Form`, validated dicts accumulate in `socket.context`, zero new API. (b) One model for all steps: whole-model validation with per-step visibility via `form.step(paths)` (errors and `valid` restricted to those paths), and hidden inputs for the other steps' values emitted by `{{ form | form_hidden(exclude=paths) }}` so Back and recovery never lose data. Both are documented; neither needs merged params.
 
 ## 4.9 Uploads, CSRF, security
 
-- **Uploads**: a field annotated `Annotated[list[UploadEntry], Upload("avatar", accept=[".png"], max_entries=1)]` renders `live_file_input` and binds to `socket.allow_upload`; `form.model` exposes consumed entries in `submit()` via the existing `consume_uploads()` API.
-- **CSRF**: the socket join already validates the token; forms rendered with `action=` (for `phx-trigger-action`) get a hidden `_csrf_token`.
-- **Mass assignment**: only model fields are read; unknown keys are ignored (pydantic `extra="ignore"` default) and `extra="forbid"` models produce a form-level error; `_intent`/`_key` are consumed by the form and never reach the model.
-- **Limits**: decoder depth 32, max 10 000 pairs, list index ≤ 10 000, dunder segments rejected; row intents validate against `max_length`.
+- **Uploads.** `live_file_input` renders a flat name outside the form prefix and the upload manager looks configs up by `_target`, so file inputs are correctly classified as `meta` and never reach the model. A model field `Annotated[list[UploadedFile], Upload("avatar", accept=[".png"], max_entries=1)]` is *skipped* during `validate()` and filled at submit time from `consume_uploads()` in the handler (`form.submit(params, uploads={"avatar": entries})`), which is where the async consumption already lives. Phase 4.
+- **CSRF.** The socket join validates the token; forms with `action=` (for `phx-trigger-action`) get a hidden `_csrf_token`.
+- **Mass assignment.** Only model fields are cast; unknown keys are ignored (`extra="forbid"` models produce a form-level error); `_intent`/`_key` never reach the model.
+- **Limits.** Decoder depth 32, 10 000 pairs, dunder segments rejected, `[]` only as the last segment **(verified)**; row intents respect `max_length`.
 
-## 4.10 Testing and debugging
+## 4.10 Multiple forms, LiveComponents, testing, debugging
+
+Two forms in one view need distinct `as_` prefixes (and DOM ids); inputs outside a form's prefix are `meta` to it. Inside a `LiveComponent`, `phx-target={meta.myself}` routes `validate`/`save` to the component's `handle_event`, where the form lives in the component's context; recovery needs the form's DOM `id` either way.
 
 ```python
 def test_registration_rejects_short_password():
-    form = Form(Registration).submit({"registration": {"name": "Larry", "email": "l@x.io", "password": "short"}})
-    assert not form.valid
-    assert form.errors_for(("password",))[0].code == "string_too_short"
-    assert form["password"].errors == ["Must be at least 8 characters"]
+    form = Form(Registration).submit({"registration[name]": ["Larry"], "registration[email]": ["l@x.io"], "registration[password]": ["short"]})
+    assert not form.valid and form.password.html.errors == ["Password must be at least 8 characters"]
 
-form.validate(encode({"registration": {"name": "ab"}}, target="registration[name]"))   # helper builds the wire format
+def test_add_address_intent():
+    form = Form(Profile).validate(wire(form := Form(Profile), target="profile[addresses][_intent]",
+                                       submitter=("profile[addresses][_intent]", "add")))
+    assert len(list(form.addresses)) == 1 and form.applied_intents[0].op == "add"
 ```
 
-`{{ form | debug }}` renders a `<details>` panel with params, errors, used paths and the model (superforms' `SuperDebug`); in dev mode, widgets warn when an `id` collides or a `name` is not under the form prefix.
+`wire(form, values, target=, submitter=)` (verified) serialises the *rendered* inputs the way the 0.20.17 client does — hidden `_key`, active union variant only, submitter pair, `_target` — the equivalent of `Phoenix.LiveViewTest.form/3 |> render_change()`. `{{ form | form_debug }}` renders params, used paths, action, errors and the model (superforms' `SuperDebug`); dev mode warns when two fields resolve to the same DOM id.
 
-## 4.11 Migration and module layout
+## 4.11 Migration, module layout, auto-routing
 
-`pyview/forms/` — `decode.py` (bracket decoder, `_target`), `form.py` (`Form`, `Field`, intents), `errors.py` (`FormError`, catalog, `field_errors`), `widgets.py` (default widgets), `theme.py`, `ibis.py` (filters), `html.py` (t-string helpers), `uploads.py` bridge. `pyview.changesets.ChangeSet` becomes a thin wrapper around `Form` (`changeset.attrs.name` → `form.params.get("name")`, `changeset.errors.get("name")` → first gated message) so the two shipped examples keep working; new docs use `Form`.
+`pyview/forms/`: `params.py` (decoder, `Params`, intents), `form.py` (`Form`, `Field`, cast), `errors.py` (`FormError`, catalog, `field_errors`), `components.py` (default widgets, copyable), `theme.py`, `ibis.py` (filters + tag), `html.py` (t-string helpers), `testing.py` (`wire`), `uploads.py` bridge.
+
+`pyview.changesets.ChangeSet` becomes a shim for one release: `apply(payload)` → `Form.validate(Params.decode(payload))`, `save(payload)` → `submit`, `attrs` → `SimpleNamespace` of `html.value`s (untouched fields now render their initial values instead of `""`), `errors` → `{first path segment: message}` for visible errors (model-level errors move to the form level). The two shipped examples keep rendering; the one behavioural change is that clearing a field now validates as empty — the bug fix.
+
+**Auto-routed events (`Form(Registration, on_submit=…)`)** stay deferred, now with the analysis the critique asked for: with `BaseEventHandler` the form would register `form.change_event`/`form.submit_event` names in the dispatch table; t-strings render `{form.change_event}`; components dispatch by `cid` first, so a form registered on a component routes there. Feasible, but it adds a hidden dispatch rule to the golden path; the explicit handlers are two three-line methods.

@@ -56,3 +56,22 @@ Added after the client research confirmed the mechanism: a `<button type="button
 | Fill the rows and submit | `form.valid`; `Profile(addresses=[New Row St/Rome, Second Ave/Lyon], account=Business(company="ACME"))` |
 
 Gating rule confirmed against Phoenix `used_input?` semantics: a path is visible when submitted, when it was itself used, or when it is an *ancestor* of a used path; children never inherit used-ness from a parent or list.
+
+## Part 3 of the spike: the corrected semantics (`prototype/pyview_forms_proto3.py`, 790 lines, `test_proto3.py`)
+
+Written after the critique (Part 8) to make every "(verified)" claim in Part 4 true against payloads the 0.20.17 client can actually produce.
+
+| Scenario | Result |
+|---|---|
+| Decoder: wire string, `parse_qs` dict and pairs; `[]` appends; sparse indices `[0]`,`[2]` compacted; `_target=profile[tags][]` → `("tags",)`; `_csrf_token` and a `phx-value` key outside the prefix → `meta` | pass |
+| 1.x `_unused_` on the last segment (`profile[addresses][0][_unused_city]=`, `profile[_unused_tags][]=`) → `unused == {("addresses", 0, "city"), ("tags",)}`, not in data | pass |
+| `profile[items][][name]`, `profile[__class__]`, `…[__proto__]…` rejected | pass |
+| `profile[addresses][_intent]=remove:k1` popped into `Intent("remove", ("addresses",), "k1")` | pass |
+| Edit form: `Form(Plant, data=plant)`; a template rendering only `name` keeps `days`/`note` from data; clearing a required field → `missing` with the label-aware message "Plant name is required"; clearing an optional/defaulted field → `None`/default as a change; `SecretStr` renders `""`; `html.attrs == 'required minlength="3"'` | pass |
+| Union with the **real client ordering**: switching the select sends the old fieldset's values with the new tag; with variant-named inputs nothing is polluted, only the active variant is validated, the untouched variant shows no errors, re-render sends only the active fieldset, switching back restores `company == "ACME"` | pass |
+| Intents: add → new row with key, `applied_intents[0].op == "add"`, no visible errors on the blank row (the ungated error list does contain `missing`); remove by key → the other row keeps its key and value while its name is renumbered; add + `move:…:up` reorders; `form["addresses"]["0"]` accepts a digit string; submit makes every error visible; a later validate clears `just_submitted` | pass |
+| `add_error("name", "unique", …)` is visible without the field being used and survives a re-validation; cleared by the next submit | pass |
+| Recovery replay (`recovered=True`) marks every non-blank path used on a fresh form | pass |
+| Ancestor rule: with only `addresses[0].street` used, `("addresses",)` is visible and `("name",)` is not | pass |
+
+Also verified for Part 4: a six-line bracket-aware `splitc` in the vendored Ibis makes `{"type": "email", "class": "w-full"}` and list arguments parse as filter arguments (the stock helper raises `TemplateSyntaxError` on them).
