@@ -12,6 +12,7 @@ from starlette.routing import Route, WebSocketRoute
 from pyview.auth import AuthProviderFactory
 from pyview.binding import call_handle_params, call_mount, create_view
 from pyview.components.lifecycle import run_nested_component_lifecycle
+from pyview.connection_tracker import ConnectionTracker
 from pyview.csrf import generate_csrf_token
 from pyview.instrumentation import InstrumentationProvider, NoOpInstrumentation
 from pyview.live_socket import UnconnectedSocket
@@ -33,7 +34,13 @@ class PyView(Starlette):
     rootTemplate: RootTemplate
     instrumentation: InstrumentationProvider
 
-    def __init__(self, *args, instrumentation: Optional[InstrumentationProvider] = None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        instrumentation: Optional[InstrumentationProvider] = None,
+        connection_tracker: Optional[ConnectionTracker] = None,
+        **kwargs,
+    ):
         # Extract user's lifespan if provided, then always use our composed lifespan
         user_lifespan = kwargs.pop("lifespan", None)
         kwargs["lifespan"] = self._create_lifespan(user_lifespan)
@@ -41,8 +48,11 @@ class PyView(Starlette):
         super().__init__(*args, **kwargs)
         self.rootTemplate = defaultRootTemplate()
         self.instrumentation = instrumentation or NoOpInstrumentation()
+        self.connection_tracker = connection_tracker
         self.view_lookup = LiveViewLookup()
-        self.live_handler = LiveSocketHandler(self.view_lookup, self.instrumentation)
+        self.live_handler = LiveSocketHandler(
+            self.view_lookup, self.instrumentation, self.connection_tracker
+        )
 
         self.routes.append(WebSocketRoute("/live/websocket", self.live_handler.handle))
         self.add_middleware(GZipMiddleware)
@@ -70,6 +80,11 @@ class PyView(Starlette):
             await app.live_handler.shutdown_scheduler()
 
         return lifespan
+
+    @property
+    def registered_routes(self) -> list[tuple[str, type[LiveView]]]:
+        """Return list of (path_format, view_class) for all registered LiveViews."""
+        return [(fmt, cls) for fmt, _, _, cls in self.view_lookup.routes]
 
     def add_live_view(self, path: str, view: type[LiveView]):
         async def lv(request: Request):
