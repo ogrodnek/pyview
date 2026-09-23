@@ -414,13 +414,17 @@ class UploadManager:
         configJson = config.constraints.model_dump()
         return {"config": configJson, "entries": entries_with_meta}
 
-    def _process_internal_upload(self, config: UploadConfig) -> dict[str, Any]:
+    def _process_internal_upload(
+        self, config: UploadConfig, proposed_entries: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Process internal (direct-to-server) upload."""
-        for entry in config.entries:
+        requested_refs = {entry["ref"] for entry in proposed_entries}
+        entries = [entry for entry in config.entries if entry.ref in requested_refs]
+        for entry in entries:
             entry.preflighted = True
 
         configJson = config.constraints.model_dump()
-        entryJson = {e.ref: e.model_dump(exclude={"upload_config"}) for e in config.entries}
+        entryJson = {e.ref: e.model_dump(exclude={"upload_config"}) for e in entries}
         return {"config": configJson, "entries": entryJson}
 
     async def process_allow_upload(self, payload: dict[str, Any], context: Any) -> dict[str, Any]:
@@ -448,7 +452,7 @@ class UploadManager:
         if config.is_external:
             return await self._process_external_upload(config, proposed_entries, context)
         else:
-            return self._process_internal_upload(config)
+            return self._process_internal_upload(config, proposed_entries)
 
     def add_upload(self, joinRef: str, payload: dict[str, Any]):
         token = payload["token"]

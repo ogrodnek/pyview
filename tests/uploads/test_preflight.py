@@ -36,3 +36,32 @@ async def test_internal_preflight_updates_entry_and_file_input(auto_upload):
     html = str(live_file_input(config))
     assert 'data-phx-preflighted-refs="0"' in html
     assert 'data-phx-done-refs=""' in html
+
+
+async def test_internal_preflight_only_approves_requested_files():
+    # Given two selected PDFs that are waiting for upload approval
+    manager = UploadManager()
+    config = manager.allow_upload(
+        "documents",
+        UploadConstraints(accept=[".pdf"], max_files=2),
+    )
+    first_file = {
+        "ref": "0",
+        "name": "first.pdf",
+        "type": "application/pdf",
+        "size": 4,
+        "path": "documents",
+    }
+    second_file = {**first_file, "ref": "1", "name": "second.pdf"}
+    config.add_entries([first_file, second_file])
+
+    # When the browser requests permission to upload only the second file
+    response = await manager.process_allow_upload(
+        {"ref": config.ref, "entries": [second_file]}, context=None
+    )
+
+    # Then only the second file is returned and approved for upload
+    assert "error" not in response
+    assert set(response["entries"]) == {"1"}
+    assert config.entries_by_ref["1"].preflighted
+    assert not config.entries_by_ref["0"].preflighted
