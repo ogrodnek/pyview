@@ -186,6 +186,9 @@ class UploadConfig(BaseModel):
     def add_entries(self, entries: list[dict]):
         parsed = parse_entries(entries)
         for entry in parsed:
+            if entry.ref in self.entries_by_ref:
+                continue
+
             entry.upload_config = self
             self.entries_by_ref[entry.ref] = entry
             if entry.size > self.constraints.max_file_size:
