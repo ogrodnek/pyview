@@ -413,6 +413,9 @@ class UploadManager:
 
     def _process_internal_upload(self, config: UploadConfig) -> dict[str, Any]:
         """Process internal (direct-to-server) upload."""
+        for entry in config.entries:
+            entry.preflighted = True
+
         configJson = config.constraints.model_dump()
         entryJson = {e.ref: e.model_dump(exclude={"upload_config"}) for e in config.entries}
         return {"config": configJson, "entries": entryJson}
