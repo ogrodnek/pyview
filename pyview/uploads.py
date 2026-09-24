@@ -525,7 +525,12 @@ class UploadManager:
         if config is None:
             return UploadChunkResult.IGNORED
 
-        return config.uploads.add_chunk(joinRef, chunk)
+        result = config.uploads.add_chunk(joinRef, chunk)
+        if result is UploadChunkResult.FILE_SIZE_LIMIT_EXCEEDED:
+            entry_ref = config.uploads.uploads[joinRef].entry.ref
+            config.cancel_entry(entry_ref)
+            self.upload_config_join_refs.pop(joinRef, None)
+        return result
 
     async def update_progress(self, joinRef: str, payload: dict[str, Any], socket):
         upload_config_ref = payload["ref"]

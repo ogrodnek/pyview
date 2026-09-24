@@ -59,9 +59,11 @@ async def send_chunk(handler, socket, chunk):
     return json.loads(socket.websocket.send_text.call_args.args[0])[4]
 
 
-async def test_chunk_exceeding_declared_file_size_is_rejected(partial_upload):
+async def test_chunk_exceeding_declared_file_size_is_rejected(partial_upload, monkeypatch):
     # Given an approved four-byte file with two bytes already received
     handler, socket, upload = partial_upload
+    write = MagicMock(wraps=upload.file.write)
+    monkeypatch.setattr(upload.file, "write", write)
 
     # When three more bytes arrive, exceeding the file's declared size
     response = await send_chunk(handler, socket, b"cde")
@@ -71,9 +73,34 @@ async def test_chunk_exceeding_declared_file_size_is_rejected(partial_upload):
         "response": {"reason": "file_size_limit_exceeded"},
         "status": "error",
     }
-    assert Path(upload.file.name).read_bytes() == b"ab"
+    write.assert_not_called()
 
     # And the parent LiveView stays connected
+    assert socket.connected
+
+
+async def test_oversized_chunk_cleans_up_partial_upload(partial_upload):
+    # Given an approved upload with a temporary file containing its first two bytes
+    handler, socket, upload = partial_upload
+    manager = socket.upload_manager
+    config = manager.config_for_name("document")
+    assert config is not None
+    temporary_path = Path(upload.file.name)
+    assert temporary_path.read_bytes() == b"ab"
+
+    # When another chunk would exceed the file's declared size
+    await send_chunk(handler, socket, b"cde")
+
+    # Then the partial file is closed and deleted, and its upload registration is removed
+    assert upload.file.closed
+    assert not temporary_path.exists()
+    assert config.uploads.uploads == {}
+    assert config.entries_by_ref == {}
+    assert manager.upload_config_join_refs == {}
+
+    # And the failed file cannot be consumed while the LiveView stays connected
+    with config.consume_uploads() as uploads:
+        assert uploads == []
     assert socket.connected
 
 
