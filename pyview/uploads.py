@@ -114,6 +114,10 @@ class ActiveUpload:
     def __post_init__(self):
         self.file = tempfile.NamedTemporaryFile(delete=False)  # noqa: SIM115
 
+    @property
+    def is_complete(self) -> bool:
+        return os.fstat(self.file.fileno()).st_size == self.entry.size
+
     def close(self):
         self.file.close()
         os.remove(self.file.name)
@@ -244,8 +248,15 @@ class UploadConfig(BaseModel):
 
     @contextmanager
     def consume_uploads(self) -> Generator[list["ActiveUpload"], None, None]:
+        """Consume all active uploads, raising UploadInProgressError if any is incomplete."""
+        upload_list = list(self.uploads.uploads.values())
+        for upload in upload_list:
+            if not upload.is_complete:
+                raise UploadInProgressError(
+                    f"Cannot consume upload {upload.entry.ref!r}: it is still in progress"
+                )
+
         try:
-            upload_list = list(self.uploads.uploads.values())
             yield upload_list
         finally:
             try:
@@ -271,7 +282,7 @@ class UploadConfig(BaseModel):
                 join_ref = jr
                 break
 
-        if upload and os.fstat(upload.file.fileno()).st_size != upload.entry.size:
+        if upload and not upload.is_complete:
             raise UploadInProgressError(
                 f"Cannot consume upload {entry_ref!r}: it is still in progress"
             )
