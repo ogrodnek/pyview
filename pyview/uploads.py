@@ -63,6 +63,10 @@ class UploadChunkResult(Enum):
     FILE_SIZE_LIMIT_EXCEEDED = "file_size_limit_exceeded"
 
 
+class UploadInProgressError(RuntimeError):
+    """An upload cannot be consumed until all of its bytes have arrived."""
+
+
 @dataclass
 class ConstraintViolation:
     ref: str
@@ -256,7 +260,7 @@ class UploadConfig(BaseModel):
     def consume_upload_entry(
         self, entry_ref: str
     ) -> Generator[Optional["ActiveUpload"], None, None]:
-        """Consume a single upload entry by its ref"""
+        """Consume a single entry, raising UploadInProgressError if it is incomplete."""
         upload = None
         join_ref = None
 
@@ -266,6 +270,11 @@ class UploadConfig(BaseModel):
                 upload = active_upload
                 join_ref = jr
                 break
+
+        if upload and os.fstat(upload.file.fileno()).st_size != upload.entry.size:
+            raise UploadInProgressError(
+                f"Cannot consume upload {entry_ref!r}: it is still in progress"
+            )
 
         try:
             yield upload
