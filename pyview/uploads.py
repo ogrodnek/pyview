@@ -5,6 +5,7 @@ import tempfile
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Awaitable, Callable, Generator, Literal, Optional
 
 from markupsafe import Markup
@@ -48,6 +49,12 @@ class UploadFailure:
 
 # Type alias for upload completion results
 UploadResult = UploadSuccess | UploadSuccessWithData | UploadFailure
+
+
+class UploadJoinResult(Enum):
+    ACCEPTED = "accepted"
+    DISALLOWED = "disallowed"
+    ALREADY_REGISTERED = "already_registered"
 
 
 @dataclass
@@ -479,21 +486,27 @@ class UploadManager:
         else:
             return self._process_internal_upload(config, proposed_entries)
 
-    def add_upload(self, joinRef: str, payload: dict[str, Any]) -> bool:
+    def add_upload(self, joinRef: str, payload: dict[str, Any]) -> UploadJoinResult:
+        """Start an upload, returning whether the join was accepted or why it was rejected."""
         token = payload["token"]
 
         config = self.config_for_name(token["path"])
         if config is None:
-            return False
+            return UploadJoinResult.DISALLOWED
 
         registered_entry = config.entries_by_ref.get(token["ref"])
         if registered_entry is None or not registered_entry.preflighted:
-            return False
+            return UploadJoinResult.DISALLOWED
+
+        if any(
+            upload.entry.ref == registered_entry.ref for upload in config.uploads.uploads.values()
+        ):
+            return UploadJoinResult.ALREADY_REGISTERED
 
         self.upload_config_join_refs[joinRef] = config
         entry = UploadEntry(**token)
         config.uploads.add_upload(joinRef, entry)
-        return True
+        return UploadJoinResult.ACCEPTED
 
     def add_chunk(self, joinRef: str, chunk: bytes):
         config = self.upload_config_join_refs.get(joinRef)

@@ -259,3 +259,71 @@ async def test_upload_channel_join_accepts_preflighted_file():
         assert Path(upload.file.name).read_bytes() == b"ab"
     finally:
         await socket.close()
+
+
+async def test_upload_channel_join_rejects_file_already_uploading(tmp_path, monkeypatch):
+    # Given an approved PDF already uploading with some bytes received
+    instrumentation = NoOpInstrumentation()
+    handler = LiveSocketHandler(LiveViewLookup(), instrumentation)
+    websocket = MagicMock()
+    websocket.send_text = AsyncMock()
+    socket = ConnectedLiveViewSocket(
+        websocket=websocket,
+        topic="lv:test",
+        liveview=LiveView(),
+        scheduler=handler.scheduler,
+        instrumentation=instrumentation,
+    )
+    manager = socket.upload_manager
+    config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
+    monkeypatch.setattr("pyview.uploads.tempfile.tempdir", str(tmp_path))
+    file = {
+        "ref": "0",
+        "name": "example.pdf",
+        "type": "application/pdf",
+        "size": 4,
+        "path": "document",
+    }
+    config.add_entries([file])
+    response = await manager.process_allow_upload(
+        {"ref": config.ref, "entries": [file]}, context=None
+    )
+    payload = {"token": response["entries"]["0"]}
+    try:
+        manager.add_upload("original-join", payload)
+        manager.add_chunk("original-join", b"ab")
+        original_upload = config.uploads.uploads["original-join"]
+        original_path = Path(original_upload.file.name)
+
+        # When a second channel tries to upload the same file
+        websocket.receive = AsyncMock(
+            side_effect=[
+                {"text": json.dumps(["duplicate-join", "3", "lvu:0", "phx_join", payload])},
+                WebSocketDisconnect(),
+            ]
+        )
+        with pytest.raises(WebSocketDisconnect):
+            await handler._handle_connected_loop("lv:test", socket)
+
+        # Then the second join is rejected without creating another upload or file
+        websocket.send_text.assert_awaited_once()
+        assert json.loads(websocket.send_text.call_args.args[0]) == [
+            "duplicate-join",
+            "3",
+            "lvu:0",
+            "phx_reply",
+            {"response": {"reason": "already_registered"}, "status": "error"},
+        ]
+        assert set(manager.upload_config_join_refs) == {"original-join"}
+        assert set(config.uploads.uploads) == {"original-join"}
+        assert list(tmp_path.iterdir()) == [original_path]
+
+        # And the original upload keeps its received bytes and can continue
+        assert socket.connected
+        assert config.uploads.uploads["original-join"] is original_upload
+        assert not original_upload.file.closed
+        assert original_path.read_bytes() == b"ab"
+        manager.add_chunk("original-join", b"cd")
+        assert original_path.read_bytes() == b"abcd"
+    finally:
+        await socket.close()

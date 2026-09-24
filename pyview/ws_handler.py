@@ -15,6 +15,7 @@ from pyview.live_routes import LiveViewLookup
 from pyview.live_socket import ConnectedLiveViewSocket, LiveViewSocket
 from pyview.phx_message import parse_message
 from pyview.session import deserialize_session
+from pyview.uploads import UploadJoinResult
 
 logger = logging.getLogger(__name__)
 
@@ -327,7 +328,7 @@ class LiveSocketHandler:
                 # Check if this is a file upload join (topic starts with "lvu:")
                 if topic.startswith("lvu:"):
                     # This is a file upload join
-                    accepted = socket.upload_manager.add_upload(joinRef, payload)
+                    result = socket.upload_manager.add_upload(joinRef, payload)
 
                     resp = [
                         joinRef,
@@ -335,8 +336,8 @@ class LiveSocketHandler:
                         topic,
                         "phx_reply",
                         {"response": {}, "status": "ok"}
-                        if accepted
-                        else {"response": {"reason": "disallowed"}, "status": "error"},
+                        if result is UploadJoinResult.ACCEPTED
+                        else {"response": {"reason": result.value}, "status": "error"},
                     ]
 
                     await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
