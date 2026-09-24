@@ -7,6 +7,25 @@ from pyview.uploads import ExternalUploadMeta, UploadConstraints, UploadManager,
 from .factories import upload_entry_data
 
 
+async def test_preflight_rejects_unknown_upload_config():
+    # Given a selected PDF waiting for approval in an existing upload input
+    manager = UploadManager()
+    config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
+    file = upload_entry_data(path=config.name)
+    config.add_entries([file])
+
+    # When the browser requests approval using an unknown upload configuration ref
+    response = await manager.process_allow_upload(
+        {"ref": "unknown", "entries": [file]}, context=None
+    )
+
+    # Then the browser receives a not-found error and the selected file stays unapproved
+    assert response == {"error": [("unknown", "not_found")]}
+    assert manager.config_for_name("document") is config
+    assert set(config.entries_by_ref) == {"0"}
+    assert not config.entries_by_ref["0"].preflighted
+
+
 @pytest.mark.parametrize("auto_upload", [False, True], ids=["on-submit", "auto-upload"])
 async def test_internal_preflight_updates_entry_and_file_input(auto_upload):
     # Given a selected PDF that is allowed to upload directly to the server

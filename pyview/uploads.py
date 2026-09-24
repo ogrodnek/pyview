@@ -423,7 +423,10 @@ class UploadManager:
         return self.upload_configs.get(upload_name)
 
     def config_for_ref(self, ref: str) -> Optional[UploadConfig]:
-        return [c for c in self.upload_configs.values() if c.ref == ref][0]
+        for config in self.upload_configs.values():
+            if config.ref == ref:
+                return config
+        return None
 
     def maybe_process_uploads(self, qs: dict[str, Any], payload: dict[str, Any]):
         if "uploads" in payload:
