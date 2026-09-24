@@ -479,14 +479,17 @@ class UploadManager:
         else:
             return self._process_internal_upload(config, proposed_entries)
 
-    def add_upload(self, joinRef: str, payload: dict[str, Any]):
+    def add_upload(self, joinRef: str, payload: dict[str, Any]) -> bool:
         token = payload["token"]
 
         config = self.config_for_name(token["path"])
-        if config:
-            self.upload_config_join_refs[joinRef] = config
-            entry = UploadEntry(**token)
-            config.uploads.add_upload(joinRef, entry)
+        if config is None or token["ref"] not in config.entries_by_ref:
+            return False
+
+        self.upload_config_join_refs[joinRef] = config
+        entry = UploadEntry(**token)
+        config.uploads.add_upload(joinRef, entry)
+        return True
 
     def add_chunk(self, joinRef: str, chunk: bytes):
         config = self.upload_config_join_refs.get(joinRef)

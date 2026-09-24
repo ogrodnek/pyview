@@ -80,3 +80,126 @@ async def test_leaving_canceled_upload_channel_preserves_liveview_and_other_uplo
         ]
     finally:
         await socket.close()
+
+
+async def test_upload_channel_join_rejects_unknown_file(tmp_path, monkeypatch):
+    # Given a connected LiveView with an upload input but no selected files
+    instrumentation = NoOpInstrumentation()
+    handler = LiveSocketHandler(LiveViewLookup(), instrumentation)
+    websocket = MagicMock()
+    websocket.send_text = AsyncMock()
+    socket = ConnectedLiveViewSocket(
+        websocket=websocket,
+        topic="lv:test",
+        liveview=LiveView(),
+        scheduler=handler.scheduler,
+        instrumentation=instrumentation,
+    )
+    manager = socket.upload_manager
+    config = manager.allow_upload("document", UploadConstraints(max_files=1))
+    monkeypatch.setattr("pyview.uploads.tempfile.tempdir", str(tmp_path))
+    token = {
+        "ref": "unknown",
+        "name": "example.pdf",
+        "type": "application/pdf",
+        "size": 4,
+        "path": "document",
+    }
+    try:
+        # When the browser tries to start uploading a file that was never selected
+        websocket.receive = AsyncMock(
+            side_effect=[
+                {
+                    "text": json.dumps(
+                        ["upload-join", "2", "lvu:unknown", "phx_join", {"token": token}]
+                    )
+                },
+                WebSocketDisconnect(),
+            ]
+        )
+        with pytest.raises(WebSocketDisconnect):
+            await handler._handle_connected_loop("lv:test", socket)
+
+        # Then the join is rejected while the LiveView stays connected
+        websocket.send_text.assert_awaited_once()
+        assert json.loads(websocket.send_text.call_args.args[0]) == [
+            "upload-join",
+            "2",
+            "lvu:unknown",
+            "phx_reply",
+            {"response": {"reason": "disallowed"}, "status": "error"},
+        ]
+        assert socket.connected
+
+        # And no upload, channel registration, or temporary file is created
+        assert config.entries_by_ref == {}
+        assert config.uploads.uploads == {}
+        assert manager.upload_config_join_refs == {}
+        assert list(tmp_path.iterdir()) == []
+    finally:
+        await socket.close()
+
+
+async def test_upload_channel_join_accepts_preflighted_file():
+    # Given a connected LiveView with a selected PDF approved for direct upload
+    instrumentation = NoOpInstrumentation()
+    handler = LiveSocketHandler(LiveViewLookup(), instrumentation)
+    websocket = MagicMock()
+    websocket.send_text = AsyncMock()
+    socket = ConnectedLiveViewSocket(
+        websocket=websocket,
+        topic="lv:test",
+        liveview=LiveView(),
+        scheduler=handler.scheduler,
+        instrumentation=instrumentation,
+    )
+    manager = socket.upload_manager
+    config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
+    file = {
+        "ref": "0",
+        "name": "example.pdf",
+        "type": "application/pdf",
+        "size": 4,
+        "path": "document",
+    }
+    config.add_entries([file])
+    response = await manager.process_allow_upload(
+        {"ref": config.ref, "entries": [file]}, context=None
+    )
+    try:
+        # When the browser joins the upload channel using its preflight response
+        websocket.receive = AsyncMock(
+            side_effect=[
+                {
+                    "text": json.dumps(
+                        [
+                            "upload-join",
+                            "2",
+                            "lvu:0",
+                            "phx_join",
+                            {"token": response["entries"]["0"]},
+                        ]
+                    )
+                },
+                WebSocketDisconnect(),
+            ]
+        )
+        with pytest.raises(WebSocketDisconnect):
+            await handler._handle_connected_loop("lv:test", socket)
+
+        # Then the join is accepted and the file can receive bytes
+        websocket.send_text.assert_awaited_once()
+        assert json.loads(websocket.send_text.call_args.args[0]) == [
+            "upload-join",
+            "2",
+            "lvu:0",
+            "phx_reply",
+            {"response": {}, "status": "ok"},
+        ]
+        assert socket.connected
+        assert manager.upload_config_join_refs["upload-join"] is config
+        manager.add_chunk("upload-join", b"ab")
+        upload = config.uploads.uploads["upload-join"]
+        assert Path(upload.file.name).read_bytes() == b"ab"
+    finally:
+        await socket.close()

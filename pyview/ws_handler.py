@@ -327,14 +327,16 @@ class LiveSocketHandler:
                 # Check if this is a file upload join (topic starts with "lvu:")
                 if topic.startswith("lvu:"):
                     # This is a file upload join
-                    socket.upload_manager.add_upload(joinRef, payload)
+                    accepted = socket.upload_manager.add_upload(joinRef, payload)
 
                     resp = [
                         joinRef,
                         messageRef,
                         topic,
                         "phx_reply",
-                        {"response": {}, "status": "ok"},
+                        {"response": {}, "status": "ok"}
+                        if accepted
+                        else {"response": {"reason": "disallowed"}, "status": "error"},
                     ]
 
                     await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
