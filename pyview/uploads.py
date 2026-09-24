@@ -348,6 +348,7 @@ class UploadConfig(BaseModel):
 
         Raises:
             ValueError: If called on a non-external upload config
+            UploadInProgressError: If the upload has not finished
         """
         if not self.is_external:
             raise ValueError(
@@ -355,6 +356,10 @@ class UploadConfig(BaseModel):
             )
 
         entry = self.entries_by_ref.get(entry_ref)
+        if entry and not entry.done:
+            raise UploadInProgressError(
+                f"Cannot consume upload {entry_ref!r}: it is still in progress"
+            )
 
         try:
             yield entry

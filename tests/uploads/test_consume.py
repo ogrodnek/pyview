@@ -1,8 +1,58 @@
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 
-from pyview.uploads import UploadConstraints, UploadInProgressError, UploadManager
+from pyview.uploads import (
+    ExternalUploadMeta,
+    UploadConstraints,
+    UploadInProgressError,
+    UploadManager,
+)
+
+
+async def test_consuming_incomplete_external_upload_preserves_it_for_completion():
+    # Given an approved cloud upload that is halfway finished
+    metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
+    manager = UploadManager()
+    config = manager.allow_upload(
+        "document",
+        UploadConstraints(accept=[".pdf"], max_files=1),
+        external=AsyncMock(return_value=metadata),
+    )
+    file = {
+        "ref": "0",
+        "name": "example.pdf",
+        "type": "application/pdf",
+        "size": 4,
+        "path": "document",
+    }
+    config.add_entries([file])
+    await manager.process_allow_upload({"ref": config.ref, "entries": [file]}, context=None)
+    config.update_progress("0", 50)
+    entry = config.entries_by_ref["0"]
+
+    # When the app tries to consume the file before the cloud upload finishes
+    # Then it receives a clear error before gaining access to the unfinished upload
+    with (
+        pytest.raises(UploadInProgressError, match="Cannot consume upload '0'.*still in progress"),
+        config.consume_external_upload("0"),
+    ):
+        pytest.fail("An incomplete cloud upload must not be yielded for consumption")
+
+    # And the upload keeps its metadata and progress so it can finish
+    assert config.entries_by_ref["0"] is entry
+    assert entry.meta == metadata
+    assert entry.progress == 50
+
+    # When the upload finishes and the app retries consumption
+    config.update_progress("0", 100)
+    with config.consume_external_upload("0") as consumed:
+        # Then the completed upload is available and is removed only after consumption
+        assert consumed is entry
+        assert consumed.done
+        assert config.entries_by_ref["0"] is entry
+    assert "0" not in config.entries_by_ref
 
 
 @pytest.fixture
