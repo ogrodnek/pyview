@@ -473,12 +473,11 @@ class UploadManager:
 
         for entry_data in proposed_entries:
             existing_entry = config.entries_by_ref.get(entry_data["ref"])
-            if existing_entry and existing_entry.preflighted:
+            if existing_entry is None or existing_entry.preflighted:
                 continue
 
-            # Create UploadEntry to pass to presign function
-            entry = UploadEntry(**entry_data)
-            entry.upload_config = config
+            # Preserve selected metadata without changing approval until presigning succeeds.
+            entry = existing_entry.model_copy()
 
             try:
                 # Call user's presign function
