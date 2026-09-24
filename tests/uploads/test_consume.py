@@ -13,91 +13,29 @@ from pyview.uploads import (
 from .factories import upload_entry_data
 
 
-async def test_consuming_incomplete_external_upload_preserves_it_for_completion():
-    # Given an approved cloud upload that is halfway finished
-    metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
+@pytest.fixture
+async def started_upload_batch():
     manager = UploadManager()
-    config = manager.allow_upload(
-        "document",
-        UploadConstraints(accept=[".pdf"], max_files=1),
-        external=AsyncMock(return_value=metadata),
-    )
-    file = upload_entry_data(
-        name="example.pdf", file_type="application/pdf", size=4, path=config.name
-    )
-    config.add_entries([file])
-    await manager.process_allow_upload({"ref": config.ref, "entries": [file]}, context=None)
-    config.update_progress("0", 50)
-    entry = config.entries_by_ref["0"]
-
-    # When the app tries to consume the file before the cloud upload finishes
-    # Then it receives a clear error before gaining access to the unfinished upload
-    with (
-        pytest.raises(UploadInProgressError, match="Cannot consume upload '0'.*still in progress"),
-        config.consume_external_upload("0"),
-    ):
-        pytest.fail("An incomplete cloud upload must not be yielded for consumption")
-
-    # And the upload keeps its metadata and progress so it can finish
-    assert config.entries_by_ref["0"] is entry
-    assert entry.meta == metadata
-    assert entry.progress == 50
-
-    # When the upload finishes and the app retries consumption
-    config.update_progress("0", 100)
-    with config.consume_external_upload("0") as consumed:
-        # Then the completed upload is available and is removed only after consumption
-        assert consumed is entry
-        assert consumed.done
-        assert config.entries_by_ref["0"] is entry
-    assert "0" not in config.entries_by_ref
-
-
-async def test_consuming_incomplete_external_batch_preserves_all_entries():
-    # Given two approved cloud uploads, one complete and one halfway finished
-    metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
-    manager = UploadManager()
-    config = manager.allow_upload(
-        "documents",
-        UploadConstraints(accept=[".pdf"], max_files=2),
-        external=AsyncMock(return_value=metadata),
-    )
+    config = manager.allow_upload("documents", UploadConstraints(accept=[".pdf"], max_files=2))
     first_file = upload_entry_data(
         name="first.pdf", file_type="application/pdf", size=4, path=config.name
     )
     second_file = {**first_file, "ref": "1", "name": "second.pdf"}
     config.add_entries([first_file, second_file])
-    await manager.process_allow_upload(
+    response = await manager.process_allow_upload(
         {"ref": config.ref, "entries": [first_file, second_file]}, context=None
     )
-    config.update_progress("0", 100)
-    config.update_progress("1", 50)
-    first_entry = config.entries_by_ref["0"]
-    second_entry = config.entries_by_ref["1"]
-
-    # When the app tries to consume the batch before the second upload finishes
-    # Then it receives a clear error before gaining access to either upload
-    with (
-        pytest.raises(UploadInProgressError, match="Cannot consume upload '1'.*still in progress"),
-        config.consume_external_uploads(),
-    ):
-        pytest.fail("An incomplete cloud upload batch must not be yielded for consumption")
-
-    # And both uploads keep their metadata and progress so the batch can finish
-    assert config.entries_by_ref["0"] is first_entry
-    assert config.entries_by_ref["1"] is second_entry
-    assert first_entry.meta == second_entry.meta == metadata
-    assert first_entry.progress == 100
-    assert second_entry.progress == 50
-
-    # When the second upload finishes and the app retries consumption
-    config.update_progress("1", 100)
-    with config.consume_external_uploads() as consumed:
-        # Then both completed uploads are available and are removed only after consumption
-        assert consumed == [first_entry, second_entry]
-        assert all(entry.done for entry in consumed)
-        assert set(config.entries_by_ref) == {"0", "1"}
-    assert config.entries_by_ref == {}
+    try:
+        manager.add_upload("first-join", {"token": response["entries"]["0"]})
+        manager.add_upload("second-join", {"token": response["entries"]["1"]})
+        yield (
+            manager,
+            config,
+            config.uploads.uploads["first-join"],
+            config.uploads.uploads["second-join"],
+        )
+    finally:
+        manager.close()
 
 
 async def test_consuming_incomplete_upload_preserves_it_for_completion(started_upload):
@@ -185,34 +123,9 @@ async def test_consuming_unknown_ref_yields_none_without_affecting_selected_file
     assert set(config.entries_by_ref) == {"0"}
 
 
-@pytest.fixture
-async def approved_upload_batch():
-    manager = UploadManager()
-    config = manager.allow_upload("documents", UploadConstraints(accept=[".pdf"], max_files=2))
-    first_file = upload_entry_data(
-        name="first.pdf", file_type="application/pdf", size=4, path=config.name
-    )
-    second_file = {**first_file, "ref": "1", "name": "second.pdf"}
-    config.add_entries([first_file, second_file])
-    response = await manager.process_allow_upload(
-        {"ref": config.ref, "entries": [first_file, second_file]}, context=None
-    )
-    try:
-        manager.add_upload("first-join", {"token": response["entries"]["0"]})
-        manager.add_upload("second-join", {"token": response["entries"]["1"]})
-        yield (
-            manager,
-            config,
-            config.uploads.uploads["first-join"],
-            config.uploads.uploads["second-join"],
-        )
-    finally:
-        manager.close()
-
-
-async def test_consuming_batch_with_incomplete_upload_preserves_all_files(approved_upload_batch):
+async def test_consuming_batch_with_incomplete_upload_preserves_all_files(started_upload_batch):
     # Given two uploads, one fully received and the other only halfway uploaded
-    manager, config, first_upload, second_upload = approved_upload_batch
+    manager, config, first_upload, second_upload = started_upload_batch
     manager.add_chunk("first-join", b"abcd")
     manager.add_chunk("second-join", b"ef")
     first_path = Path(first_upload.file.name)
@@ -240,9 +153,9 @@ async def test_consuming_batch_with_incomplete_upload_preserves_all_files(approv
     assert second_path.read_bytes() == b"efgh"
 
 
-async def test_consuming_fully_received_batch_yields_files_and_cleans_up(approved_upload_batch):
+async def test_consuming_fully_received_batch_yields_files_and_cleans_up(started_upload_batch):
     # Given two uploads with all their bytes received
-    manager, config, first_upload, second_upload = approved_upload_batch
+    manager, config, first_upload, second_upload = started_upload_batch
     manager.add_chunk("first-join", b"abcd")
     manager.add_chunk("second-join", b"efgh")
     first_path = Path(first_upload.file.name)
@@ -313,3 +226,90 @@ async def test_consuming_batch_with_unstarted_upload_preserves_both_entries():
             assert all(upload.is_complete for upload in uploads)
     finally:
         manager.close()
+
+
+async def test_consuming_incomplete_external_upload_preserves_it_for_completion():
+    # Given an approved cloud upload that is halfway finished
+    metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
+    manager = UploadManager()
+    config = manager.allow_upload(
+        "document",
+        UploadConstraints(accept=[".pdf"], max_files=1),
+        external=AsyncMock(return_value=metadata),
+    )
+    file = upload_entry_data(
+        name="example.pdf", file_type="application/pdf", size=4, path=config.name
+    )
+    config.add_entries([file])
+    await manager.process_allow_upload({"ref": config.ref, "entries": [file]}, context=None)
+    config.update_progress("0", 50)
+    entry = config.entries_by_ref["0"]
+
+    # When the app tries to consume the file before the cloud upload finishes
+    # Then it receives a clear error before gaining access to the unfinished upload
+    with (
+        pytest.raises(UploadInProgressError, match="Cannot consume upload '0'.*still in progress"),
+        config.consume_external_upload("0"),
+    ):
+        pytest.fail("An incomplete cloud upload must not be yielded for consumption")
+
+    # And the upload keeps its metadata and progress so it can finish
+    assert config.entries_by_ref["0"] is entry
+    assert entry.meta == metadata
+    assert entry.progress == 50
+
+    # When the upload finishes and the app retries consumption
+    config.update_progress("0", 100)
+    with config.consume_external_upload("0") as consumed:
+        # Then the completed upload is available and is removed only after consumption
+        assert consumed is entry
+        assert consumed.done
+        assert config.entries_by_ref["0"] is entry
+    assert "0" not in config.entries_by_ref
+
+
+async def test_consuming_incomplete_external_batch_preserves_all_entries():
+    # Given two approved cloud uploads, one complete and one halfway finished
+    metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
+    manager = UploadManager()
+    config = manager.allow_upload(
+        "documents",
+        UploadConstraints(accept=[".pdf"], max_files=2),
+        external=AsyncMock(return_value=metadata),
+    )
+    first_file = upload_entry_data(
+        name="first.pdf", file_type="application/pdf", size=4, path=config.name
+    )
+    second_file = {**first_file, "ref": "1", "name": "second.pdf"}
+    config.add_entries([first_file, second_file])
+    await manager.process_allow_upload(
+        {"ref": config.ref, "entries": [first_file, second_file]}, context=None
+    )
+    config.update_progress("0", 100)
+    config.update_progress("1", 50)
+    first_entry = config.entries_by_ref["0"]
+    second_entry = config.entries_by_ref["1"]
+
+    # When the app tries to consume the batch before the second upload finishes
+    # Then it receives a clear error before gaining access to either upload
+    with (
+        pytest.raises(UploadInProgressError, match="Cannot consume upload '1'.*still in progress"),
+        config.consume_external_uploads(),
+    ):
+        pytest.fail("An incomplete cloud upload batch must not be yielded for consumption")
+
+    # And both uploads keep their metadata and progress so the batch can finish
+    assert config.entries_by_ref["0"] is first_entry
+    assert config.entries_by_ref["1"] is second_entry
+    assert first_entry.meta == second_entry.meta == metadata
+    assert first_entry.progress == 100
+    assert second_entry.progress == 50
+
+    # When the second upload finishes and the app retries consumption
+    config.update_progress("1", 100)
+    with config.consume_external_uploads() as consumed:
+        # Then both completed uploads are available and are removed only after consumption
+        assert consumed == [first_entry, second_entry]
+        assert all(entry.done for entry in consumed)
+        assert set(config.entries_by_ref) == {"0", "1"}
+    assert config.entries_by_ref == {}
