@@ -110,6 +110,9 @@ class ActiveUploads:
         self.uploads[ref] = ActiveUpload(ref, entry)
 
     def add_chunk(self, ref: str, chunk: bytes):
+        if ref not in self.uploads:
+            return
+
         self.uploads[ref].file.write(chunk)
         self.uploads[ref].file.flush()
         self.uploads[ref].entry.progress = self.uploads[ref].file.tell()
