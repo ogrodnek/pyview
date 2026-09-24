@@ -5,6 +5,46 @@ from pyview.uploads import UploadConstraints, UploadManager
 from .factories import upload_entry_data
 
 
+def test_selecting_file_ignores_browser_supplied_upload_state():
+    # Given a PDF input and browser metadata claiming a file is finished, canceled, and invalid
+    manager = UploadManager()
+    config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
+    file = {
+        **upload_entry_data(path=config.name),
+        "last_modified": 1700000000000,
+        "uuid": "browser-supplied-id",
+        "upload_config": {"name": "other-input"},
+        "valid": False,
+        "errors": [{"ref": "0", "code": "upload_failed"}],
+        "progress": 100,
+        "done": True,
+        "cancelled": True,
+        "meta": {"uploader": "browser-supplied-uploader"},
+    }
+
+    # When the file is selected
+    config.add_entries([file])
+
+    # Then its upload state starts fresh, with its identity and validation owned by the server
+    entry = config.entries_by_ref["0"]
+    assert entry.uuid != "browser-supplied-id"
+    assert entry.upload_config is config
+    assert entry.valid
+    assert entry.errors == []
+    assert entry.progress == 0
+    assert not entry.done
+    assert not entry.cancelled
+    assert entry.meta is None
+
+    # And the file's browser metadata is preserved
+    assert entry.ref == "0"
+    assert entry.name == "example.pdf"
+    assert entry.size == 4
+    assert entry.type == "application/pdf"
+    assert entry.path == config.name
+    assert entry.last_modified == 1700000000000
+
+
 async def test_selecting_another_file_preserves_existing_upload_state():
     # Given an approved PDF upload that is halfway finished
     manager = UploadManager()

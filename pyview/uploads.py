@@ -89,12 +89,20 @@ class ConstraintViolation:
         return self.code
 
 
-class UploadEntry(BaseModel):
+class ClientUploadEntryData(BaseModel):
+    """Browser-provided file metadata, excluding server-owned upload state."""
+
     ref: str
     name: str
     size: int
     type: str
     path: Optional[str] = None  # None for external uploads, set for internal uploads
+    last_modified: int = Field(default_factory=lambda: int(datetime.datetime.now().timestamp()))
+
+    model_config = {"extra": "ignore"}
+
+
+class UploadEntry(ClientUploadEntryData):
     upload_config: Optional["UploadConfig"] = None
     uuid: str = Field(default_factory=lambda: str(uuid.uuid4()))
     valid: bool = True
@@ -103,12 +111,17 @@ class UploadEntry(BaseModel):
     preflighted: bool = False
     cancelled: bool = False
     done: bool = False
-    last_modified: int = Field(default_factory=lambda: int(datetime.datetime.now().timestamp()))
     meta: Optional["ExternalUploadMeta"] = None  # Metadata from external uploads
+
+    @classmethod
+    def from_client_data(cls, data: dict) -> "UploadEntry":
+        # The browser describes the file; the server controls approval and upload state.
+        metadata = ClientUploadEntryData.model_validate(data)
+        return cls(**metadata.model_dump())
 
 
 def parse_entries(entries: list[dict]) -> list[UploadEntry]:
-    return [UploadEntry(**entry) for entry in entries]
+    return [UploadEntry.from_client_data(entry) for entry in entries]
 
 
 @dataclass

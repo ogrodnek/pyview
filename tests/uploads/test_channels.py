@@ -202,6 +202,25 @@ async def test_upload_channel_join_rejects_file_awaiting_preflight(
     assert list(tmp_path.iterdir()) == []
 
 
+def test_upload_join_rejects_browser_supplied_approval():
+    # Given a selected PDF whose browser metadata claims it already has upload approval
+    manager = UploadManager()
+    config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
+    file = {**upload_entry_data(path=config.name), "preflighted": True}
+    config.add_entries([file])
+    try:
+        # When the browser starts uploading without requesting approval from the server
+        result = manager.add_upload("upload-join", {"token": file})
+
+        # Then the join is rejected and the file remains unapproved
+        assert result is UploadJoinResult.DISALLOWED
+        assert not config.entries_by_ref["0"].preflighted
+        assert config.uploads.uploads == {}
+        assert manager.upload_config_join_refs == {}
+    finally:
+        manager.close()
+
+
 async def test_upload_channel_join_accepts_preflighted_file(connected_socket):
     # Given a connected LiveView with a selected PDF approved for direct upload
     handler, socket = connected_socket
