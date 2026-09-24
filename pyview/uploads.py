@@ -647,7 +647,6 @@ class UploadManager:
             if entry_ref in config.entries_by_ref:
                 entry = config.entries_by_ref[entry_ref]
                 entry.valid = False
-                entry.done = True
                 entry.errors.append(ConstraintViolation(ref=entry_ref, code="upload_failed"))
 
                 # Call entry_complete callback with failure result

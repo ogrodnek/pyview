@@ -4,8 +4,10 @@ from unittest.mock import AsyncMock
 import pytest
 
 from pyview.uploads import (
+    ConstraintViolation,
     ExternalUploadMeta,
     UploadConstraints,
+    UploadFailure,
     UploadInProgressError,
     UploadManager,
 )
@@ -266,6 +268,86 @@ async def test_consuming_incomplete_external_upload_preserves_it_for_completion(
         assert consumed.done
         assert config.entries_by_ref["0"] is entry
     assert "0" not in config.entries_by_ref
+
+
+async def test_consuming_failed_external_upload_preserves_its_error():
+    # Given an approved cloud upload that fails halfway through
+    metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
+    on_complete = AsyncMock()
+    manager = UploadManager()
+    config = manager.allow_upload(
+        "document",
+        UploadConstraints(accept=[".pdf"], max_files=1),
+        external=AsyncMock(return_value=metadata),
+        entry_complete=on_complete,
+    )
+    file = upload_entry_data(path=config.name)
+    config.add_entries([file])
+    await manager.process_allow_upload({"ref": config.ref, "entries": [file]}, context=None)
+    config.update_progress("0", 50)
+    await manager.update_progress(
+        "lv:test",
+        {"ref": config.ref, "entry_ref": "0", "progress": {"error": "Connection lost"}},
+        socket=None,
+    )
+    entry = config.entries_by_ref["0"]
+
+    # When the app tries to consume the failed upload
+    # Then consumption is rejected because the file never finished uploading
+    with (
+        pytest.raises(UploadInProgressError, match="Cannot consume upload '0'"),
+        config.consume_external_upload("0"),
+    ):
+        pytest.fail("A failed cloud upload must not be yielded for consumption")
+
+    # And the failure stays available for display and is reported to the app's callback
+    assert config.entries_by_ref["0"] is entry
+    assert not entry.done
+    assert not entry.valid
+    assert entry.progress == 50
+    assert entry.meta == metadata
+    assert entry.errors == [ConstraintViolation(ref="0", code="upload_failed")]
+    on_complete.assert_awaited_once_with(entry, UploadFailure(error="Connection lost"), None)
+
+
+async def test_consuming_failed_external_batch_preserves_all_entries():
+    # Given two approved cloud uploads, one complete and one that failed halfway through
+    metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
+    manager = UploadManager()
+    config = manager.allow_upload(
+        "documents",
+        UploadConstraints(accept=[".pdf"], max_files=2),
+        external=AsyncMock(return_value=metadata),
+    )
+    first_file = upload_entry_data(name="first.pdf", path=config.name)
+    second_file = upload_entry_data(ref="1", name="second.pdf", path=config.name)
+    config.add_entries([first_file, second_file])
+    await manager.process_allow_upload(
+        {"ref": config.ref, "entries": [first_file, second_file]}, context=None
+    )
+    config.update_progress("0", 100)
+    config.update_progress("1", 50)
+    await manager.update_progress(
+        "lv:test",
+        {"ref": config.ref, "entry_ref": "1", "progress": {"error": "Connection lost"}},
+        socket=None,
+    )
+    first_entry = config.entries_by_ref["0"]
+    second_entry = config.entries_by_ref["1"]
+
+    # When the app tries to consume the batch containing the failed upload
+    # Then it is rejected before either upload is made available for consumption
+    with (
+        pytest.raises(UploadInProgressError, match="Cannot consume upload '1'"),
+        config.consume_external_uploads(),
+    ):
+        pytest.fail("A cloud upload batch containing a failed file must not be yielded")
+
+    # And both entries remain, preserving the completed file and the other file's error
+    assert config.entries_by_ref == {"0": first_entry, "1": second_entry}
+    assert first_entry.done
+    assert not second_entry.done
+    assert second_entry.errors == [ConstraintViolation(ref="1", code="upload_failed")]
 
 
 async def test_consuming_incomplete_external_batch_preserves_all_entries():
