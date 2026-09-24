@@ -380,14 +380,21 @@ class UploadConfig(BaseModel):
 
         Raises:
             ValueError: If called on a non-external upload config
+            UploadInProgressError: If any upload has not finished
         """
         if not self.is_external:
             raise ValueError(
                 "consume_external_uploads() can only be called on external upload configs"
             )
 
+        upload_list = list(self.entries_by_ref.values())
+        for entry in upload_list:
+            if not entry.done:
+                raise UploadInProgressError(
+                    f"Cannot consume upload {entry.ref!r}: it is still in progress"
+                )
+
         try:
-            upload_list = list(self.entries_by_ref.values())
             yield upload_list
         finally:
             self.entries_by_ref = {}

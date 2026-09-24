@@ -55,6 +55,57 @@ async def test_consuming_incomplete_external_upload_preserves_it_for_completion(
     assert "0" not in config.entries_by_ref
 
 
+async def test_consuming_incomplete_external_batch_preserves_all_entries():
+    # Given two approved cloud uploads, one complete and one halfway finished
+    metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
+    manager = UploadManager()
+    config = manager.allow_upload(
+        "documents",
+        UploadConstraints(accept=[".pdf"], max_files=2),
+        external=AsyncMock(return_value=metadata),
+    )
+    first_file = {
+        "ref": "0",
+        "name": "first.pdf",
+        "type": "application/pdf",
+        "size": 4,
+        "path": "documents",
+    }
+    second_file = {**first_file, "ref": "1", "name": "second.pdf"}
+    config.add_entries([first_file, second_file])
+    await manager.process_allow_upload(
+        {"ref": config.ref, "entries": [first_file, second_file]}, context=None
+    )
+    config.update_progress("0", 100)
+    config.update_progress("1", 50)
+    first_entry = config.entries_by_ref["0"]
+    second_entry = config.entries_by_ref["1"]
+
+    # When the app tries to consume the batch before the second upload finishes
+    # Then it receives a clear error before gaining access to either upload
+    with (
+        pytest.raises(UploadInProgressError, match="Cannot consume upload '1'.*still in progress"),
+        config.consume_external_uploads(),
+    ):
+        pytest.fail("An incomplete cloud upload batch must not be yielded for consumption")
+
+    # And both uploads keep their metadata and progress so the batch can finish
+    assert config.entries_by_ref["0"] is first_entry
+    assert config.entries_by_ref["1"] is second_entry
+    assert first_entry.meta == second_entry.meta == metadata
+    assert first_entry.progress == 100
+    assert second_entry.progress == 50
+
+    # When the second upload finishes and the app retries consumption
+    config.update_progress("1", 100)
+    with config.consume_external_uploads() as consumed:
+        # Then both completed uploads are available and are removed only after consumption
+        assert consumed == [first_entry, second_entry]
+        assert all(entry.done for entry in consumed)
+        assert set(config.entries_by_ref) == {"0", "1"}
+    assert config.entries_by_ref == {}
+
+
 @pytest.fixture
 async def approved_upload():
     manager = UploadManager()
