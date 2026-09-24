@@ -126,6 +126,36 @@ async def test_internal_preflight_skips_already_approved_file():
     assert approved_entry.progress == 50
 
 
+async def test_external_preflight_rejects_file_before_presigning():
+    # Given a JPG selected for a cloud upload input that accepts only PDFs
+    metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
+    presign = AsyncMock(return_value=metadata)
+    manager = UploadManager()
+    config = manager.allow_upload(
+        "document",
+        UploadConstraints(accept=[".pdf"], max_files=1),
+        external=presign,
+    )
+    file = {
+        "ref": "0",
+        "name": "photo.jpg",
+        "type": "image/jpeg",
+        "size": 4,
+        "path": "document",
+    }
+    config.add_entries([file])
+
+    # When the browser requests permission to upload the rejected file
+    response = await manager.process_allow_upload(
+        {"ref": config.ref, "entries": [file]}, context=None
+    )
+
+    # Then the file-type error is returned without requesting a signed upload
+    assert response == {"error": [("0", "not_accepted")]}
+    presign.assert_not_called()
+    assert not config.entries_by_ref["0"].preflighted
+
+
 async def test_external_preflight_skips_already_approved_file():
     # Given a PDF approved for cloud upload that is halfway finished
     metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
