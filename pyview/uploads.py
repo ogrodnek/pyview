@@ -539,6 +539,11 @@ class UploadManager:
 
         proposed_entries = payload["entries"]
 
+        if config.autoUpload:
+            # Auto-upload allows the first selected files and leaves extras unapproved.
+            allowed_refs = {entry.ref for entry in config.entries[: config.constraints.max_files]}
+            proposed_entries = [entry for entry in proposed_entries if entry["ref"] in allowed_refs]
+
         # Validate constraints
         errors = self._validate_constraints(config, proposed_entries)
         if errors:
