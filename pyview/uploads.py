@@ -64,11 +64,24 @@ class UploadChunkResult(Enum):
     FILE_SIZE_LIMIT_EXCEEDED = "file_size_limit_exceeded"
 
 
-class UploadInProgressError(RuntimeError):
+class UploadError(RuntimeError):
+    """Base class for upload errors."""
+
+
+class UploadInProgressError(UploadError):
     """An upload cannot be consumed until it has finished."""
 
     def __init__(self, entry_ref: str):
         super().__init__(f"Cannot consume upload {entry_ref!r}: it is still in progress")
+
+
+class UploadConfigurationInUseError(UploadError):
+    """An upload configuration cannot be replaced while it still has selected files."""
+
+    def __init__(self, upload_name: str):
+        super().__init__(
+            f"Cannot reconfigure upload {upload_name!r}: consume or cancel its existing entries first"
+        )
 
 
 @dataclass
@@ -421,6 +434,10 @@ class UploadManager:
         external: Optional[Callable] = None,
         entry_complete: Optional[Callable] = None,
     ) -> UploadConfig:
+        existing = self.config_for_name(upload_name)
+        if existing is not None and existing.entries_by_ref:
+            raise UploadConfigurationInUseError(upload_name)
+
         config = UploadConfig(
             name=upload_name,
             constraints=constraints,
