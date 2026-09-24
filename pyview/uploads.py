@@ -153,8 +153,11 @@ class ActiveUploads:
     def file_name(self, ref: str) -> str:
         return self.uploads[ref].file.name
 
-    def join_ref_for_entry(self, ref: str) -> str:
-        return [join_ref for join_ref, upload in self.uploads.items() if upload.entry.ref == ref][0]
+    def for_entry(self, entry_ref: str) -> ActiveUpload | None:
+        for upload in self.uploads.values():
+            if upload.entry.ref == entry_ref:
+                return upload
+        return None
 
     def close(self):
         for upload in self.uploads.values():
@@ -298,15 +301,7 @@ class UploadConfig(BaseModel):
         self, entry_ref: str
     ) -> Generator[Optional["ActiveUpload"], None, None]:
         """Consume a single entry, raising UploadInProgressError if it is incomplete."""
-        upload = None
-        join_ref = None
-
-        # Find the join_ref for this entry
-        for jr, active_upload in self.uploads.uploads.items():
-            if active_upload.entry.ref == entry_ref:
-                upload = active_upload
-                join_ref = jr
-                break
+        upload = self.uploads.for_entry(entry_ref)
 
         if (upload and not upload.is_complete) or (
             upload is None and entry_ref in self.entries_by_ref
@@ -318,17 +313,15 @@ class UploadConfig(BaseModel):
         try:
             yield upload
         finally:
-            if upload and join_ref:
+            if upload is not None:
                 try:
                     upload.close()
                 except Exception:
                     logger.warning("Error closing upload entry", exc_info=True)
 
                 # Remove only this specific upload
-                if join_ref in self.uploads.uploads:
-                    del self.uploads.uploads[join_ref]
-                if entry_ref in self.entries_by_ref:
-                    del self.entries_by_ref[entry_ref]
+                self.uploads.uploads.pop(upload.ref, None)
+                self.entries_by_ref.pop(entry_ref, None)
 
     @contextmanager
     def consume_external_upload(
@@ -579,9 +572,7 @@ class UploadManager:
         if registered_entry is None or not registered_entry.preflighted:
             return UploadJoinResult.DISALLOWED
 
-        if any(
-            upload.entry.ref == registered_entry.ref for upload in config.uploads.uploads.values()
-        ):
+        if config.uploads.for_entry(registered_entry.ref) is not None:
             return UploadJoinResult.ALREADY_REGISTERED
 
         self.upload_config_join_refs[joinRef] = config
@@ -655,13 +646,9 @@ class UploadManager:
 
             # Cleanup for internal uploads only (external uploads never populate upload_config_join_refs)
             if not config.is_external:
-                try:
-                    joinRef_to_remove = config.uploads.join_ref_for_entry(entry_ref)
-                    if joinRef_to_remove in self.upload_config_join_refs:
-                        del self.upload_config_join_refs[joinRef_to_remove]
-                except (IndexError, KeyError):
-                    # Entry might have already been consumed and removed
-                    pass
+                upload = config.uploads.for_entry(entry_ref)
+                if upload is not None:
+                    self.upload_config_join_refs.pop(upload.ref, None)
 
     def no_progress(self, joinRef) -> bool:
         config = self.upload_config_join_refs.get(joinRef)
