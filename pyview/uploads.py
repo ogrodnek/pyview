@@ -249,12 +249,13 @@ class UploadConfig(BaseModel):
 
     @contextmanager
     def consume_uploads(self) -> Generator[list["ActiveUpload"], None, None]:
-        """Consume all active uploads, raising UploadInProgressError if any is incomplete."""
+        """Consume all selected uploads, raising UploadInProgressError if any is incomplete."""
         upload_list = list(self.uploads.uploads.values())
-        for upload in upload_list:
-            if not upload.is_complete:
+        completed_refs = {upload.entry.ref for upload in upload_list if upload.is_complete}
+        for entry_ref in self.entries_by_ref:
+            if entry_ref not in completed_refs:
                 raise UploadInProgressError(
-                    f"Cannot consume upload {upload.entry.ref!r}: it is still in progress"
+                    f"Cannot consume upload {entry_ref!r}: it is still in progress"
                 )
 
         try:

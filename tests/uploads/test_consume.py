@@ -153,3 +153,56 @@ async def test_consuming_fully_received_batch_yields_files_and_cleans_up(approve
     assert not second_path.exists()
     assert config.uploads.uploads == {}
     assert config.entries_by_ref == {}
+
+
+async def test_consuming_batch_with_unstarted_upload_preserves_both_entries():
+    # Given two selected PDFs, with the first fully received and the second not yet uploading
+    manager = UploadManager()
+    config = manager.allow_upload("documents", UploadConstraints(accept=[".pdf"], max_files=2))
+    first_file = {
+        "ref": "0",
+        "name": "first.pdf",
+        "type": "application/pdf",
+        "size": 4,
+        "path": "documents",
+    }
+    second_file = {**first_file, "ref": "1", "name": "second.pdf"}
+    config.add_entries([first_file, second_file])
+    response = await manager.process_allow_upload(
+        {"ref": config.ref, "entries": [first_file]}, context=None
+    )
+    try:
+        manager.add_upload("first-join", {"token": response["entries"]["0"]})
+        manager.add_chunk("first-join", b"abcd")
+        first_upload = config.uploads.uploads["first-join"]
+        first_path = Path(first_upload.file.name)
+        second_entry = config.entries_by_ref["1"]
+
+        # When the app tries to consume the batch before the second upload starts
+        # Then it receives a clear error before gaining access to the completed file
+        with (
+            pytest.raises(
+                UploadInProgressError, match="Cannot consume upload '1'.*still in progress"
+            ),
+            config.consume_uploads(),
+        ):
+            pytest.fail("A batch containing a file that has not started must not be yielded")
+
+        # And the completed file and the waiting selection are both preserved
+        assert not first_upload.file.closed
+        assert first_path.read_bytes() == b"abcd"
+        assert config.uploads.uploads["first-join"] is first_upload
+        assert set(config.entries_by_ref) == {"0", "1"}
+        assert config.entries_by_ref["1"] is second_entry
+
+        # And the second file can still be approved and uploaded
+        response = await manager.process_allow_upload(
+            {"ref": config.ref, "entries": [second_file]}, context=None
+        )
+        manager.add_upload("second-join", {"token": response["entries"]["1"]})
+        manager.add_chunk("second-join", b"efgh")
+        with config.consume_uploads() as uploads:
+            assert {upload.entry.ref for upload in uploads} == {"0", "1"}
+            assert all(upload.is_complete for upload in uploads)
+    finally:
+        manager.close()
