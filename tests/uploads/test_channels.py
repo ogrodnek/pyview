@@ -10,7 +10,7 @@ from pyview.instrumentation import NoOpInstrumentation
 from pyview.live_routes import LiveViewLookup
 from pyview.live_socket import ConnectedLiveViewSocket
 from pyview.live_view import LiveView
-from pyview.uploads import UploadConstraints
+from pyview.uploads import UploadConstraints, UploadJoinResult, UploadManager
 from pyview.ws_handler import LiveSocketHandler
 
 
@@ -327,3 +327,42 @@ async def test_upload_channel_join_rejects_file_already_uploading(tmp_path, monk
         assert original_path.read_bytes() == b"abcd"
     finally:
         await socket.close()
+
+
+async def test_upload_join_uses_registered_file_metadata():
+    # Given a four-byte PDF selected and approved for direct upload
+    manager = UploadManager()
+    config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
+    file = {
+        "ref": "0",
+        "name": "example.pdf",
+        "type": "application/pdf",
+        "size": 4,
+        "path": "document",
+    }
+    config.add_entries([file])
+    response = await manager.process_allow_upload(
+        {"ref": config.ref, "entries": [file]}, context=None
+    )
+    try:
+        # When the browser starts that upload but supplies a different name, size, and type
+        token = {
+            **response["entries"]["0"],
+            "name": "different.txt",
+            "size": 1000,
+            "type": "text/plain",
+        }
+        result = manager.add_upload("upload-join", {"token": token})
+
+        # Then the upload uses the file metadata recorded when it was selected
+        assert result is UploadJoinResult.ACCEPTED
+        upload = config.uploads.uploads["upload-join"]
+        assert upload.entry.name == "example.pdf"
+        assert upload.entry.size == 4
+        assert upload.entry.type == "application/pdf"
+
+        # And receiving bytes does not overwrite the selected file's percentage progress
+        manager.add_chunk("upload-join", b"ab")
+        assert config.entries_by_ref["0"].progress == 0
+    finally:
+        manager.close()

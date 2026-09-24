@@ -504,7 +504,8 @@ class UploadManager:
             return UploadJoinResult.ALREADY_REGISTERED
 
         self.upload_config_join_refs[joinRef] = config
-        entry = UploadEntry(**token)
+        # Keep received byte counts separate from the selected file's percentage progress.
+        entry = registered_entry.model_copy()
         config.uploads.add_upload(joinRef, entry)
         return UploadJoinResult.ACCEPTED
 
