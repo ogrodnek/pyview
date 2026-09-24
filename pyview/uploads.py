@@ -1,5 +1,6 @@
 import datetime
 import logging
+import mimetypes
 import os
 import tempfile
 import uuid
@@ -70,7 +71,7 @@ class UploadInProgressError(RuntimeError):
 @dataclass
 class ConstraintViolation:
     ref: str
-    code: Literal["too_large", "too_many_files", "upload_failed"]
+    code: Literal["too_large", "too_many_files", "upload_failed", "not_accepted"]
 
     @property
     def message(self) -> str:
@@ -80,6 +81,8 @@ class ConstraintViolation:
             return "Too many files"
         if self.code == "upload_failed":
             return "Upload failed"
+        if self.code == "not_accepted":
+            return "File type not accepted"
         return self.code
 
 
@@ -179,6 +182,24 @@ class UploadConstraints(BaseModel):
     accept: list[str] = Field(default_factory=lambda: ["image/*"])
     chunk_size: int = 64 * 1024  # 64KB
 
+    def accepts_file_type(self, entry: UploadEntry) -> bool:
+        if not self.accept:
+            return True
+
+        extension = os.path.splitext(entry.name)[1].lower()
+        file_type = entry.type.lower()
+        for accepted in self.accept:
+            accepted = accepted.lower()
+            if accepted.startswith("."):
+                accepted_type = mimetypes.types_map.get(accepted)
+                if extension == accepted or file_type == accepted_type:
+                    return True
+            elif file_type == accepted or (
+                accepted.endswith("/*") and file_type.startswith(accepted[:-1])
+            ):
+                return True
+        return False
+
 
 class UploadConfig(BaseModel):
     name: str
@@ -238,6 +259,9 @@ class UploadConfig(BaseModel):
             if entry.size > self.constraints.max_file_size:
                 entry.valid = False
                 entry.errors.append(ConstraintViolation(ref=entry.ref, code="too_large"))
+            if not self.constraints.accepts_file_type(entry):
+                entry.valid = False
+                entry.errors.append(ConstraintViolation(ref=entry.ref, code="not_accepted"))
 
         if len(self.entries_by_ref) > self.constraints.max_files:
             self.errors.append(ConstraintViolation(ref=self.ref, code="too_many_files"))
