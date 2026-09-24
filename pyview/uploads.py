@@ -109,6 +109,7 @@ def parse_entries(entries: list[dict]) -> list[UploadEntry]:
 class ActiveUpload:
     ref: str
     entry: UploadEntry
+    bytes_received: int = field(default=0, init=False)
     file: tempfile._TemporaryFileWrapper = field(init=False)
 
     def __post_init__(self):
@@ -116,7 +117,7 @@ class ActiveUpload:
 
     @property
     def is_complete(self) -> bool:
-        return os.fstat(self.file.fileno()).st_size == self.entry.size
+        return self.bytes_received == self.entry.size
 
     def close(self):
         self.file.close()
@@ -135,16 +136,16 @@ class ActiveUploads:
         if upload is None:
             return UploadChunkResult.IGNORED
 
-        if upload.file.tell() + len(chunk) > upload.entry.size:
+        if upload.bytes_received + len(chunk) > upload.entry.size:
             return UploadChunkResult.FILE_SIZE_LIMIT_EXCEEDED
 
-        upload.file.write(chunk)
+        written = upload.file.write(chunk)
         upload.file.flush()
-        upload.entry.progress = upload.file.tell()
+        upload.bytes_received += written
         return UploadChunkResult.ACCEPTED
 
     def no_progress(self) -> bool:
-        return all(upload.entry.progress == 0 for upload in self.uploads.values())
+        return all(upload.bytes_received == 0 for upload in self.uploads.values())
 
     def file_name(self, ref: str) -> str:
         return self.uploads[ref].file.name
@@ -535,7 +536,7 @@ class UploadManager:
             return UploadJoinResult.ALREADY_REGISTERED
 
         self.upload_config_join_refs[joinRef] = config
-        # Keep received byte counts separate from the selected file's percentage progress.
+        # Use a snapshot of the registered file metadata for this upload.
         entry = registered_entry.model_copy()
         config.uploads.add_upload(joinRef, entry)
         return UploadJoinResult.ACCEPTED

@@ -115,3 +115,24 @@ async def test_chunk_reaching_declared_file_size_is_accepted(partial_upload):
     assert response == {"response": {}, "status": "ok"}
     assert Path(upload.file.name).read_bytes() == b"abcd"
     assert socket.connected
+
+
+async def test_received_bytes_are_counted_separately_from_percentage_progress(partial_upload):
+    # Given a four-byte upload with two bytes received and the browser reporting 50 percent
+    handler, socket, upload = partial_upload
+    config = socket.upload_manager.config_for_name("document")
+    assert config is not None
+    config.update_progress("0", 50)
+    assert not upload.is_complete
+
+    # When the remaining two bytes arrive before another browser progress update
+    await send_chunk(handler, socket, b"cd")
+
+    # Then the byte count includes both chunks and the file is complete
+    assert upload.bytes_received == 4
+    assert upload.is_complete
+    assert not config.uploads.no_progress()
+
+    # And receiving bytes does not turn either entry's percentage progress into a byte count
+    assert config.entries_by_ref["0"].progress == 50
+    assert upload.entry.progress == 0
