@@ -69,6 +69,40 @@ async def test_internal_preflight_only_approves_requested_files():
     assert not config.entries_by_ref["0"].preflighted
 
 
+async def test_internal_preflight_skips_already_approved_file():
+    # Given a PDF approved for direct upload that is halfway finished
+    manager = UploadManager()
+    config = manager.allow_upload(
+        "document",
+        UploadConstraints(accept=[".pdf"], max_files=1),
+    )
+    file = {
+        "ref": "0",
+        "name": "example.pdf",
+        "type": "application/pdf",
+        "size": 4,
+        "path": "document",
+    }
+    config.add_entries([file])
+    await manager.process_allow_upload({"ref": config.ref, "entries": [file]}, context=None)
+    config.update_progress("0", 50)
+    approved_entry = config.entries_by_ref["0"]
+
+    # When the browser requests upload approval for the same file again
+    response = await manager.process_allow_upload(
+        {"ref": config.ref, "entries": [file]}, context=None
+    )
+
+    # Then no newly approved entries are returned to the browser
+    assert "error" not in response
+    assert response["entries"] == {}
+
+    # And the existing upload keeps its approval and progress
+    assert config.entries_by_ref["0"] is approved_entry
+    assert approved_entry.preflighted
+    assert approved_entry.progress == 50
+
+
 async def test_external_preflight_skips_already_approved_file():
     # Given a PDF approved for cloud upload that is halfway finished
     metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")

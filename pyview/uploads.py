@@ -423,7 +423,11 @@ class UploadManager:
     ) -> dict[str, Any]:
         """Process internal (direct-to-server) upload."""
         requested_refs = {entry["ref"] for entry in proposed_entries}
-        entries = [entry for entry in config.entries if entry.ref in requested_refs]
+        entries = [
+            entry
+            for entry in config.entries
+            if entry.ref in requested_refs and not entry.preflighted
+        ]
         for entry in entries:
             entry.preflighted = True
 
