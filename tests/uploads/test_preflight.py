@@ -153,6 +153,71 @@ async def test_auto_preflight_approves_files_up_to_selection_limit():
     assert [error.code for error in config.errors] == ["too_many_files"]
 
 
+async def test_auto_preflight_approves_valid_file_alongside_rejected_file():
+    # Given a PDF and a JPG selected for an automatic PDF-only upload input
+    manager = UploadManager()
+    config = manager.allow_upload(
+        "documents", UploadConstraints(accept=[".pdf"], max_files=2), auto_upload=True
+    )
+    pdf = upload_entry_data(name="document.pdf", path=config.name)
+    jpg = upload_entry_data(ref="1", name="photo.jpg", file_type="image/jpeg", path=config.name)
+    config.add_entries([pdf, jpg])
+
+    # When the browser requests permission to upload both files
+    response = await manager.process_allow_upload(
+        {"ref": config.ref, "entries": [pdf, jpg]}, context=None
+    )
+
+    # Then the PDF is approved and the JPG has a per-file error without blocking the batch
+    assert "error" not in response
+    assert set(response["entries"]) == {"0"}
+    assert response["errors"] == {"1": ["not_accepted"]}
+    assert config.entries_by_ref["0"].preflighted
+    assert not config.entries_by_ref["1"].preflighted
+    assert [error.code for error in config.entries_by_ref["1"].errors] == ["not_accepted"]
+
+
+async def test_auto_preflight_returns_empty_entries_when_all_files_are_rejected():
+    # Given a JPG selected for an automatic PDF-only upload input
+    manager = UploadManager()
+    config = manager.allow_upload(
+        "document", UploadConstraints(accept=[".pdf"], max_files=1), auto_upload=True
+    )
+    jpg = upload_entry_data(name="photo.jpg", file_type="image/jpeg", path=config.name)
+    config.add_entries([jpg])
+
+    # When the browser requests permission to upload the rejected file
+    response = await manager.process_allow_upload(
+        {"ref": config.ref, "entries": [jpg]}, context=None
+    )
+
+    # Then the browser receives an empty approval list and a per-file error
+    assert "error" not in response
+    assert response["entries"] == {}
+    assert response["errors"] == {"0": ["not_accepted"]}
+    assert not config.entries_by_ref["0"].preflighted
+
+
+async def test_regular_preflight_rejects_batch_containing_invalid_file():
+    # Given a PDF and a JPG selected for a PDF-only input that uploads on submit
+    manager = UploadManager()
+    config = manager.allow_upload(
+        "documents", UploadConstraints(accept=[".pdf"], max_files=2), auto_upload=False
+    )
+    pdf = upload_entry_data(name="document.pdf", path=config.name)
+    jpg = upload_entry_data(ref="1", name="photo.jpg", file_type="image/jpeg", path=config.name)
+    config.add_entries([pdf, jpg])
+
+    # When the browser requests permission to upload both files
+    response = await manager.process_allow_upload(
+        {"ref": config.ref, "entries": [pdf, jpg]}, context=None
+    )
+
+    # Then the whole request is rejected and neither file is approved
+    assert response == {"error": [("1", "not_accepted")]}
+    assert all(not entry.preflighted for entry in config.entries)
+
+
 async def test_internal_preflight_skips_already_approved_file():
     # Given a PDF approved for direct upload that is halfway finished
     manager = UploadManager()
@@ -205,6 +270,38 @@ async def test_external_preflight_rejects_file_before_presigning():
     assert response == {"error": [("0", "not_accepted")]}
     presign.assert_not_called()
     assert not config.entries_by_ref["0"].preflighted
+
+
+async def test_external_auto_preflight_presigns_only_valid_files():
+    # Given a PDF and a JPG selected for automatic PDF-only cloud uploads
+    metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
+    presign = AsyncMock(return_value=metadata)
+    manager = UploadManager()
+    config = manager.allow_upload(
+        "documents",
+        UploadConstraints(accept=[".pdf"], max_files=2),
+        auto_upload=True,
+        external=presign,
+    )
+    pdf = upload_entry_data(name="document.pdf", path=config.name)
+    jpg = upload_entry_data(ref="1", name="photo.jpg", file_type="image/jpeg", path=config.name)
+    config.add_entries([pdf, jpg])
+
+    # When the browser requests permission to upload both files
+    response = await manager.process_allow_upload(
+        {"ref": config.ref, "entries": [pdf, jpg]}, context=None
+    )
+
+    # Then only the PDF is signed and the JPG is reported as a per-file failure
+    assert "error" not in response
+    assert set(response["entries"]) == {"0"}
+    assert response["errors"] == {"1": [{"reason": "not_accepted"}]}
+    presign.assert_awaited_once()
+    assert presign.await_args.args[0].ref == "0"
+    assert config.entries_by_ref["0"].preflighted
+    assert config.entries_by_ref["0"].meta == metadata
+    assert not config.entries_by_ref["1"].preflighted
+    assert config.entries_by_ref["1"].meta is None
 
 
 async def test_external_preflight_uses_registered_file_metadata():

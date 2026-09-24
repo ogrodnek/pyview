@@ -548,14 +548,27 @@ class UploadManager:
 
         # Validate constraints
         errors = self._validate_constraints(config, proposed_entries)
-        if errors:
+        # Regular uploads stop on any error; auto uploads stop only for errors affecting the whole input.
+        if errors and (not config.autoUpload or any(error.ref == config.ref for error in errors)):
             return {"error": [(e.ref, e.code) for e in errors]}
+
+        entry_errors: dict[str, list[str | dict[str, str]]] = {}
+        for error in errors:
+            entry_errors.setdefault(error.ref, []).append(
+                {"reason": error.code} if config.is_external else error.code
+            )
+        proposed_entries = [entry for entry in proposed_entries if entry["ref"] not in entry_errors]
 
         # Handle external vs internal uploads
         if config.is_external:
-            return await self._process_external_upload(config, proposed_entries, context)
+            response = await self._process_external_upload(config, proposed_entries, context)
         else:
-            return self._process_internal_upload(config, proposed_entries)
+            response = self._process_internal_upload(config, proposed_entries)
+
+        # Per-file errors let the browser continue with valid automatic uploads.
+        if entry_errors and "error" not in response:
+            response["errors"] = entry_errors
+        return response
 
     def add_upload(self, joinRef: str, payload: dict[str, Any]) -> UploadJoinResult:
         """Start an upload, returning whether the join was accepted or why it was rejected."""
