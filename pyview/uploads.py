@@ -193,6 +193,15 @@ class UploadConfig(BaseModel):
 
     def add_entries(self, entries: list[dict]):
         parsed = parse_entries(entries)
+        # Choosing a new file in a single-file input replaces the previous selection.
+        if (
+            self.constraints.max_files == 1
+            and len(parsed) == 1
+            and parsed[0].ref not in self.entries_by_ref
+        ):
+            for ref in list(self.entries_by_ref):
+                self.cancel_entry(ref)
+
         for entry in parsed:
             if entry.ref in self.entries_by_ref:
                 continue
