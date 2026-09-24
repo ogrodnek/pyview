@@ -15,7 +15,7 @@ from pyview.live_routes import LiveViewLookup
 from pyview.live_socket import ConnectedLiveViewSocket, LiveViewSocket
 from pyview.phx_message import parse_message
 from pyview.session import deserialize_session
-from pyview.uploads import UploadJoinResult
+from pyview.uploads import UploadChunkResult, UploadJoinResult
 
 logger = logging.getLogger(__name__)
 
@@ -398,17 +398,21 @@ class LiveSocketHandler:
                     await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
 
             if event == "chunk":
-                socket.upload_manager.add_chunk(joinRef, payload)  # type: ignore
+                result = socket.upload_manager.add_chunk(joinRef, payload)  # type: ignore
 
                 resp = [
                     joinRef,
                     messageRef,
                     topic,
                     "phx_reply",
-                    {"response": {}, "status": "ok"},
+                    {"response": {"reason": result.value}, "status": "error"}
+                    if result is UploadChunkResult.FILE_SIZE_LIMIT_EXCEEDED
+                    else {"response": {}, "status": "ok"},
                 ]
 
-                if socket.upload_manager.no_progress(joinRef):
+                if result is UploadChunkResult.ACCEPTED and socket.upload_manager.no_progress(
+                    joinRef
+                ):
                     await self.manager.send_personal_message(
                         json.dumps(
                             [

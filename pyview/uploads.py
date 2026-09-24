@@ -57,6 +57,12 @@ class UploadJoinResult(Enum):
     ALREADY_REGISTERED = "already_registered"
 
 
+class UploadChunkResult(Enum):
+    ACCEPTED = "accepted"
+    IGNORED = "ignored"
+    FILE_SIZE_LIMIT_EXCEEDED = "file_size_limit_exceeded"
+
+
 @dataclass
 class ConstraintViolation:
     ref: str
@@ -116,13 +122,18 @@ class ActiveUploads:
     def add_upload(self, ref: str, entry: UploadEntry):
         self.uploads[ref] = ActiveUpload(ref, entry)
 
-    def add_chunk(self, ref: str, chunk: bytes):
-        if ref not in self.uploads:
-            return
+    def add_chunk(self, ref: str, chunk: bytes) -> UploadChunkResult:
+        upload = self.uploads.get(ref)
+        if upload is None:
+            return UploadChunkResult.IGNORED
 
-        self.uploads[ref].file.write(chunk)
-        self.uploads[ref].file.flush()
-        self.uploads[ref].entry.progress = self.uploads[ref].file.tell()
+        if upload.file.tell() + len(chunk) > upload.entry.size:
+            return UploadChunkResult.FILE_SIZE_LIMIT_EXCEEDED
+
+        upload.file.write(chunk)
+        upload.file.flush()
+        upload.entry.progress = upload.file.tell()
+        return UploadChunkResult.ACCEPTED
 
     def no_progress(self) -> bool:
         return all(upload.entry.progress == 0 for upload in self.uploads.values())
@@ -509,12 +520,12 @@ class UploadManager:
         config.uploads.add_upload(joinRef, entry)
         return UploadJoinResult.ACCEPTED
 
-    def add_chunk(self, joinRef: str, chunk: bytes):
+    def add_chunk(self, joinRef: str, chunk: bytes) -> UploadChunkResult:
         config = self.upload_config_join_refs.get(joinRef)
         if config is None:
-            return
+            return UploadChunkResult.IGNORED
 
-        config.uploads.add_chunk(joinRef, chunk)
+        return config.uploads.add_chunk(joinRef, chunk)
 
     async def update_progress(self, joinRef: str, payload: dict[str, Any], socket):
         upload_config_ref = payload["ref"]
