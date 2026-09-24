@@ -3,7 +3,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
-from starlette.types import Message
 from starlette.websockets import WebSocketDisconnect
 
 from pyview.uploads import UploadConstraints, UploadJoinResult, UploadManager
@@ -11,9 +10,8 @@ from pyview.uploads import UploadConstraints, UploadJoinResult, UploadManager
 from .factories import upload_entry_data
 
 
-@pytest.mark.parametrize("late_chunk", [False, True], ids=["leave", "leave-then-late-chunk"])
 async def test_leaving_canceled_upload_channel_preserves_liveview_and_other_uploads(
-    connected_socket, late_chunk
+    connected_socket,
 ):
     # Given a connected LiveView with one canceled upload and another still underway
     handler, socket = connected_socket
@@ -34,13 +32,13 @@ async def test_leaving_canceled_upload_channel_preserves_liveview_and_other_uplo
     second_upload = config.uploads.uploads["second-join"]
     config.cancel_entry("0")
 
-    # When the browser leaves the canceled file's channel, with bytes possibly still in transit
-    messages: list[Message] = [{"text": json.dumps(["first-join", "3", "lvu:0", "phx_leave", {}])}]
-    if late_chunk:
-        fields = [b"first-join", b"4", b"lvu:0", b"chunk"]
-        header = bytes([0, *(len(field) for field in fields)])
-        messages.append({"bytes": header + b"".join(fields) + b"cd"})
-    websocket.receive = AsyncMock(side_effect=[*messages, WebSocketDisconnect()])
+    # When the browser leaves the canceled file's channel
+    websocket.receive = AsyncMock(
+        side_effect=[
+            {"text": json.dumps(["first-join", "3", "lvu:0", "phx_leave", {}])},
+            WebSocketDisconnect(),
+        ]
+    )
     with pytest.raises(WebSocketDisconnect):
         await handler._handle_connected_loop("lv:test", socket)
 
@@ -56,10 +54,69 @@ async def test_leaving_canceled_upload_channel_preserves_liveview_and_other_uplo
     assert manager.upload_config_join_refs["second-join"] is config
     assert set(config.uploads.uploads) == {"second-join"}
     assert set(config.entries_by_ref) == {"1"}
+    websocket.send_text.assert_awaited_once()
+    assert json.loads(websocket.send_text.call_args.args[0]) == [
+        "first-join",
+        "3",
+        "lvu:0",
+        "phx_reply",
+        {"response": {}, "status": "ok"},
+    ]
+
+
+async def test_chunk_after_leaving_upload_channel_is_ignored_without_affecting_other_uploads(
+    connected_socket,
+):
+    # Given a connected LiveView with one canceled upload and another still underway
+    handler, socket = connected_socket
+    websocket = socket.websocket
+    manager = socket.upload_manager
+    config = manager.allow_upload("documents", UploadConstraints(accept=[".pdf"], max_files=2))
+    first_file = upload_entry_data(
+        name="first.pdf", file_type="application/pdf", size=4, path=config.name
+    )
+    second_file = {**first_file, "ref": "1", "name": "second.pdf"}
+    config.add_entries([first_file, second_file])
+    response = await manager.process_allow_upload(
+        {"ref": config.ref, "entries": [first_file, second_file]}, context=None
+    )
+    manager.add_upload("first-join", {"token": response["entries"]["0"]})
+    manager.add_upload("second-join", {"token": response["entries"]["1"]})
+    manager.add_chunk("second-join", b"ab")
+    second_upload = config.uploads.uploads["second-join"]
+    config.cancel_entry("0")
+
+    # When the browser leaves the canceled channel and bytes already in transit arrive afterward
+    fields = [b"first-join", b"4", b"lvu:0", b"chunk"]
+    header = bytes([0, *(len(field) for field in fields)])
+    websocket.receive = AsyncMock(
+        side_effect=[
+            {"text": json.dumps(["first-join", "3", "lvu:0", "phx_leave", {}])},
+            {"bytes": header + b"".join(fields) + b"cd"},
+            WebSocketDisconnect(),
+        ]
+    )
+    with pytest.raises(WebSocketDisconnect):
+        await handler._handle_connected_loop("lv:test", socket)
+
+    # Then the LiveView stays connected and the other upload remains usable
+    assert socket.connected
+    assert manager.config_for_name("documents") is config
+    assert not second_upload.file.closed
+    manager.add_chunk("second-join", b"cd")
+    assert Path(second_upload.file.name).read_bytes() == b"abcd"
+
+    # And the late bytes do not restore the canceled upload or its channel registration
+    assert "first-join" not in manager.upload_config_join_refs
+    assert manager.upload_config_join_refs["second-join"] is config
+    assert set(config.uploads.uploads) == {"second-join"}
+    assert set(config.entries_by_ref) == {"1"}
+
+    # And both messages are acknowledged without an error
     replies = [json.loads(call.args[0]) for call in websocket.send_text.await_args_list]
     assert replies == [
-        ["first-join", message_ref, "lvu:0", "phx_reply", {"response": {}, "status": "ok"}]
-        for message_ref in (["3", "4"] if late_chunk else ["3"])
+        ["first-join", "3", "lvu:0", "phx_reply", {"response": {}, "status": "ok"}],
+        ["first-join", "4", "lvu:0", "phx_reply", {"response": {}, "status": "ok"}],
     ]
 
 
