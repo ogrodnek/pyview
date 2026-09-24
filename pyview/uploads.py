@@ -381,6 +381,10 @@ class UploadManager:
             return {"error": [("config", "external_callback_missing")]}
 
         for entry_data in proposed_entries:
+            existing_entry = config.entries_by_ref.get(entry_data["ref"])
+            if existing_entry and existing_entry.preflighted:
+                continue
+
             # Create UploadEntry to pass to presign function
             entry = UploadEntry(**entry_data)
             entry.upload_config = config
