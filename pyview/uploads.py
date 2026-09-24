@@ -209,10 +209,10 @@ class ExternalUploadMeta(BaseModel):
 
 
 class UploadConstraints(BaseModel):
-    max_file_size: int = 10 * 1024 * 1024  # 10MB
-    max_files: int = 10
+    max_file_size: int = Field(default=10 * 1024 * 1024, gt=0)  # 10MB
+    max_files: int = Field(default=10, gt=0)
     accept: list[str] = Field(default_factory=lambda: ["image/*"])
-    chunk_size: int = 64 * 1024  # 64KB
+    chunk_size: int = Field(default=64 * 1024, gt=0)  # 64KB
 
     def accepts_file_type(self, entry: UploadEntry) -> bool:
         if not self.accept:

@@ -1,10 +1,55 @@
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from pyview.uploads import UploadConfigurationInUseError, UploadConstraints, UploadManager
 
 from .factories import upload_entry_data
+
+
+@pytest.mark.parametrize("max_files", [0, -1], ids=["zero", "negative"])
+def test_upload_constraints_reject_nonpositive_file_count(max_files):
+    # Given a file count limit that does not allow any files
+    # When the app creates its upload constraints
+    # Then configuration fails with an error identifying the file count limit
+    with pytest.raises(ValidationError, match="Input should be greater than 0") as exc:
+        UploadConstraints(max_files=max_files)
+
+    assert exc.value.errors()[0]["loc"] == ("max_files",)
+
+
+@pytest.mark.parametrize("max_file_size", [0, -1], ids=["zero", "negative"])
+def test_upload_constraints_reject_nonpositive_file_size(max_file_size):
+    # Given a file size limit that does not allow any bytes
+    # When the app creates its upload constraints
+    # Then configuration fails with an error identifying the file size limit
+    with pytest.raises(ValidationError, match="Input should be greater than 0") as exc:
+        UploadConstraints(max_file_size=max_file_size)
+
+    assert exc.value.errors()[0]["loc"] == ("max_file_size",)
+
+
+@pytest.mark.parametrize("chunk_size", [0, -1], ids=["zero", "negative"])
+def test_upload_constraints_reject_nonpositive_chunk_size(chunk_size):
+    # Given a chunk size that cannot carry any file bytes
+    # When the app creates its upload constraints
+    # Then configuration fails with an error identifying the chunk size
+    with pytest.raises(ValidationError, match="Input should be greater than 0") as exc:
+        UploadConstraints(chunk_size=chunk_size)
+
+    assert exc.value.errors()[0]["loc"] == ("chunk_size",)
+
+
+def test_upload_constraints_allow_smallest_positive_limits():
+    # Given an input intended for one file of at most one byte, sent in one-byte chunks
+    # When the app creates its upload constraints
+    constraints = UploadConstraints(max_files=1, max_file_size=1, chunk_size=1)
+
+    # Then all three limits are accepted without changing their values
+    assert constraints.max_files == 1
+    assert constraints.max_file_size == 1
+    assert constraints.chunk_size == 1
 
 
 def test_reconfiguring_upload_with_selected_file_preserves_configuration():
