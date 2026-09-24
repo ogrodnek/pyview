@@ -450,7 +450,9 @@ class UploadManager:
             elif entry["size"] > config.constraints.max_file_size:
                 errors.append(ConstraintViolation(ref=entry["ref"], code="too_large"))
 
-        if len(proposed_entries) > config.constraints.max_files:
+        if len(proposed_entries) > config.constraints.max_files or (
+            not config.autoUpload and len(config.entries_by_ref) > config.constraints.max_files
+        ):
             errors.append(ConstraintViolation(ref=config.ref, code="too_many_files"))
 
         return errors

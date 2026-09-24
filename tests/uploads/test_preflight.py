@@ -92,6 +92,35 @@ async def test_internal_preflight_only_approves_requested_files():
     assert not config.entries_by_ref["0"].preflighted
 
 
+async def test_regular_preflight_rejects_selection_over_file_limit():
+    # Given three selected PDFs in an input that allows two files uploaded on submit
+    manager = UploadManager()
+    config = manager.allow_upload(
+        "documents",
+        UploadConstraints(accept=[".pdf"], max_files=2),
+        auto_upload=False,
+    )
+    first_file = {
+        "ref": "0",
+        "name": "first.pdf",
+        "type": "application/pdf",
+        "size": 4,
+        "path": "documents",
+    }
+    second_file = {**first_file, "ref": "1", "name": "second.pdf"}
+    third_file = {**first_file, "ref": "2", "name": "third.pdf"}
+    config.add_entries([first_file, second_file, third_file])
+
+    # When the browser requests permission to upload just the first file
+    response = await manager.process_allow_upload(
+        {"ref": config.ref, "entries": [first_file]}, context=None
+    )
+
+    # Then the whole selection exceeds the limit and no file is approved
+    assert response == {"error": [(config.ref, "too_many_files")]}
+    assert all(not entry.preflighted for entry in config.entries)
+
+
 async def test_internal_preflight_skips_already_approved_file():
     # Given a PDF approved for direct upload that is halfway finished
     manager = UploadManager()
