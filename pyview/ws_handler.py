@@ -441,8 +441,11 @@ class LiveSocketHandler:
                 await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
 
             if event == "phx_leave":
-                # Handle LiveView navigation - clean up current LiveView
-                await socket.close()
+                if topic.startswith("lvu:"):
+                    socket.upload_manager.upload_config_join_refs.pop(joinRef, None)
+                else:
+                    # Handle LiveView navigation - clean up current LiveView
+                    await socket.close()
 
                 resp = [
                     joinRef,
