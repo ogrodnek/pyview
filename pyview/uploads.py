@@ -178,6 +178,11 @@ class UploadConfig(BaseModel):
     def cancel_entry(self, ref: str):
         del self.entries_by_ref[ref]
 
+        for join_ref, upload in list(self.uploads.uploads.items()):
+            if upload.entry.ref == ref:
+                upload.close()
+                del self.uploads.uploads[join_ref]
+
         # recheck constraints
         self.errors.clear()
         if len(self.entries_by_ref) > self.constraints.max_files:
