@@ -65,7 +65,10 @@ class UploadChunkResult(Enum):
 
 
 class UploadInProgressError(RuntimeError):
-    """An upload cannot be consumed until all of its bytes have arrived."""
+    """An upload cannot be consumed until it has finished."""
+
+    def __init__(self, entry_ref: str):
+        super().__init__(f"Cannot consume upload {entry_ref!r}: it is still in progress")
 
 
 @dataclass
@@ -281,9 +284,7 @@ class UploadConfig(BaseModel):
         completed_refs = {upload.entry.ref for upload in upload_list if upload.is_complete}
         for entry_ref in self.entries_by_ref:
             if entry_ref not in completed_refs:
-                raise UploadInProgressError(
-                    f"Cannot consume upload {entry_ref!r}: it is still in progress"
-                )
+                raise UploadInProgressError(entry_ref)
 
         try:
             yield upload_list
@@ -306,9 +307,7 @@ class UploadConfig(BaseModel):
         if (upload and not upload.is_complete) or (
             upload is None and entry_ref in self.entries_by_ref
         ):
-            raise UploadInProgressError(
-                f"Cannot consume upload {entry_ref!r}: it is still in progress"
-            )
+            raise UploadInProgressError(entry_ref)
 
         try:
             yield upload
@@ -350,9 +349,7 @@ class UploadConfig(BaseModel):
 
         entry = self.entries_by_ref.get(entry_ref)
         if entry and not entry.done:
-            raise UploadInProgressError(
-                f"Cannot consume upload {entry_ref!r}: it is still in progress"
-            )
+            raise UploadInProgressError(entry_ref)
 
         try:
             yield entry
@@ -383,9 +380,7 @@ class UploadConfig(BaseModel):
         upload_list = list(self.entries_by_ref.values())
         for entry in upload_list:
             if not entry.done:
-                raise UploadInProgressError(
-                    f"Cannot consume upload {entry.ref!r}: it is still in progress"
-                )
+                raise UploadInProgressError(entry.ref)
 
         try:
             yield upload_list
