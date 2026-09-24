@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from starlette.types import Message
 from starlette.websockets import WebSocketDisconnect
 
 from pyview.instrumentation import NoOpInstrumentation
@@ -13,7 +14,8 @@ from pyview.uploads import UploadConstraints
 from pyview.ws_handler import LiveSocketHandler
 
 
-async def test_leaving_canceled_upload_channel_preserves_liveview_and_other_uploads():
+@pytest.mark.parametrize("late_chunk", [False, True], ids=["leave", "leave-then-late-chunk"])
+async def test_leaving_canceled_upload_channel_preserves_liveview_and_other_uploads(late_chunk):
     # Given a connected LiveView with one canceled upload and another still underway
     instrumentation = NoOpInstrumentation()
     handler = LiveSocketHandler(LiveViewLookup(), instrumentation)
@@ -47,13 +49,15 @@ async def test_leaving_canceled_upload_channel_preserves_liveview_and_other_uplo
         second_upload = config.uploads.uploads["second-join"]
         config.cancel_entry("0")
 
-        # When the browser leaves the canceled file's upload channel
-        websocket.receive = AsyncMock(
-            side_effect=[
-                {"text": json.dumps(["first-join", "3", "lvu:0", "phx_leave", {}])},
-                WebSocketDisconnect(),
-            ]
-        )
+        # When the browser leaves the canceled file's channel, with bytes possibly still in transit
+        messages: list[Message] = [
+            {"text": json.dumps(["first-join", "3", "lvu:0", "phx_leave", {}])}
+        ]
+        if late_chunk:
+            fields = [b"first-join", b"4", b"lvu:0", b"chunk"]
+            header = bytes([0, *(len(field) for field in fields)])
+            messages.append({"bytes": header + b"".join(fields) + b"cd"})
+        websocket.receive = AsyncMock(side_effect=[*messages, WebSocketDisconnect()])
         with pytest.raises(WebSocketDisconnect):
             await handler._handle_connected_loop("lv:test", socket)
 
@@ -67,13 +71,12 @@ async def test_leaving_canceled_upload_channel_preserves_liveview_and_other_uplo
         # And only the canceled upload's channel registration is removed
         assert "first-join" not in manager.upload_config_join_refs
         assert manager.upload_config_join_refs["second-join"] is config
-        websocket.send_text.assert_awaited_once()
-        assert json.loads(websocket.send_text.call_args.args[0]) == [
-            "first-join",
-            "3",
-            "lvu:0",
-            "phx_reply",
-            {"response": {}, "status": "ok"},
+        assert set(config.uploads.uploads) == {"second-join"}
+        assert set(config.entries_by_ref) == {"1"}
+        replies = [json.loads(call.args[0]) for call in websocket.send_text.await_args_list]
+        assert replies == [
+            ["first-join", message_ref, "lvu:0", "phx_reply", {"response": {}, "status": "ok"}]
+            for message_ref in (["3", "4"] if late_chunk else ["3"])
         ]
     finally:
         await socket.close()

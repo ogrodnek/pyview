@@ -480,9 +480,11 @@ class UploadManager:
             config.uploads.add_upload(joinRef, entry)
 
     def add_chunk(self, joinRef: str, chunk: bytes):
-        config = self.upload_config_join_refs[joinRef]
+        config = self.upload_config_join_refs.get(joinRef)
+        if config is None:
+            return
+
         config.uploads.add_chunk(joinRef, chunk)
-        pass
 
     async def update_progress(self, joinRef: str, payload: dict[str, Any], socket):
         upload_config_ref = payload["ref"]
@@ -546,7 +548,10 @@ class UploadManager:
                     pass
 
     def no_progress(self, joinRef) -> bool:
-        config = self.upload_config_join_refs[joinRef]
+        config = self.upload_config_join_refs.get(joinRef)
+        if config is None:
+            return False
+
         return config.uploads.no_progress()
 
     async def trigger_progress_callback_if_exists(self, payload: dict[str, Any], socket):
