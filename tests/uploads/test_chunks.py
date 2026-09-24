@@ -5,27 +5,12 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
-from pyview.instrumentation import NoOpInstrumentation
-from pyview.live_routes import LiveViewLookup
-from pyview.live_socket import ConnectedLiveViewSocket
-from pyview.live_view import LiveView
 from pyview.uploads import UploadConstraints
-from pyview.ws_handler import LiveSocketHandler
 
 
 @pytest.fixture
-async def partial_upload():
-    instrumentation = NoOpInstrumentation()
-    handler = LiveSocketHandler(LiveViewLookup(), instrumentation)
-    websocket = MagicMock()
-    websocket.send_text = AsyncMock()
-    socket = ConnectedLiveViewSocket(
-        websocket=websocket,
-        topic="lv:test",
-        liveview=LiveView(),
-        scheduler=handler.scheduler,
-        instrumentation=instrumentation,
-    )
+async def partial_upload(connected_socket):
+    handler, socket = connected_socket
     manager = socket.upload_manager
     config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
     file = {
@@ -39,12 +24,9 @@ async def partial_upload():
     response = await manager.process_allow_upload(
         {"ref": config.ref, "entries": [file]}, context=None
     )
-    try:
-        manager.add_upload("upload-join", {"token": response["entries"]["0"]})
-        manager.add_chunk("upload-join", b"ab")
-        yield handler, socket, config.uploads.uploads["upload-join"]
-    finally:
-        await socket.close()
+    manager.add_upload("upload-join", {"token": response["entries"]["0"]})
+    manager.add_chunk("upload-join", b"ab")
+    return handler, socket, config.uploads.uploads["upload-join"]
 
 
 async def send_chunk(handler, socket, chunk):
