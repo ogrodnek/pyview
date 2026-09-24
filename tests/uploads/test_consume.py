@@ -100,27 +100,9 @@ async def test_consuming_incomplete_external_batch_preserves_all_entries():
     assert config.entries_by_ref == {}
 
 
-@pytest.fixture
-async def approved_upload():
-    manager = UploadManager()
-    config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
-    file = upload_entry_data(
-        name="example.pdf", file_type="application/pdf", size=4, path=config.name
-    )
-    config.add_entries([file])
-    response = await manager.process_allow_upload(
-        {"ref": config.ref, "entries": [file]}, context=None
-    )
-    try:
-        manager.add_upload("upload-join", {"token": response["entries"]["0"]})
-        yield manager, config, config.uploads.uploads["upload-join"]
-    finally:
-        manager.close()
-
-
-async def test_consuming_incomplete_upload_preserves_it_for_completion(approved_upload):
+async def test_consuming_incomplete_upload_preserves_it_for_completion(started_upload):
     # Given an approved four-byte file with only its first two bytes received
-    manager, config, upload = approved_upload
+    manager, config, upload = started_upload
     manager.add_chunk("upload-join", b"ab")
     temporary_path = Path(upload.file.name)
 
@@ -141,9 +123,9 @@ async def test_consuming_incomplete_upload_preserves_it_for_completion(approved_
     assert temporary_path.read_bytes() == b"abcd"
 
 
-async def test_consuming_fully_received_upload_yields_file_and_cleans_up(approved_upload):
+async def test_consuming_fully_received_upload_yields_file_and_cleans_up(started_upload):
     # Given an approved four-byte file with all four bytes received
-    manager, config, upload = approved_upload
+    manager, config, upload = started_upload
     manager.add_chunk("upload-join", b"abcd")
     temporary_path = Path(upload.file.name)
 
@@ -187,9 +169,9 @@ def test_consuming_unstarted_upload_preserves_selection():
     assert config.uploads.uploads == {}
 
 
-async def test_consuming_unknown_ref_yields_none_without_affecting_selected_file(approved_upload):
+async def test_consuming_unknown_ref_yields_none_without_affecting_selected_file(started_upload):
     # Given an existing upload and a ref that does not belong to any selected file
-    _, config, upload = approved_upload
+    _, config, upload = started_upload
 
     # When the app tries to consume the unknown ref
     with config.consume_upload_entry("unknown") as consumed:
