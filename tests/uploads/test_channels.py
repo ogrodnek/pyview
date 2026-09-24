@@ -8,6 +8,8 @@ from starlette.websockets import WebSocketDisconnect
 
 from pyview.uploads import UploadConstraints, UploadJoinResult, UploadManager
 
+from .factories import upload_entry_data
+
 
 @pytest.mark.parametrize("late_chunk", [False, True], ids=["leave", "leave-then-late-chunk"])
 async def test_leaving_canceled_upload_channel_preserves_liveview_and_other_uploads(
@@ -18,13 +20,9 @@ async def test_leaving_canceled_upload_channel_preserves_liveview_and_other_uplo
     websocket = socket.websocket
     manager = socket.upload_manager
     config = manager.allow_upload("documents", UploadConstraints(accept=[".pdf"], max_files=2))
-    first_file = {
-        "ref": "0",
-        "name": "first.pdf",
-        "type": "application/pdf",
-        "size": 4,
-        "path": "documents",
-    }
+    first_file = upload_entry_data(
+        name="first.pdf", file_type="application/pdf", size=4, path=config.name
+    )
     second_file = {**first_file, "ref": "1", "name": "second.pdf"}
     config.add_entries([first_file, second_file])
     response = await manager.process_allow_upload(
@@ -72,13 +70,9 @@ async def test_upload_channel_join_rejects_unknown_file(connected_socket, tmp_pa
     manager = socket.upload_manager
     config = manager.allow_upload("document", UploadConstraints(max_files=1))
     monkeypatch.setattr("pyview.uploads.tempfile.tempdir", str(tmp_path))
-    token = {
-        "ref": "unknown",
-        "name": "example.pdf",
-        "type": "application/pdf",
-        "size": 4,
-        "path": "document",
-    }
+    token = upload_entry_data(
+        ref="unknown", name="example.pdf", file_type="application/pdf", size=4, path=config.name
+    )
 
     # When the browser tries to start uploading a file that was never selected
     websocket.receive = AsyncMock(
@@ -117,13 +111,9 @@ async def test_upload_channel_join_rejects_file_awaiting_preflight(
     manager = socket.upload_manager
     config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
     monkeypatch.setattr("pyview.uploads.tempfile.tempdir", str(tmp_path))
-    file = {
-        "ref": "0",
-        "name": "example.pdf",
-        "type": "application/pdf",
-        "size": 4,
-        "path": "document",
-    }
+    file = upload_entry_data(
+        name="example.pdf", file_type="application/pdf", size=4, path=config.name
+    )
     config.add_entries([file])
 
     # When the browser tries to start uploading before requesting approval
@@ -161,13 +151,9 @@ async def test_upload_channel_join_accepts_preflighted_file(connected_socket):
     websocket = socket.websocket
     manager = socket.upload_manager
     config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
-    file = {
-        "ref": "0",
-        "name": "example.pdf",
-        "type": "application/pdf",
-        "size": 4,
-        "path": "document",
-    }
+    file = upload_entry_data(
+        name="example.pdf", file_type="application/pdf", size=4, path=config.name
+    )
     config.add_entries([file])
     response = await manager.process_allow_upload(
         {"ref": config.ref, "entries": [file]}, context=None
@@ -218,13 +204,9 @@ async def test_upload_channel_join_rejects_file_already_uploading(
     manager = socket.upload_manager
     config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
     monkeypatch.setattr("pyview.uploads.tempfile.tempdir", str(tmp_path))
-    file = {
-        "ref": "0",
-        "name": "example.pdf",
-        "type": "application/pdf",
-        "size": 4,
-        "path": "document",
-    }
+    file = upload_entry_data(
+        name="example.pdf", file_type="application/pdf", size=4, path=config.name
+    )
     config.add_entries([file])
     response = await manager.process_allow_upload(
         {"ref": config.ref, "entries": [file]}, context=None
@@ -271,13 +253,9 @@ async def test_upload_join_uses_registered_file_metadata():
     # Given a four-byte PDF selected and approved for direct upload
     manager = UploadManager()
     config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
-    file = {
-        "ref": "0",
-        "name": "example.pdf",
-        "type": "application/pdf",
-        "size": 4,
-        "path": "document",
-    }
+    file = upload_entry_data(
+        name="example.pdf", file_type="application/pdf", size=4, path=config.name
+    )
     config.add_entries([file])
     response = await manager.process_allow_upload(
         {"ref": config.ref, "entries": [file]}, context=None

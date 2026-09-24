@@ -4,6 +4,8 @@ import pytest
 
 from pyview.uploads import ExternalUploadMeta, UploadConstraints, UploadManager, live_file_input
 
+from .factories import upload_entry_data
+
 
 @pytest.mark.parametrize("auto_upload", [False, True], ids=["on-submit", "auto-upload"])
 async def test_internal_preflight_updates_entry_and_file_input(auto_upload):
@@ -14,13 +16,9 @@ async def test_internal_preflight_updates_entry_and_file_input(auto_upload):
         UploadConstraints(accept=[".pdf"], max_files=1),
         auto_upload=auto_upload,
     )
-    entry = {
-        "ref": "0",
-        "name": "example.pdf",
-        "type": "application/pdf",
-        "size": 4,
-        "path": "document",
-    }
+    entry = upload_entry_data(
+        name="example.pdf", file_type="application/pdf", size=4, path=config.name
+    )
     config.add_entries([entry])
 
     # When the browser requests permission to upload the file
@@ -44,13 +42,7 @@ async def test_internal_preflight_rejects_file_with_unaccepted_type():
     # Given a JPG selected for an upload input that accepts only PDFs
     manager = UploadManager()
     config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
-    file = {
-        "ref": "0",
-        "name": "photo.jpg",
-        "type": "image/jpeg",
-        "size": 4,
-        "path": "document",
-    }
+    file = upload_entry_data(name="photo.jpg", file_type="image/jpeg", size=4, path=config.name)
     config.add_entries([file])
 
     # When the browser requests permission to upload the rejected file
@@ -70,13 +62,9 @@ async def test_internal_preflight_only_approves_requested_files():
         "documents",
         UploadConstraints(accept=[".pdf"], max_files=2),
     )
-    first_file = {
-        "ref": "0",
-        "name": "first.pdf",
-        "type": "application/pdf",
-        "size": 4,
-        "path": "documents",
-    }
+    first_file = upload_entry_data(
+        name="first.pdf", file_type="application/pdf", size=4, path=config.name
+    )
     second_file = {**first_file, "ref": "1", "name": "second.pdf"}
     config.add_entries([first_file, second_file])
 
@@ -100,13 +88,9 @@ async def test_regular_preflight_rejects_selection_over_file_limit():
         UploadConstraints(accept=[".pdf"], max_files=2),
         auto_upload=False,
     )
-    first_file = {
-        "ref": "0",
-        "name": "first.pdf",
-        "type": "application/pdf",
-        "size": 4,
-        "path": "documents",
-    }
+    first_file = upload_entry_data(
+        name="first.pdf", file_type="application/pdf", size=4, path=config.name
+    )
     second_file = {**first_file, "ref": "1", "name": "second.pdf"}
     third_file = {**first_file, "ref": "2", "name": "third.pdf"}
     config.add_entries([first_file, second_file, third_file])
@@ -129,13 +113,9 @@ async def test_auto_preflight_approves_files_up_to_selection_limit():
         UploadConstraints(accept=[".pdf"], max_files=2),
         auto_upload=True,
     )
-    first_file = {
-        "ref": "0",
-        "name": "first.pdf",
-        "type": "application/pdf",
-        "size": 4,
-        "path": "documents",
-    }
+    first_file = upload_entry_data(
+        name="first.pdf", file_type="application/pdf", size=4, path=config.name
+    )
     second_file = {**first_file, "ref": "1", "name": "second.pdf"}
     third_file = {**first_file, "ref": "2", "name": "third.pdf"}
     config.add_entries([first_file, second_file, third_file])
@@ -161,13 +141,9 @@ async def test_internal_preflight_skips_already_approved_file():
         "document",
         UploadConstraints(accept=[".pdf"], max_files=1),
     )
-    file = {
-        "ref": "0",
-        "name": "example.pdf",
-        "type": "application/pdf",
-        "size": 4,
-        "path": "document",
-    }
+    file = upload_entry_data(
+        name="example.pdf", file_type="application/pdf", size=4, path=config.name
+    )
     config.add_entries([file])
     await manager.process_allow_upload({"ref": config.ref, "entries": [file]}, context=None)
     config.update_progress("0", 50)
@@ -198,13 +174,7 @@ async def test_external_preflight_rejects_file_before_presigning():
         UploadConstraints(accept=[".pdf"], max_files=1),
         external=presign,
     )
-    file = {
-        "ref": "0",
-        "name": "photo.jpg",
-        "type": "image/jpeg",
-        "size": 4,
-        "path": "document",
-    }
+    file = upload_entry_data(name="photo.jpg", file_type="image/jpeg", size=4, path=config.name)
     config.add_entries([file])
 
     # When the browser requests permission to upload the rejected file
@@ -228,13 +198,9 @@ async def test_external_preflight_skips_already_approved_file():
         UploadConstraints(accept=[".pdf"], max_files=1),
         external=presign,
     )
-    file = {
-        "ref": "0",
-        "name": "example.pdf",
-        "type": "application/pdf",
-        "size": 4,
-        "path": "document",
-    }
+    file = upload_entry_data(
+        name="example.pdf", file_type="application/pdf", size=4, path=config.name
+    )
     config.add_entries([file])
     await manager.process_allow_upload({"ref": config.ref, "entries": [file]}, context=None)
     config.update_progress("0", 50)

@@ -7,19 +7,17 @@ from starlette.websockets import WebSocketDisconnect
 
 from pyview.uploads import UploadConstraints
 
+from .factories import upload_entry_data
+
 
 @pytest.fixture
 async def partial_upload(connected_socket):
     handler, socket = connected_socket
     manager = socket.upload_manager
     config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
-    file = {
-        "ref": "0",
-        "name": "example.pdf",
-        "type": "application/pdf",
-        "size": 4,
-        "path": "document",
-    }
+    file = upload_entry_data(
+        name="example.pdf", file_type="application/pdf", size=4, path=config.name
+    )
     config.add_entries([file])
     response = await manager.process_allow_upload(
         {"ref": config.ref, "entries": [file]}, context=None

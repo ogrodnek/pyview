@@ -10,6 +10,8 @@ from pyview.uploads import (
     UploadManager,
 )
 
+from .factories import upload_entry_data
+
 
 async def test_consuming_incomplete_external_upload_preserves_it_for_completion():
     # Given an approved cloud upload that is halfway finished
@@ -20,13 +22,9 @@ async def test_consuming_incomplete_external_upload_preserves_it_for_completion(
         UploadConstraints(accept=[".pdf"], max_files=1),
         external=AsyncMock(return_value=metadata),
     )
-    file = {
-        "ref": "0",
-        "name": "example.pdf",
-        "type": "application/pdf",
-        "size": 4,
-        "path": "document",
-    }
+    file = upload_entry_data(
+        name="example.pdf", file_type="application/pdf", size=4, path=config.name
+    )
     config.add_entries([file])
     await manager.process_allow_upload({"ref": config.ref, "entries": [file]}, context=None)
     config.update_progress("0", 50)
@@ -64,13 +62,9 @@ async def test_consuming_incomplete_external_batch_preserves_all_entries():
         UploadConstraints(accept=[".pdf"], max_files=2),
         external=AsyncMock(return_value=metadata),
     )
-    first_file = {
-        "ref": "0",
-        "name": "first.pdf",
-        "type": "application/pdf",
-        "size": 4,
-        "path": "documents",
-    }
+    first_file = upload_entry_data(
+        name="first.pdf", file_type="application/pdf", size=4, path=config.name
+    )
     second_file = {**first_file, "ref": "1", "name": "second.pdf"}
     config.add_entries([first_file, second_file])
     await manager.process_allow_upload(
@@ -110,13 +104,9 @@ async def test_consuming_incomplete_external_batch_preserves_all_entries():
 async def approved_upload():
     manager = UploadManager()
     config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
-    file = {
-        "ref": "0",
-        "name": "example.pdf",
-        "type": "application/pdf",
-        "size": 4,
-        "path": "document",
-    }
+    file = upload_entry_data(
+        name="example.pdf", file_type="application/pdf", size=4, path=config.name
+    )
     config.add_entries([file])
     response = await manager.process_allow_upload(
         {"ref": config.ref, "entries": [file]}, context=None
@@ -177,13 +167,9 @@ def test_consuming_unstarted_upload_preserves_selection():
     config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
     config.add_entries(
         [
-            {
-                "ref": "0",
-                "name": "example.pdf",
-                "type": "application/pdf",
-                "size": 4,
-                "path": "document",
-            }
+            upload_entry_data(
+                name="example.pdf", file_type="application/pdf", size=4, path=config.name
+            )
         ]
     )
     selected_entry = config.entries_by_ref["0"]
@@ -221,13 +207,9 @@ async def test_consuming_unknown_ref_yields_none_without_affecting_selected_file
 async def approved_upload_batch():
     manager = UploadManager()
     config = manager.allow_upload("documents", UploadConstraints(accept=[".pdf"], max_files=2))
-    first_file = {
-        "ref": "0",
-        "name": "first.pdf",
-        "type": "application/pdf",
-        "size": 4,
-        "path": "documents",
-    }
+    first_file = upload_entry_data(
+        name="first.pdf", file_type="application/pdf", size=4, path=config.name
+    )
     second_file = {**first_file, "ref": "1", "name": "second.pdf"}
     config.add_entries([first_file, second_file])
     response = await manager.process_allow_upload(
@@ -306,13 +288,9 @@ async def test_consuming_batch_with_unstarted_upload_preserves_both_entries():
     # Given two selected PDFs, with the first fully received and the second not yet uploading
     manager = UploadManager()
     config = manager.allow_upload("documents", UploadConstraints(accept=[".pdf"], max_files=2))
-    first_file = {
-        "ref": "0",
-        "name": "first.pdf",
-        "type": "application/pdf",
-        "size": 4,
-        "path": "documents",
-    }
+    first_file = upload_entry_data(
+        name="first.pdf", file_type="application/pdf", size=4, path=config.name
+    )
     second_file = {**first_file, "ref": "1", "name": "second.pdf"}
     config.add_entries([first_file, second_file])
     response = await manager.process_allow_upload(

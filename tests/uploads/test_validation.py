@@ -2,10 +2,12 @@ import pytest
 
 from pyview.uploads import UploadConfig, UploadConstraints
 
+from .factories import upload_entry_data
+
 
 def selected_file(config, name, file_type):
     config.add_entries(
-        [{"ref": "0", "name": name, "type": file_type, "size": 4, "path": config.name}]
+        [upload_entry_data(name=name, file_type=file_type, size=4, path=config.name)]
     )
     return config.entries_by_ref["0"]
 
