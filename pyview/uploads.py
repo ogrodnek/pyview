@@ -444,7 +444,10 @@ class UploadManager:
         """Validate proposed entries against upload constraints."""
         errors = []
         for entry in proposed_entries:
-            if entry["size"] > config.constraints.max_file_size:
+            registered_entry = config.entries_by_ref.get(entry["ref"])
+            if registered_entry and registered_entry.errors:
+                errors.extend(registered_entry.errors)
+            elif entry["size"] > config.constraints.max_file_size:
                 errors.append(ConstraintViolation(ref=entry["ref"], code="too_large"))
 
         if len(proposed_entries) > config.constraints.max_files:

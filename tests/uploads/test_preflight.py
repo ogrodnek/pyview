@@ -40,6 +40,29 @@ async def test_internal_preflight_updates_entry_and_file_input(auto_upload):
     assert 'data-phx-done-refs=""' in html
 
 
+async def test_internal_preflight_rejects_file_with_unaccepted_type():
+    # Given a JPG selected for an upload input that accepts only PDFs
+    manager = UploadManager()
+    config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
+    file = {
+        "ref": "0",
+        "name": "photo.jpg",
+        "type": "image/jpeg",
+        "size": 4,
+        "path": "document",
+    }
+    config.add_entries([file])
+
+    # When the browser requests permission to upload the rejected file
+    response = await manager.process_allow_upload(
+        {"ref": config.ref, "entries": [file]}, context=None
+    )
+
+    # Then the file-type error is returned and the file remains unapproved
+    assert response == {"error": [("0", "not_accepted")]}
+    assert not config.entries_by_ref["0"].preflighted
+
+
 async def test_internal_preflight_only_approves_requested_files():
     # Given two selected PDFs that are waiting for upload approval
     manager = UploadManager()
