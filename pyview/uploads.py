@@ -483,7 +483,11 @@ class UploadManager:
         token = payload["token"]
 
         config = self.config_for_name(token["path"])
-        if config is None or token["ref"] not in config.entries_by_ref:
+        if config is None:
+            return False
+
+        registered_entry = config.entries_by_ref.get(token["ref"])
+        if registered_entry is None or not registered_entry.preflighted:
             return False
 
         self.upload_config_join_refs[joinRef] = config

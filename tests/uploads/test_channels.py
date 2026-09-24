@@ -140,6 +140,62 @@ async def test_upload_channel_join_rejects_unknown_file(tmp_path, monkeypatch):
         await socket.close()
 
 
+async def test_upload_channel_join_rejects_file_awaiting_preflight(tmp_path, monkeypatch):
+    # Given a connected LiveView with a selected PDF still awaiting upload approval
+    instrumentation = NoOpInstrumentation()
+    handler = LiveSocketHandler(LiveViewLookup(), instrumentation)
+    websocket = MagicMock()
+    websocket.send_text = AsyncMock()
+    socket = ConnectedLiveViewSocket(
+        websocket=websocket,
+        topic="lv:test",
+        liveview=LiveView(),
+        scheduler=handler.scheduler,
+        instrumentation=instrumentation,
+    )
+    manager = socket.upload_manager
+    config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
+    monkeypatch.setattr("pyview.uploads.tempfile.tempdir", str(tmp_path))
+    file = {
+        "ref": "0",
+        "name": "example.pdf",
+        "type": "application/pdf",
+        "size": 4,
+        "path": "document",
+    }
+    config.add_entries([file])
+    try:
+        # When the browser tries to start uploading before requesting approval
+        websocket.receive = AsyncMock(
+            side_effect=[
+                {"text": json.dumps(["upload-join", "2", "lvu:0", "phx_join", {"token": file}])},
+                WebSocketDisconnect(),
+            ]
+        )
+        with pytest.raises(WebSocketDisconnect):
+            await handler._handle_connected_loop("lv:test", socket)
+
+        # Then the join is rejected and the selected file still awaits approval
+        websocket.send_text.assert_awaited_once()
+        assert json.loads(websocket.send_text.call_args.args[0]) == [
+            "upload-join",
+            "2",
+            "lvu:0",
+            "phx_reply",
+            {"response": {"reason": "disallowed"}, "status": "error"},
+        ]
+        assert socket.connected
+        assert set(config.entries_by_ref) == {"0"}
+        assert not config.entries_by_ref["0"].preflighted
+
+        # And no upload, channel registration, or temporary file is created
+        assert config.uploads.uploads == {}
+        assert manager.upload_config_join_refs == {}
+        assert list(tmp_path.iterdir()) == []
+    finally:
+        await socket.close()
+
+
 async def test_upload_channel_join_accepts_preflighted_file():
     # Given a connected LiveView with a selected PDF approved for direct upload
     instrumentation = NoOpInstrumentation()
