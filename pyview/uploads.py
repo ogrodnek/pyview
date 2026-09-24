@@ -284,7 +284,9 @@ class UploadConfig(BaseModel):
                 join_ref = jr
                 break
 
-        if upload and not upload.is_complete:
+        if (upload and not upload.is_complete) or (
+            upload is None and entry_ref in self.entries_by_ref
+        ):
             raise UploadInProgressError(
                 f"Cannot consume upload {entry_ref!r}: it is still in progress"
             )

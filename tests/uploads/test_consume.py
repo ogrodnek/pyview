@@ -70,6 +70,52 @@ async def test_consuming_fully_received_upload_yields_file_and_cleans_up(approve
     assert config.entries_by_ref == {}
 
 
+def test_consuming_unstarted_upload_preserves_selection():
+    # Given a selected PDF whose upload has not started
+    manager = UploadManager()
+    config = manager.allow_upload("document", UploadConstraints(accept=[".pdf"], max_files=1))
+    config.add_entries(
+        [
+            {
+                "ref": "0",
+                "name": "example.pdf",
+                "type": "application/pdf",
+                "size": 4,
+                "path": "document",
+            }
+        ]
+    )
+    selected_entry = config.entries_by_ref["0"]
+
+    # When the app tries to consume the file before its upload starts
+    # Then it receives an in-progress error instead of treating the file as missing
+    with (
+        pytest.raises(UploadInProgressError, match="Cannot consume upload '0'.*still in progress"),
+        config.consume_upload_entry("0"),
+    ):
+        pytest.fail("A selected file whose upload has not started must not be yielded")
+
+    # And the selection remains available to upload later
+    assert config.entries_by_ref["0"] is selected_entry
+    assert config.uploads.uploads == {}
+
+
+async def test_consuming_unknown_ref_yields_none_without_affecting_selected_file(approved_upload):
+    # Given an existing upload and a ref that does not belong to any selected file
+    _, config, upload = approved_upload
+
+    # When the app tries to consume the unknown ref
+    with config.consume_upload_entry("unknown") as consumed:
+        # Then it receives no file
+        assert consumed is None
+
+    # And the existing upload and selection remain intact
+    assert not upload.file.closed
+    assert Path(upload.file.name).exists()
+    assert config.uploads.uploads["upload-join"] is upload
+    assert set(config.entries_by_ref) == {"0"}
+
+
 @pytest.fixture
 async def approved_upload_batch():
     manager = UploadManager()
