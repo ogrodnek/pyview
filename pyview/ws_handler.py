@@ -429,9 +429,6 @@ class LiveSocketHandler:
                 await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
 
             if event == "progress":
-                # Trigger progress callback BEFORE updating progress (which may consume the entry)
-                await socket.upload_manager.trigger_progress_callback_if_exists(payload, socket)
-
                 await socket.upload_manager.update_progress(joinRef, payload, socket)
 
                 rendered = await _render(socket)

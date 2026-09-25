@@ -643,51 +643,44 @@ class UploadManager:
             logger.warning(f"[update_progress] No config found for ref: {upload_config_ref}")
             return
 
-        # Handle dict (error or completion)
-        if isinstance(progress_data, dict):
-            if progress_data.get("complete"):
-                entry = config.entries_by_ref.get(entry_ref)
-                if entry:
-                    entry.progress = 100
-                    entry.done = True
-
-                    # Call entry_complete callback with success result
-                    if config.entry_complete_callback:
-                        result = UploadSuccessWithData(data=progress_data)
-                        await config.entry_complete_callback(entry, result, socket)
-                return
-
-            # Handle error case: {error: "reason"}
-            error_msg = progress_data.get("error", "Upload failed")
-            logger.warning(f"Upload error for entry {entry_ref}: {error_msg}")
-
-            if entry_ref in config.entries_by_ref:
-                entry = config.entries_by_ref[entry_ref]
-                entry.valid = False
-                entry.errors.append(ConstraintViolation(ref=entry_ref, code="upload_failed"))
-
-                # Call entry_complete callback with failure result
-                if config.entry_complete_callback:
-                    result = UploadFailure(error=error_msg)
-                    await config.entry_complete_callback(entry, result, socket)
+        entry = config.entries_by_ref.get(entry_ref)
+        if entry is None:
             return
 
-        # Handle progress number
-        progress = int(progress_data)
-        config.update_progress(entry_ref, progress)
-
-        # Fire entry_complete callback on 100
-        if progress == 100:
-            entry = config.entries_by_ref.get(entry_ref)
-            if entry and config.entry_complete_callback:
+        result: Optional[UploadResult] = None
+        if isinstance(progress_data, dict):
+            if progress_data.get("complete"):
+                entry.progress = 100
+                entry.done = True
+                result = UploadSuccessWithData(data=progress_data)
+            else:
+                error_msg = progress_data.get("error", "Upload failed")
+                logger.warning(f"Upload error for entry {entry_ref}: {error_msg}")
+                entry.valid = False
+                entry.errors.append(ConstraintViolation(ref=entry_ref, code="upload_failed"))
+                result = UploadFailure(error=error_msg)
+        else:
+            progress = int(progress_data)
+            config.update_progress(entry_ref, progress)
+            if progress == 100:
                 result = UploadSuccess()
-                await config.entry_complete_callback(entry, result, socket)
 
-            # Cleanup for internal uploads only (external uploads never populate upload_config_join_refs)
-            if not config.is_external:
-                upload = config.uploads.for_entry(entry_ref)
-                if upload is not None:
-                    self.upload_config_join_refs.pop(upload.ref, None)
+                # Release the channel before a callback can consume its file.
+                if not config.is_external:
+                    upload = config.uploads.for_entry(entry_ref)
+                    if upload is not None:
+                        self.upload_config_join_refs.pop(upload.ref, None)
+
+        # Both callbacks see the updated state; progress runs first so it can consume the entry.
+        if config.progress_callback:
+            await config.progress_callback(entry, socket)
+
+        # A progress callback may already have consumed or canceled this entry.
+        if config.entries_by_ref.get(entry_ref) is not entry:
+            return
+
+        if result is not None and config.entry_complete_callback:
+            await config.entry_complete_callback(entry, result, socket)
 
     def no_progress(self, joinRef) -> bool:
         config = self.upload_config_join_refs.get(joinRef)
@@ -695,26 +688,6 @@ class UploadManager:
             return False
 
         return config.uploads.no_progress()
-
-    async def trigger_progress_callback_if_exists(self, payload: dict[str, Any], socket):
-        """Trigger progress callback if one exists for this upload config"""
-        upload_config_ref = payload["ref"]
-        config = self.config_for_ref(upload_config_ref)
-
-        if config and config.progress_callback:
-            entry_ref = payload["entry_ref"]
-            if entry_ref in config.entries_by_ref:
-                entry = config.entries_by_ref[entry_ref]
-                progress_data = payload["progress"]
-
-                # Update entry progress before calling callback
-                if isinstance(progress_data, int):
-                    entry.progress = progress_data
-                    entry.done = progress_data == 100
-                # For dict (error or completion), don't update entry.progress here
-                # (will be handled in update_progress or completion handler)
-
-                await config.progress_callback(entry, socket)
 
     def close(self):
         for config in self.upload_configs.values():
