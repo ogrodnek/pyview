@@ -621,6 +621,15 @@ class UploadManager:
         config.uploads.add_upload(joinRef, entry)
         return UploadJoinResult.ACCEPTED
 
+    def leave_upload(self, join_ref: str):
+        config = self.upload_config_join_refs.pop(join_ref, None)
+        if config is None:
+            return
+
+        upload = config.uploads.uploads.get(join_ref)
+        if upload is not None:
+            config.cancel_entry(upload.entry.ref)
+
     def add_chunk(self, joinRef: str, chunk: bytes) -> UploadChunkResult:
         config = self.upload_config_join_refs.get(joinRef)
         if config is None:

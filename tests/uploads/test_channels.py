@@ -10,6 +10,60 @@ from pyview.uploads import UploadConstraints, UploadJoinResult, UploadManager
 from .factories import upload_entry_data
 
 
+async def test_leaving_active_upload_channel_cleans_up_only_that_upload(connected_socket):
+    # Given a connected LiveView with two PDF uploads, both halfway received
+    handler, socket = connected_socket
+    websocket = socket.websocket
+    manager = socket.upload_manager
+    config = manager.allow_upload("documents", UploadConstraints(accept=[".pdf"], max_files=2))
+    first_file = upload_entry_data(name="first.pdf", path=config.name)
+    second_file = upload_entry_data(ref="1", name="second.pdf", path=config.name)
+    config.add_entries([first_file, second_file])
+    response = await manager.process_allow_upload(
+        {"ref": config.ref, "entries": [first_file, second_file]}, context=None
+    )
+    manager.add_upload("first-join", {"token": response["entries"]["0"]})
+    manager.add_upload("second-join", {"token": response["entries"]["1"]})
+    manager.add_chunk("first-join", b"ab")
+    manager.add_chunk("second-join", b"ab")
+    first_upload = config.uploads.uploads["first-join"]
+    second_upload = config.uploads.uploads["second-join"]
+    first_path = Path(first_upload.file.name)
+
+    # When the browser leaves the first file's channel without the app canceling it first
+    websocket.receive = AsyncMock(
+        side_effect=[
+            {"text": json.dumps(["first-join", "3", "lvu:0", "phx_leave", {}])},
+            WebSocketDisconnect(),
+        ]
+    )
+    with pytest.raises(WebSocketDisconnect):
+        await handler._handle_connected_loop("lv:test", socket)
+
+    # Then the abandoned file is closed and deleted, and its upload state is removed
+    assert first_upload.file.closed
+    assert not first_path.exists()
+    assert set(config.entries_by_ref) == {"1"}
+    assert set(config.uploads.uploads) == {"second-join"}
+    assert "first-join" not in manager.upload_config_join_refs
+
+    # And the LiveView stays connected so the second upload can finish
+    assert socket.connected
+    assert manager.config_for_name("documents") is config
+    assert manager.upload_config_join_refs["second-join"] is config
+    assert not second_upload.file.closed
+    manager.add_chunk("second-join", b"cd")
+    assert Path(second_upload.file.name).read_bytes() == b"abcd"
+    websocket.send_text.assert_awaited_once()
+    assert json.loads(websocket.send_text.call_args.args[0]) == [
+        "first-join",
+        "3",
+        "lvu:0",
+        "phx_reply",
+        {"response": {}, "status": "ok"},
+    ]
+
+
 async def test_leaving_canceled_upload_channel_preserves_liveview_and_other_uploads(
     connected_socket,
 ):

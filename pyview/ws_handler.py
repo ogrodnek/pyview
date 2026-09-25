@@ -446,7 +446,7 @@ class LiveSocketHandler:
 
             if event == "phx_leave":
                 if topic.startswith("lvu:"):
-                    socket.upload_manager.upload_config_join_refs.pop(joinRef, None)
+                    socket.upload_manager.leave_upload(joinRef)
                 else:
                     # Handle LiveView navigation - clean up current LiveView
                     await socket.close()
