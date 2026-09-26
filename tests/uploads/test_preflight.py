@@ -250,7 +250,7 @@ async def test_internal_preflight_skips_already_approved_file():
 
 async def test_external_preflight_rejects_file_before_presigning():
     # Given a JPG selected for a cloud upload input that accepts only PDFs
-    metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
+    metadata = ExternalUploadMeta(uploader="S3")
     presign = AsyncMock(return_value=metadata)
     manager = UploadManager()
     config = manager.allow_upload(
@@ -274,7 +274,7 @@ async def test_external_preflight_rejects_file_before_presigning():
 
 async def test_external_auto_preflight_presigns_only_valid_files():
     # Given a PDF and a JPG selected for automatic PDF-only cloud uploads
-    metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
+    metadata = ExternalUploadMeta(uploader="S3")
     presign = AsyncMock(return_value=metadata)
     manager = UploadManager()
     config = manager.allow_upload(
@@ -297,6 +297,7 @@ async def test_external_auto_preflight_presigns_only_valid_files():
     assert set(response["entries"]) == {"0"}
     assert response["errors"] == {"1": [{"reason": "not_accepted"}]}
     presign.assert_awaited_once()
+    assert presign.await_args is not None
     assert presign.await_args.args[0].ref == "0"
     assert config.entries_by_ref["0"].preflighted
     assert config.entries_by_ref["0"].meta == metadata
@@ -306,7 +307,10 @@ async def test_external_auto_preflight_presigns_only_valid_files():
 
 async def test_external_preflight_uses_registered_file_metadata():
     # Given a four-byte PDF selected for cloud upload
-    metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
+    # And a provider that returns extra metadata, such as an upload URL
+    metadata = ExternalUploadMeta.model_validate(
+        {"uploader": "S3", "url": "https://example.com/upload"}
+    )
     presign = AsyncMock(return_value=metadata)
     manager = UploadManager()
     config = manager.allow_upload(
@@ -329,13 +333,14 @@ async def test_external_preflight_uses_registered_file_metadata():
     # Then presigning uses the file metadata and identity recorded when it was selected
     assert "error" not in response
     presign.assert_awaited_once()
+    assert presign.await_args is not None
     signed_entry = presign.await_args.args[0]
     assert signed_entry.name == "original.pdf"
     assert signed_entry.type == "application/pdf"
     assert signed_entry.size == 4
     assert signed_entry.uuid == original_uuid
 
-    # And the approved entry and browser response retain that metadata and upload destination
+    # And the approved entry and browser response preserve file and provider-specific metadata
     approved_entry = config.entries_by_ref["0"]
     assert approved_entry is signed_entry
     assert approved_entry.preflighted
@@ -344,12 +349,12 @@ async def test_external_preflight_uses_registered_file_metadata():
     assert response["entries"]["0"]["type"] == "application/pdf"
     assert response["entries"]["0"]["size"] == 4
     assert response["entries"]["0"]["uuid"] == original_uuid
-    assert response["entries"]["0"]["url"] == metadata.url
+    assert response["entries"]["0"]["url"] == metadata.model_dump()["url"]
 
 
 async def test_external_preflight_skips_already_approved_file():
     # Given a PDF approved for cloud upload that is halfway finished
-    metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
+    metadata = ExternalUploadMeta(uploader="S3")
     presign = AsyncMock(return_value=metadata)
     manager = UploadManager()
     config = manager.allow_upload(

@@ -232,7 +232,7 @@ async def test_consuming_batch_with_unstarted_upload_preserves_both_entries():
 
 async def test_consuming_incomplete_external_upload_preserves_it_for_completion():
     # Given an approved cloud upload that is halfway finished
-    metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
+    metadata = ExternalUploadMeta(uploader="S3")
     manager = UploadManager()
     config = manager.allow_upload(
         "document",
@@ -264,6 +264,7 @@ async def test_consuming_incomplete_external_upload_preserves_it_for_completion(
     config.update_progress("0", 100)
     with config.consume_external_upload("0") as consumed:
         # Then the completed upload is available and is removed only after consumption
+        assert consumed is not None
         assert consumed is entry
         assert consumed.done
         assert config.entries_by_ref["0"] is entry
@@ -272,7 +273,7 @@ async def test_consuming_incomplete_external_upload_preserves_it_for_completion(
 
 async def test_consuming_failed_external_upload_preserves_its_error():
     # Given an approved cloud upload that fails halfway through
-    metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
+    metadata = ExternalUploadMeta(uploader="S3")
     on_complete = AsyncMock()
     manager = UploadManager()
     config = manager.allow_upload(
@@ -312,7 +313,7 @@ async def test_consuming_failed_external_upload_preserves_its_error():
 
 async def test_consuming_failed_external_batch_preserves_all_entries():
     # Given two approved cloud uploads, one complete and one that failed halfway through
-    metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
+    metadata = ExternalUploadMeta(uploader="S3")
     manager = UploadManager()
     config = manager.allow_upload(
         "documents",
@@ -352,7 +353,7 @@ async def test_consuming_failed_external_batch_preserves_all_entries():
 
 async def test_consuming_incomplete_external_batch_preserves_all_entries():
     # Given two approved cloud uploads, one complete and one halfway finished
-    metadata = ExternalUploadMeta(uploader="S3", url="https://example.com/upload")
+    metadata = ExternalUploadMeta(uploader="S3")
     manager = UploadManager()
     config = manager.allow_upload(
         "documents",
