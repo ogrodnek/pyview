@@ -1,10 +1,12 @@
 import datetime
 import logging
+import mimetypes
 import os
 import tempfile
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Awaitable, Callable, Generator, Literal, Optional
 
 from markupsafe import Markup
@@ -50,10 +52,42 @@ class UploadFailure:
 UploadResult = UploadSuccess | UploadSuccessWithData | UploadFailure
 
 
+class UploadJoinResult(Enum):
+    ACCEPTED = "accepted"
+    DISALLOWED = "disallowed"
+    ALREADY_REGISTERED = "already_registered"
+
+
+class UploadChunkResult(Enum):
+    ACCEPTED = "accepted"
+    IGNORED = "ignored"
+    FILE_SIZE_LIMIT_EXCEEDED = "file_size_limit_exceeded"
+
+
+class UploadError(RuntimeError):
+    """Base class for upload errors."""
+
+
+class UploadInProgressError(UploadError):
+    """An upload cannot be consumed until it has finished."""
+
+    def __init__(self, entry_ref: str):
+        super().__init__(f"Cannot consume upload {entry_ref!r}: it is still in progress")
+
+
+class UploadConfigurationInUseError(UploadError):
+    """An upload configuration cannot be replaced while it still has selected files."""
+
+    def __init__(self, upload_name: str):
+        super().__init__(
+            f"Cannot reconfigure upload {upload_name!r}: consume or cancel its existing entries first"
+        )
+
+
 @dataclass
 class ConstraintViolation:
     ref: str
-    code: Literal["too_large", "too_many_files", "upload_failed"]
+    code: Literal["too_large", "too_many_files", "upload_failed", "not_accepted"]
 
     @property
     def message(self) -> str:
@@ -63,15 +97,25 @@ class ConstraintViolation:
             return "Too many files"
         if self.code == "upload_failed":
             return "Upload failed"
+        if self.code == "not_accepted":
+            return "File type not accepted"
         return self.code
 
 
-class UploadEntry(BaseModel):
+class ClientUploadEntryData(BaseModel):
+    """Browser-provided file metadata, excluding server-owned upload state."""
+
     ref: str
     name: str
     size: int
     type: str
     path: Optional[str] = None  # None for external uploads, set for internal uploads
+    last_modified: int = Field(default_factory=lambda: int(datetime.datetime.now().timestamp()))
+
+    model_config = {"extra": "ignore"}
+
+
+class UploadEntry(ClientUploadEntryData):
     upload_config: Optional["UploadConfig"] = None
     uuid: str = Field(default_factory=lambda: str(uuid.uuid4()))
     valid: bool = True
@@ -80,48 +124,74 @@ class UploadEntry(BaseModel):
     preflighted: bool = False
     cancelled: bool = False
     done: bool = False
-    last_modified: int = Field(default_factory=lambda: int(datetime.datetime.now().timestamp()))
     meta: Optional["ExternalUploadMeta"] = None  # Metadata from external uploads
+
+    @classmethod
+    def from_client_data(cls, data: dict) -> "UploadEntry":
+        # The browser describes the file; the server controls approval and upload state.
+        metadata = ClientUploadEntryData.model_validate(data)
+        return cls(**metadata.model_dump())
 
 
 def parse_entries(entries: list[dict]) -> list[UploadEntry]:
-    return [UploadEntry(**entry) for entry in entries]
+    return [UploadEntry.from_client_data(entry) for entry in entries]
 
 
 @dataclass
 class ActiveUpload:
     ref: str
     entry: UploadEntry
+    on_close: Optional[Callable[[str], None]] = None
+    bytes_received: int = field(default=0, init=False)
     file: tempfile._TemporaryFileWrapper = field(init=False)
 
     def __post_init__(self):
         self.file = tempfile.NamedTemporaryFile(delete=False)  # noqa: SIM115
 
+    @property
+    def is_complete(self) -> bool:
+        return self.bytes_received == self.entry.size
+
     def close(self):
         self.file.close()
         os.remove(self.file.name)
+        if self.on_close:
+            self.on_close(self.ref)
 
 
 @dataclass
 class ActiveUploads:
     uploads: dict[str, ActiveUpload] = field(default_factory=dict)
 
-    def add_upload(self, ref: str, entry: UploadEntry):
-        self.uploads[ref] = ActiveUpload(ref, entry)
+    def add_upload(
+        self, ref: str, entry: UploadEntry, on_close: Optional[Callable[[str], None]] = None
+    ):
+        self.uploads[ref] = ActiveUpload(ref, entry, on_close=on_close)
 
-    def add_chunk(self, ref: str, chunk: bytes):
-        self.uploads[ref].file.write(chunk)
-        self.uploads[ref].file.flush()
-        self.uploads[ref].entry.progress = self.uploads[ref].file.tell()
+    def add_chunk(self, ref: str, chunk: bytes) -> UploadChunkResult:
+        upload = self.uploads.get(ref)
+        if upload is None:
+            return UploadChunkResult.IGNORED
+
+        if upload.bytes_received + len(chunk) > upload.entry.size:
+            return UploadChunkResult.FILE_SIZE_LIMIT_EXCEEDED
+
+        written = upload.file.write(chunk)
+        upload.file.flush()
+        upload.bytes_received += written
+        return UploadChunkResult.ACCEPTED
 
     def no_progress(self) -> bool:
-        return all(upload.entry.progress == 0 for upload in self.uploads.values())
+        return all(upload.bytes_received == 0 for upload in self.uploads.values())
 
     def file_name(self, ref: str) -> str:
         return self.uploads[ref].file.name
 
-    def join_ref_for_entry(self, ref: str) -> str:
-        return [join_ref for join_ref, upload in self.uploads.items() if upload.entry.ref == ref][0]
+    def for_entry(self, entry_ref: str) -> ActiveUpload | None:
+        for upload in self.uploads.values():
+            if upload.entry.ref == entry_ref:
+                return upload
+        return None
 
     def close(self):
         for upload in self.uploads.values():
@@ -144,10 +214,28 @@ class ExternalUploadMeta(BaseModel):
 
 
 class UploadConstraints(BaseModel):
-    max_file_size: int = 10 * 1024 * 1024  # 10MB
-    max_files: int = 10
+    max_file_size: int = Field(default=10 * 1024 * 1024, gt=0)  # 10MB
+    max_files: int = Field(default=10, gt=0)
     accept: list[str] = Field(default_factory=lambda: ["image/*"])
-    chunk_size: int = 64 * 1024  # 64KB
+    chunk_size: int = Field(default=64 * 1024, gt=0)  # 64KB
+
+    def accepts_file_type(self, entry: UploadEntry) -> bool:
+        if not self.accept:
+            return True
+
+        extension = os.path.splitext(entry.name)[1].lower()
+        file_type = entry.type.lower()
+        for accepted in self.accept:
+            accepted = accepted.lower()
+            if accepted.startswith("."):
+                accepted_type = mimetypes.types_map.get(accepted)
+                if extension == accepted or file_type == accepted_type:
+                    return True
+            elif file_type == accepted or (
+                accepted.endswith("/*") and file_type.startswith(accepted[:-1])
+            ):
+                return True
+        return False
 
 
 class UploadConfig(BaseModel):
@@ -178,6 +266,11 @@ class UploadConfig(BaseModel):
     def cancel_entry(self, ref: str):
         del self.entries_by_ref[ref]
 
+        for join_ref, upload in list(self.uploads.uploads.items()):
+            if upload.entry.ref == ref:
+                upload.close()
+                del self.uploads.uploads[join_ref]
+
         # recheck constraints
         self.errors.clear()
         if len(self.entries_by_ref) > self.constraints.max_files:
@@ -185,12 +278,27 @@ class UploadConfig(BaseModel):
 
     def add_entries(self, entries: list[dict]):
         parsed = parse_entries(entries)
+        # Choosing a new file in a single-file input replaces the previous selection.
+        if (
+            self.constraints.max_files == 1
+            and len(parsed) == 1
+            and parsed[0].ref not in self.entries_by_ref
+        ):
+            for ref in list(self.entries_by_ref):
+                self.cancel_entry(ref)
+
         for entry in parsed:
+            if entry.ref in self.entries_by_ref:
+                continue
+
             entry.upload_config = self
             self.entries_by_ref[entry.ref] = entry
             if entry.size > self.constraints.max_file_size:
                 entry.valid = False
                 entry.errors.append(ConstraintViolation(ref=entry.ref, code="too_large"))
+            if not self.constraints.accepts_file_type(entry):
+                entry.valid = False
+                entry.errors.append(ConstraintViolation(ref=entry.ref, code="not_accepted"))
 
         if len(self.entries_by_ref) > self.constraints.max_files:
             self.errors.append(ConstraintViolation(ref=self.ref, code="too_many_files"))
@@ -202,8 +310,14 @@ class UploadConfig(BaseModel):
 
     @contextmanager
     def consume_uploads(self) -> Generator[list["ActiveUpload"], None, None]:
+        """Consume all selected uploads, raising UploadInProgressError if any is incomplete."""
+        upload_list = list(self.uploads.uploads.values())
+        completed_refs = {upload.entry.ref for upload in upload_list if upload.is_complete}
+        for entry_ref in self.entries_by_ref:
+            if entry_ref not in completed_refs:
+                raise UploadInProgressError(entry_ref)
+
         try:
-            upload_list = list(self.uploads.uploads.values())
             yield upload_list
         finally:
             try:
@@ -218,31 +332,26 @@ class UploadConfig(BaseModel):
     def consume_upload_entry(
         self, entry_ref: str
     ) -> Generator[Optional["ActiveUpload"], None, None]:
-        """Consume a single upload entry by its ref"""
-        upload = None
-        join_ref = None
+        """Consume a single entry, raising UploadInProgressError if it is incomplete."""
+        upload = self.uploads.for_entry(entry_ref)
 
-        # Find the join_ref for this entry
-        for jr, active_upload in self.uploads.uploads.items():
-            if active_upload.entry.ref == entry_ref:
-                upload = active_upload
-                join_ref = jr
-                break
+        if (upload and not upload.is_complete) or (
+            upload is None and entry_ref in self.entries_by_ref
+        ):
+            raise UploadInProgressError(entry_ref)
 
         try:
             yield upload
         finally:
-            if upload and join_ref:
+            if upload is not None:
                 try:
                     upload.close()
                 except Exception:
                     logger.warning("Error closing upload entry", exc_info=True)
 
                 # Remove only this specific upload
-                if join_ref in self.uploads.uploads:
-                    del self.uploads.uploads[join_ref]
-                if entry_ref in self.entries_by_ref:
-                    del self.entries_by_ref[entry_ref]
+                self.uploads.uploads.pop(upload.ref, None)
+                self.entries_by_ref.pop(entry_ref, None)
 
     @contextmanager
     def consume_external_upload(
@@ -262,6 +371,7 @@ class UploadConfig(BaseModel):
 
         Raises:
             ValueError: If called on a non-external upload config
+            UploadInProgressError: If the upload has not finished
         """
         if not self.is_external:
             raise ValueError(
@@ -269,6 +379,8 @@ class UploadConfig(BaseModel):
             )
 
         entry = self.entries_by_ref.get(entry_ref)
+        if entry and not entry.done:
+            raise UploadInProgressError(entry_ref)
 
         try:
             yield entry
@@ -289,14 +401,19 @@ class UploadConfig(BaseModel):
 
         Raises:
             ValueError: If called on a non-external upload config
+            UploadInProgressError: If any upload has not finished
         """
         if not self.is_external:
             raise ValueError(
                 "consume_external_uploads() can only be called on external upload configs"
             )
 
+        upload_list = list(self.entries_by_ref.values())
+        for entry in upload_list:
+            if not entry.done:
+                raise UploadInProgressError(entry.ref)
+
         try:
-            upload_list = list(self.entries_by_ref.values())
             yield upload_list
         finally:
             self.entries_by_ref = {}
@@ -322,6 +439,10 @@ class UploadManager:
         external: Optional[Callable] = None,
         entry_complete: Optional[Callable] = None,
     ) -> UploadConfig:
+        existing = self.config_for_name(upload_name)
+        if existing is not None and existing.entries_by_ref:
+            raise UploadConfigurationInUseError(upload_name)
+
         config = UploadConfig(
             name=upload_name,
             constraints=constraints,
@@ -337,7 +458,10 @@ class UploadManager:
         return self.upload_configs.get(upload_name)
 
     def config_for_ref(self, ref: str) -> Optional[UploadConfig]:
-        return [c for c in self.upload_configs.values() if c.ref == ref][0]
+        for config in self.upload_configs.values():
+            if config.ref == ref:
+                return config
+        return None
 
     def maybe_process_uploads(self, qs: dict[str, Any], payload: dict[str, Any]):
         if "uploads" in payload:
@@ -358,10 +482,15 @@ class UploadManager:
         """Validate proposed entries against upload constraints."""
         errors = []
         for entry in proposed_entries:
-            if entry["size"] > config.constraints.max_file_size:
+            registered_entry = config.entries_by_ref.get(entry["ref"])
+            if registered_entry and registered_entry.errors:
+                errors.extend(registered_entry.errors)
+            elif entry["size"] > config.constraints.max_file_size:
                 errors.append(ConstraintViolation(ref=entry["ref"], code="too_large"))
 
-        if len(proposed_entries) > config.constraints.max_files:
+        if len(proposed_entries) > config.constraints.max_files or (
+            not config.autoUpload and len(config.entries_by_ref) > config.constraints.max_files
+        ):
             errors.append(ConstraintViolation(ref=config.ref, code="too_many_files"))
 
         return errors
@@ -378,9 +507,12 @@ class UploadManager:
             return {"error": [("config", "external_callback_missing")]}
 
         for entry_data in proposed_entries:
-            # Create UploadEntry to pass to presign function
-            entry = UploadEntry(**entry_data)
-            entry.upload_config = config
+            existing_entry = config.entries_by_ref.get(entry_data["ref"])
+            if existing_entry is None or existing_entry.preflighted:
+                continue
+
+            # Preserve selected metadata without changing approval until presigning succeeds.
+            entry = existing_entry.model_copy()
 
             try:
                 # Call user's presign function
@@ -411,10 +543,21 @@ class UploadManager:
         configJson = config.constraints.model_dump()
         return {"config": configJson, "entries": entries_with_meta}
 
-    def _process_internal_upload(self, config: UploadConfig) -> dict[str, Any]:
+    def _process_internal_upload(
+        self, config: UploadConfig, proposed_entries: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Process internal (direct-to-server) upload."""
+        requested_refs = {entry["ref"] for entry in proposed_entries}
+        entries = [
+            entry
+            for entry in config.entries
+            if entry.ref in requested_refs and not entry.preflighted
+        ]
+        for entry in entries:
+            entry.preflighted = True
+
         configJson = config.constraints.model_dump()
-        entryJson = {e.ref: e.model_dump(exclude={"upload_config"}) for e in config.entries}
+        entryJson = {e.ref: e.model_dump(exclude={"upload_config"}) for e in entries}
         return {"config": configJson, "entries": entryJson}
 
     async def process_allow_upload(self, payload: dict[str, Any], context: Any) -> dict[str, Any]:
@@ -433,30 +576,79 @@ class UploadManager:
 
         proposed_entries = payload["entries"]
 
+        if config.autoUpload:
+            # Auto-upload allows the first selected files and leaves extras unapproved.
+            allowed_refs = {entry.ref for entry in config.entries[: config.constraints.max_files]}
+            proposed_entries = [entry for entry in proposed_entries if entry["ref"] in allowed_refs]
+
         # Validate constraints
         errors = self._validate_constraints(config, proposed_entries)
-        if errors:
+        # Regular uploads stop on any error; auto uploads stop only for errors affecting the whole input.
+        if errors and (not config.autoUpload or any(error.ref == config.ref for error in errors)):
             return {"error": [(e.ref, e.code) for e in errors]}
+
+        entry_errors: dict[str, list[str | dict[str, str]]] = {}
+        for error in errors:
+            entry_errors.setdefault(error.ref, []).append(
+                {"reason": error.code} if config.is_external else error.code
+            )
+        proposed_entries = [entry for entry in proposed_entries if entry["ref"] not in entry_errors]
 
         # Handle external vs internal uploads
         if config.is_external:
-            return await self._process_external_upload(config, proposed_entries, context)
+            response = await self._process_external_upload(config, proposed_entries, context)
         else:
-            return self._process_internal_upload(config)
+            response = self._process_internal_upload(config, proposed_entries)
 
-    def add_upload(self, joinRef: str, payload: dict[str, Any]):
+        # Per-file errors let the browser continue with valid automatic uploads.
+        if entry_errors and "error" not in response:
+            response["errors"] = entry_errors
+        return response
+
+    def add_upload(self, joinRef: str, payload: dict[str, Any]) -> UploadJoinResult:
+        """Start an upload, returning whether the join was accepted or why it was rejected."""
         token = payload["token"]
 
         config = self.config_for_name(token["path"])
-        if config:
-            self.upload_config_join_refs[joinRef] = config
-            entry = UploadEntry(**token)
-            config.uploads.add_upload(joinRef, entry)
+        if config is None:
+            return UploadJoinResult.DISALLOWED
 
-    def add_chunk(self, joinRef: str, chunk: bytes):
-        config = self.upload_config_join_refs[joinRef]
-        config.uploads.add_chunk(joinRef, chunk)
-        pass
+        registered_entry = config.entries_by_ref.get(token["ref"])
+        if registered_entry is None or not registered_entry.preflighted:
+            return UploadJoinResult.DISALLOWED
+
+        if config.uploads.for_entry(registered_entry.ref) is not None:
+            return UploadJoinResult.ALREADY_REGISTERED
+
+        self.upload_config_join_refs[joinRef] = config
+        # Use a snapshot of the registered file metadata for this upload.
+        entry = registered_entry.model_copy()
+        config.uploads.add_upload(joinRef, entry, on_close=self._unregister_upload)
+        return UploadJoinResult.ACCEPTED
+
+    def _unregister_upload(self, join_ref: str):
+        self.upload_config_join_refs.pop(join_ref, None)
+
+    def leave_upload(self, join_ref: str):
+        config = self.upload_config_join_refs.pop(join_ref, None)
+        if config is None:
+            return
+
+        upload = config.uploads.uploads.get(join_ref)
+        if upload is not None:
+            config.cancel_entry(upload.entry.ref)
+
+    def add_chunk(self, joinRef: str, chunk: bytes) -> UploadChunkResult:
+        config = self.upload_config_join_refs.get(joinRef)
+        if config is None:
+            return UploadChunkResult.IGNORED
+
+        result = config.uploads.add_chunk(joinRef, chunk)
+        if result is UploadChunkResult.FILE_SIZE_LIMIT_EXCEEDED:
+            entry_ref = config.uploads.uploads[joinRef].entry.ref
+            config.cancel_entry(entry_ref)
+            self.upload_config_join_refs.pop(joinRef, None)
+        return result
 
     async def update_progress(self, joinRef: str, payload: dict[str, Any], socket):
         upload_config_ref = payload["ref"]
@@ -468,80 +660,51 @@ class UploadManager:
             logger.warning(f"[update_progress] No config found for ref: {upload_config_ref}")
             return
 
-        # Handle dict (error or completion)
-        if isinstance(progress_data, dict):
-            if progress_data.get("complete"):
-                entry = config.entries_by_ref.get(entry_ref)
-                if entry:
-                    entry.progress = 100
-                    entry.done = True
-
-                    # Call entry_complete callback with success result
-                    if config.entry_complete_callback:
-                        result = UploadSuccessWithData(data=progress_data)
-                        await config.entry_complete_callback(entry, result, socket)
-                return
-
-            # Handle error case: {error: "reason"}
-            error_msg = progress_data.get("error", "Upload failed")
-            logger.warning(f"Upload error for entry {entry_ref}: {error_msg}")
-
-            if entry_ref in config.entries_by_ref:
-                entry = config.entries_by_ref[entry_ref]
-                entry.valid = False
-                entry.done = True
-                entry.errors.append(ConstraintViolation(ref=entry_ref, code="upload_failed"))
-
-                # Call entry_complete callback with failure result
-                if config.entry_complete_callback:
-                    result = UploadFailure(error=error_msg)
-                    await config.entry_complete_callback(entry, result, socket)
+        entry = config.entries_by_ref.get(entry_ref)
+        if entry is None:
             return
 
-        # Handle progress number
-        progress = int(progress_data)
-        config.update_progress(entry_ref, progress)
-
-        # Fire entry_complete callback on 100
-        if progress == 100:
-            entry = config.entries_by_ref.get(entry_ref)
-            if entry and config.entry_complete_callback:
+        result: Optional[UploadResult] = None
+        if isinstance(progress_data, dict):
+            if progress_data.get("complete"):
+                entry.progress = 100
+                entry.done = True
+                result = UploadSuccessWithData(data=progress_data)
+            else:
+                error_msg = progress_data.get("error", "Upload failed")
+                logger.warning(f"Upload error for entry {entry_ref}: {error_msg}")
+                entry.valid = False
+                entry.errors.append(ConstraintViolation(ref=entry_ref, code="upload_failed"))
+                result = UploadFailure(error=error_msg)
+        else:
+            progress = int(progress_data)
+            config.update_progress(entry_ref, progress)
+            if progress == 100:
                 result = UploadSuccess()
-                await config.entry_complete_callback(entry, result, socket)
 
-            # Cleanup for internal uploads only (external uploads never populate upload_config_join_refs)
-            if not config.is_external:
-                try:
-                    joinRef_to_remove = config.uploads.join_ref_for_entry(entry_ref)
-                    if joinRef_to_remove in self.upload_config_join_refs:
-                        del self.upload_config_join_refs[joinRef_to_remove]
-                except (IndexError, KeyError):
-                    # Entry might have already been consumed and removed
-                    pass
+                # Release the channel before a callback can consume its file.
+                if not config.is_external:
+                    upload = config.uploads.for_entry(entry_ref)
+                    if upload is not None:
+                        self.upload_config_join_refs.pop(upload.ref, None)
+
+        # Both callbacks see the updated state; progress runs first so it can consume the entry.
+        if config.progress_callback:
+            await config.progress_callback(entry, socket)
+
+        # A progress callback may already have consumed or canceled this entry.
+        if config.entries_by_ref.get(entry_ref) is not entry:
+            return
+
+        if result is not None and config.entry_complete_callback:
+            await config.entry_complete_callback(entry, result, socket)
 
     def no_progress(self, joinRef) -> bool:
-        config = self.upload_config_join_refs[joinRef]
+        config = self.upload_config_join_refs.get(joinRef)
+        if config is None:
+            return False
+
         return config.uploads.no_progress()
-
-    async def trigger_progress_callback_if_exists(self, payload: dict[str, Any], socket):
-        """Trigger progress callback if one exists for this upload config"""
-        upload_config_ref = payload["ref"]
-        config = self.config_for_ref(upload_config_ref)
-
-        if config and config.progress_callback:
-            entry_ref = payload["entry_ref"]
-            if entry_ref in config.entries_by_ref:
-                entry = config.entries_by_ref[entry_ref]
-                progress_data = payload["progress"]
-
-                # Update entry progress before calling callback
-                if isinstance(progress_data, int):
-                    entry.progress = progress_data
-                    entry.done = progress_data == 100
-                # For dict (error or completion), don't update entry.progress here
-                # (will be handled in update_progress or completion handler)
-
-                await config.progress_callback(entry, socket)
 
     def close(self):
         for config in self.upload_configs.values():

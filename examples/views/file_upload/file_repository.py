@@ -45,6 +45,7 @@ def create_thumbnail_bytes(input_image_path, size=(128, 128)):
     with Image.open(input_image_path) as img:
         img.thumbnail(size)
         byte_io = BytesIO()
-        img.save(byte_io, "JPEG")
+        # Preserve PNG transparency by keeping the source image format.
+        img.save(byte_io, img.format)
         byte_io.seek(0)
         return byte_io.getvalue()

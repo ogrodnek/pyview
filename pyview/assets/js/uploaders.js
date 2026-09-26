@@ -84,12 +84,23 @@ if (!window.Uploaders.S3Multipart) {
       console.log(`[S3Multipart] Total parts: ${totalParts}, chunk size: ${chunk_size}`);
       console.log(`[S3Multipart] Max concurrent uploads: ${MAX_CONCURRENT}, max retries: ${MAX_RETRIES}`);
 
-      // Add a custom method to send completion data directly
-      // This bypasses entry.progress() which only handles numbers
       entry.complete = function(completionData) {
-        console.log(`[S3Multipart] Calling entry.complete with:`, completionData);
-        // Call pushFileProgress directly with the completion data
-        entry.view.pushFileProgress(entry.fileEl, entry.ref, completionData);
+        // Use Phoenix's normal completion cleanup, sending multipart details instead of 100.
+        const view = entry.view;
+        const completionView = Object.create(view);
+        completionView.pushFileProgress = (fileEl, ref, _progress, onReply) => {
+          view.pushFileProgress(fileEl, ref, completionData, () => {
+            // A server update may already have consumed the entry and released the form.
+            if (!entry.isCancelled()) onReply();
+          });
+        };
+
+        entry.view = completionView;
+        try {
+          entry.progress(100);
+        } finally {
+          entry.view = view;
+        }
       };
 
       // Upload a single part with retry logic

@@ -15,6 +15,7 @@ from pyview.live_routes import LiveViewLookup
 from pyview.live_socket import ConnectedLiveViewSocket, LiveViewSocket
 from pyview.phx_message import parse_message
 from pyview.session import deserialize_session
+from pyview.uploads import UploadChunkResult, UploadJoinResult
 
 logger = logging.getLogger(__name__)
 
@@ -327,14 +328,16 @@ class LiveSocketHandler:
                 # Check if this is a file upload join (topic starts with "lvu:")
                 if topic.startswith("lvu:"):
                     # This is a file upload join
-                    socket.upload_manager.add_upload(joinRef, payload)
+                    result = socket.upload_manager.add_upload(joinRef, payload)
 
                     resp = [
                         joinRef,
                         messageRef,
                         topic,
                         "phx_reply",
-                        {"response": {}, "status": "ok"},
+                        {"response": {}, "status": "ok"}
+                        if result is UploadJoinResult.ACCEPTED
+                        else {"response": {"reason": result.value}, "status": "error"},
                     ]
 
                     await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
@@ -395,17 +398,21 @@ class LiveSocketHandler:
                     await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
 
             if event == "chunk":
-                socket.upload_manager.add_chunk(joinRef, payload)  # type: ignore
+                result = socket.upload_manager.add_chunk(joinRef, payload)  # type: ignore
 
                 resp = [
                     joinRef,
                     messageRef,
                     topic,
                     "phx_reply",
-                    {"response": {}, "status": "ok"},
+                    {"response": {"reason": result.value}, "status": "error"}
+                    if result is UploadChunkResult.FILE_SIZE_LIMIT_EXCEEDED
+                    else {"response": {}, "status": "ok"},
                 ]
 
-                if socket.upload_manager.no_progress(joinRef):
+                if result is UploadChunkResult.ACCEPTED and socket.upload_manager.no_progress(
+                    joinRef
+                ):
                     await self.manager.send_personal_message(
                         json.dumps(
                             [
@@ -422,9 +429,6 @@ class LiveSocketHandler:
                 await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
 
             if event == "progress":
-                # Trigger progress callback BEFORE updating progress (which may consume the entry)
-                await socket.upload_manager.trigger_progress_callback_if_exists(payload, socket)
-
                 await socket.upload_manager.update_progress(joinRef, payload, socket)
 
                 rendered = await _render(socket)
@@ -441,8 +445,11 @@ class LiveSocketHandler:
                 await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
 
             if event == "phx_leave":
-                # Handle LiveView navigation - clean up current LiveView
-                await socket.close()
+                if topic.startswith("lvu:"):
+                    socket.upload_manager.leave_upload(joinRef)
+                else:
+                    # Handle LiveView navigation - clean up current LiveView
+                    await socket.close()
 
                 resp = [
                     joinRef,

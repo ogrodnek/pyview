@@ -40,7 +40,7 @@ class FileUploadDemoLiveView(LiveView[FileUploadDemoContext]):
         config = socket.allow_upload(
             "photos",
             constraints=UploadConstraints(
-                max_file_size=1 * 1024 * 1024, max_files=3, accept=[".jpg", ".jpeg"]
+                max_file_size=1 * 1024 * 1024, max_files=3, accept=[".jpg", ".jpeg", ".png"]
             ),
         )
         socket.context = FileUploadDemoContext(upload_config=config)
