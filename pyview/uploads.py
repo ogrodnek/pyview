@@ -141,6 +141,7 @@ def parse_entries(entries: list[dict]) -> list[UploadEntry]:
 class ActiveUpload:
     ref: str
     entry: UploadEntry
+    on_close: Optional[Callable[[str], None]] = None
     bytes_received: int = field(default=0, init=False)
     file: tempfile._TemporaryFileWrapper = field(init=False)
 
@@ -154,14 +155,18 @@ class ActiveUpload:
     def close(self):
         self.file.close()
         os.remove(self.file.name)
+        if self.on_close:
+            self.on_close(self.ref)
 
 
 @dataclass
 class ActiveUploads:
     uploads: dict[str, ActiveUpload] = field(default_factory=dict)
 
-    def add_upload(self, ref: str, entry: UploadEntry):
-        self.uploads[ref] = ActiveUpload(ref, entry)
+    def add_upload(
+        self, ref: str, entry: UploadEntry, on_close: Optional[Callable[[str], None]] = None
+    ):
+        self.uploads[ref] = ActiveUpload(ref, entry, on_close=on_close)
 
     def add_chunk(self, ref: str, chunk: bytes) -> UploadChunkResult:
         upload = self.uploads.get(ref)
@@ -618,8 +623,11 @@ class UploadManager:
         self.upload_config_join_refs[joinRef] = config
         # Use a snapshot of the registered file metadata for this upload.
         entry = registered_entry.model_copy()
-        config.uploads.add_upload(joinRef, entry)
+        config.uploads.add_upload(joinRef, entry, on_close=self._unregister_upload)
         return UploadJoinResult.ACCEPTED
+
+    def _unregister_upload(self, join_ref: str):
+        self.upload_config_join_refs.pop(join_ref, None)
 
     def leave_upload(self, join_ref: str):
         config = self.upload_config_join_refs.pop(join_ref, None)

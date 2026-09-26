@@ -118,3 +118,6 @@ async def test_new_selection_replaces_in_progress_upload_in_single_file_input(st
     assert config.uploads.uploads == {}
     assert upload.file.closed
     assert not temporary_path.exists()
+
+    # And the old file's channel is released without waiting for the browser to leave it
+    assert "upload-join" not in manager.upload_config_join_refs
