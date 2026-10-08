@@ -1,6 +1,7 @@
 import json
 import logging
 from contextlib import suppress
+from dataclasses import dataclass
 from typing import Optional
 from urllib.parse import parse_qs, urlparse
 
@@ -161,13 +162,19 @@ class LiveSocketHandler:
             self.metrics.active_connections.add(-1)
 
     async def handle_connected(self, myJoinId, socket: ConnectedLiveViewSocket):
+        connection = _Connection(socket)
         try:
-            await self._handle_connected_loop(myJoinId, socket)
+            await self._handle_connected_loop(myJoinId, socket, connection)
         finally:
             with suppress(Exception):
-                await socket.close()
+                await connection.socket.close()
 
-    async def _handle_connected_loop(self, myJoinId, socket: ConnectedLiveViewSocket):
+    async def _handle_connected_loop(
+        self,
+        myJoinId,
+        socket: ConnectedLiveViewSocket,
+        connection: Optional["_Connection"] = None,
+    ):
         while True:
             message = await socket.websocket.receive()
             [joinRef, messageRef, topic, event, payload] = parse_message(message)
@@ -369,6 +376,8 @@ class LiveSocketHandler:
                         self.instrumentation,
                         self.routes,
                     )
+                    if connection:
+                        connection.socket = socket
 
                     await call_mount(lv, socket, session)
 
@@ -471,6 +480,13 @@ async def _render(socket: ConnectedLiveViewSocket):
         socket.live_title = None
 
     return rendered
+
+
+@dataclass
+class _Connection:
+    """The LiveView currently joined on a websocket."""
+
+    socket: ConnectedLiveViewSocket
 
 
 class ConnectionManager:
