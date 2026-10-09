@@ -6,6 +6,7 @@ import pytest
 from starlette.websockets import WebSocketDisconnect
 
 from pyview.uploads import UploadConstraints, UploadJoinResult, UploadManager
+from pyview.ws_handler import Connection
 
 from .factories import upload_entry_data
 
@@ -38,7 +39,7 @@ async def test_leaving_active_upload_channel_cleans_up_only_that_upload(connecte
         ]
     )
     with pytest.raises(WebSocketDisconnect):
-        await handler._handle_connected_loop("lv:test", socket)
+        await handler._handle_connected_loop("lv:test", socket, Connection(socket))
 
     # Then the abandoned file is closed and deleted, and its upload state is removed
     assert first_upload.file.closed
@@ -94,7 +95,7 @@ async def test_leaving_canceled_upload_channel_preserves_liveview_and_other_uplo
         ]
     )
     with pytest.raises(WebSocketDisconnect):
-        await handler._handle_connected_loop("lv:test", socket)
+        await handler._handle_connected_loop("lv:test", socket, Connection(socket))
 
     # Then the LiveView stays connected and the other upload remains usable
     assert socket.connected
@@ -151,7 +152,7 @@ async def test_chunk_after_leaving_upload_channel_is_ignored_without_affecting_o
         ]
     )
     with pytest.raises(WebSocketDisconnect):
-        await handler._handle_connected_loop("lv:test", socket)
+        await handler._handle_connected_loop("lv:test", socket, Connection(socket))
 
     # Then the LiveView stays connected and the other upload remains usable
     assert socket.connected
@@ -193,7 +194,7 @@ async def test_upload_channel_join_rejects_unknown_file(connected_socket, tmp_pa
         ]
     )
     with pytest.raises(WebSocketDisconnect):
-        await handler._handle_connected_loop("lv:test", socket)
+        await handler._handle_connected_loop("lv:test", socket, Connection(socket))
 
     # Then the join is rejected while the LiveView stays connected
     websocket.send_text.assert_awaited_once()
@@ -235,7 +236,7 @@ async def test_upload_channel_join_rejects_file_awaiting_preflight(
         ]
     )
     with pytest.raises(WebSocketDisconnect):
-        await handler._handle_connected_loop("lv:test", socket)
+        await handler._handle_connected_loop("lv:test", socket, Connection(socket))
 
     # Then the join is rejected and the selected file still awaits approval
     websocket.send_text.assert_awaited_once()
@@ -307,7 +308,7 @@ async def test_upload_channel_join_accepts_preflighted_file(connected_socket):
         ]
     )
     with pytest.raises(WebSocketDisconnect):
-        await handler._handle_connected_loop("lv:test", socket)
+        await handler._handle_connected_loop("lv:test", socket, Connection(socket))
 
     # Then the join is accepted and the file can receive bytes
     websocket.send_text.assert_awaited_once()
@@ -355,7 +356,7 @@ async def test_upload_channel_join_rejects_file_already_uploading(
         ]
     )
     with pytest.raises(WebSocketDisconnect):
-        await handler._handle_connected_loop("lv:test", socket)
+        await handler._handle_connected_loop("lv:test", socket, Connection(socket))
 
     # Then the second join is rejected without creating another upload or file
     websocket.send_text.assert_awaited_once()

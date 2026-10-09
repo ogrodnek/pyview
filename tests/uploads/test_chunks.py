@@ -6,6 +6,7 @@ import pytest
 from starlette.websockets import WebSocketDisconnect
 
 from pyview.uploads import UploadConstraints
+from pyview.ws_handler import Connection
 
 from .factories import upload_entry_data
 
@@ -34,7 +35,7 @@ async def send_chunk(handler, socket, chunk):
         side_effect=[{"bytes": header + b"".join(fields) + chunk}, WebSocketDisconnect()]
     )
     with pytest.raises(WebSocketDisconnect):
-        await handler._handle_connected_loop("lv:test", socket)
+        await handler._handle_connected_loop("lv:test", socket, Connection(socket))
     socket.websocket.send_text.assert_awaited_once()
     return json.loads(socket.websocket.send_text.call_args.args[0])[4]
 

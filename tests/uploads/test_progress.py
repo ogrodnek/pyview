@@ -12,6 +12,7 @@ from pyview.uploads import (
     UploadFailure,
     UploadSuccess,
 )
+from pyview.ws_handler import Connection
 
 from .factories import upload_entry_data
 
@@ -43,7 +44,7 @@ async def send_progress(connected_socket, config, progress):
         ]
     )
     with pytest.raises(WebSocketDisconnect):
-        await handler._handle_connected_loop("lv:test", socket)
+        await handler._handle_connected_loop("lv:test", socket, Connection(socket))
 
 
 async def test_progress_callback_sees_cloud_upload_failure(

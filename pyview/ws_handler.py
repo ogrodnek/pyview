@@ -1,6 +1,7 @@
 import json
 import logging
 from contextlib import suppress
+from dataclasses import dataclass
 from typing import Optional
 from urllib.parse import parse_qs, urlparse
 
@@ -51,6 +52,13 @@ class LiveSocketMetrics:
         )
 
 
+@dataclass
+class Connection:
+    """The LiveView currently joined on a websocket."""
+
+    socket: ConnectedLiveViewSocket
+
+
 class LiveSocketHandler:
     def __init__(self, routes: LiveViewLookup, instrumentation: InstrumentationProvider):
         self.routes = routes
@@ -92,8 +100,6 @@ class LiveSocketHandler:
             if event == "phx_join":
                 if not validate_csrf_token(payload["params"]["_csrf_token"], topic):
                     raise AuthException("Invalid CSRF token")
-
-                self.myJoinId = topic
 
                 url_str = payload.get("redirect") or payload.get("url")
                 if not url_str:
@@ -161,13 +167,19 @@ class LiveSocketHandler:
             self.metrics.active_connections.add(-1)
 
     async def handle_connected(self, myJoinId, socket: ConnectedLiveViewSocket):
+        connection = Connection(socket)
         try:
-            await self._handle_connected_loop(myJoinId, socket)
+            await self._handle_connected_loop(myJoinId, socket, connection)
         finally:
             with suppress(Exception):
-                await socket.close()
+                await connection.socket.close()
 
-    async def _handle_connected_loop(self, myJoinId, socket: ConnectedLiveViewSocket):
+    async def _handle_connected_loop(
+        self,
+        myJoinId,
+        socket: ConnectedLiveViewSocket,
+        connection: Connection,
+    ):
         while True:
             message = await socket.websocket.receive()
             [joinRef, messageRef, topic, event, payload] = parse_message(message)
@@ -179,6 +191,21 @@ class LiveSocketHandler:
                     "phoenix",
                     "phx_reply",
                     {"response": {}, "status": "ok"},
+                ]
+                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+                continue
+
+            # Only the joined view's topic reaches it; other topics are unmatched until joined
+            unjoined = topic.startswith("lv:") and (topic != socket.topic or not socket.connected)
+            if unjoined and event != "phx_join":
+                resp = [
+                    joinRef,
+                    messageRef,
+                    topic,
+                    "phx_reply",
+                    {"response": {}, "status": "ok"}
+                    if event == "phx_leave"
+                    else {"response": {"reason": "unmatched topic"}, "status": "error"},
                 ]
                 await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
                 continue
@@ -343,6 +370,9 @@ class LiveSocketHandler:
                     await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
                 else:
                     # This is a navigation join (topic starts with "lv:")
+                    # The joined view is replaced even if the client never left it
+                    await socket.close()
+
                     # Navigation payload has 'redirect' field instead of 'url'
                     url_str_raw = payload.get("redirect") or payload.get("url")
                     url_str: str = (
@@ -369,6 +399,7 @@ class LiveSocketHandler:
                         self.instrumentation,
                         self.routes,
                     )
+                    connection.socket = socket
 
                     await call_mount(lv, socket, session)
 
