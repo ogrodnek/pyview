@@ -190,6 +190,19 @@ class LiveSocketHandler:
                 await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
                 continue
 
+            # Once the client leaves a view, only a new join can bring its topic back
+            left_view = topic == socket.topic and not socket.connected
+            if left_view and event not in ("phx_join", "phx_leave"):
+                resp = [
+                    joinRef,
+                    messageRef,
+                    topic,
+                    "phx_reply",
+                    {"response": {"reason": "unmatched topic"}, "status": "error"},
+                ]
+                await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+                continue
+
             if event == "event":
                 value = payload["value"]
 
