@@ -47,7 +47,7 @@ class FakeClient:
     """Drives LiveSocketHandler.handle() the way the Phoenix JS client does.
 
     Each push returns the matching phx_reply payload ({"status", "response"}).
-    Server pushes (diff, live_redirect, ...) are available in `websocket.sent`.
+    Messages the server sends on its own (diff, live_redirect, ...) are in `pushes()`.
     """
 
     def __init__(self, handler: LiveSocketHandler, topic: str = "lv:phx-test"):
@@ -82,6 +82,14 @@ class FakeClient:
 
     async def leave(self, *, topic: Optional[str] = None) -> dict[str, Any]:
         return await self._push(self._next_ref(), "phx_leave", {}, topic)
+
+    async def live_patch(self, path: str) -> dict[str, Any]:
+        payload = {"url": f"http://testserver{path}"}
+        return await self._push(self._next_ref(), "live_patch", payload)
+
+    def pushes(self) -> list[list[Any]]:
+        """Frames the server sent on its own rather than in reply to the client."""
+        return [frame for frame in self.websocket.sent if frame[3] != "phx_reply"]
 
     async def disconnect(self):
         """Close the websocket from the client side and wait for the handler to finish."""
