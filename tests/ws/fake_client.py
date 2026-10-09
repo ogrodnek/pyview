@@ -87,6 +87,14 @@ class FakeClient:
         payload = {"url": f"http://testserver{path}"}
         return await self._push(self._next_ref(), "live_patch", payload)
 
+    async def push(self, event: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Send any other client event on the client's topic."""
+        return await self._push(self._next_ref(), event, payload)
+
+    async def heartbeat(self) -> dict[str, Any]:
+        """Send the socket-level heartbeat, which uses the "phoenix" topic and no join ref."""
+        return await self._send([None, self._next_ref(), "phoenix", "heartbeat", {}])
+
     def pushes(self) -> list[list[Any]]:
         """Frames the server sent on its own rather than in reply to the client."""
         return [frame for frame in self.websocket.sent if frame[3] != "phx_reply"]
@@ -112,9 +120,11 @@ class FakeClient:
         self, ref: str, event: str, payload: dict[str, Any], topic: Optional[str] = None
     ) -> dict[str, Any]:
         """Send a frame, by default on the client's own topic, and wait for its reply."""
-        frame = [self.join_ref, ref, topic or self.topic, event, payload]
+        return await self._send([self.join_ref, ref, topic or self.topic, event, payload])
+
+    async def _send(self, frame: list[Any]) -> dict[str, Any]:
         await self.websocket.inbox.put({"type": "websocket.receive", "text": json.dumps(frame)})
-        return await asyncio.wait_for(self._reply_for(ref), REPLY_TIMEOUT)
+        return await asyncio.wait_for(self._reply_for(frame[1]), REPLY_TIMEOUT)
 
     async def _reply_for(self, ref: str) -> dict[str, Any]:
         while True:
