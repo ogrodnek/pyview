@@ -334,6 +334,7 @@ class ConnectedLiveViewSocket(Generic[T]):
         ]
 
         try:
+            await self._send_pending_events()
             await self.websocket.send_text(json.dumps(message))
         except Exception:
             logger.warning("Error sending navigation message", exc_info=True)
@@ -355,9 +356,18 @@ class ConnectedLiveViewSocket(Generic[T]):
         ]
 
         try:
+            await self._send_pending_events()
             await self.websocket.send_text(json.dumps(message))
         except Exception:
             logger.warning("Error sending redirect message", exc_info=True)
+
+    async def _send_pending_events(self):
+        """Send queued push_events now, while the client still applies this view's updates."""
+        if self.pending_events:
+            events, self.pending_events = self.pending_events, []
+            await self.websocket.send_text(
+                json.dumps([None, None, self.topic, "diff", {"e": events}])
+            )
 
     async def push_event(self, event: str, value: dict[str, Any]):
         self.pending_events.append((event, value))
