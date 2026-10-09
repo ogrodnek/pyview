@@ -94,8 +94,6 @@ class LiveSocketHandler:
                 if not validate_csrf_token(payload["params"]["_csrf_token"], topic):
                     raise AuthException("Invalid CSRF token")
 
-                self.myJoinId = topic
-
                 url_str = payload.get("redirect") or payload.get("url")
                 if not url_str:
                     raise AuthException("Missing 'url' or 'redirect' in phx_join payload")
