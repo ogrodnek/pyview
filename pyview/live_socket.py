@@ -241,6 +241,9 @@ class ConnectedLiveViewSocket(Generic[T]):
         await self.liveview.handle_info(event, self)
 
         rendered = await self.render_with_components()
+        if self.live_title:
+            rendered["t"] = self.live_title
+            self.live_title = None
         diff = self.diff(rendered)
 
         if self.pending_events:
