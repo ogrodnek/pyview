@@ -368,11 +368,10 @@ class LiveSocketHandler:
                     await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
                 else:
                     # This is a navigation join (topic starts with "lv:")
-                    # Navigation payload has 'redirect' field instead of 'url'
-
                     # The joined view is replaced even if the client never left it
                     await socket.close()
 
+                    # Navigation payload has 'redirect' field instead of 'url'
                     url_str_raw = payload.get("redirect") or payload.get("url")
                     url_str: str = (
                         url_str_raw.decode("utf-8")
