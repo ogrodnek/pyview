@@ -134,6 +134,9 @@ class LiveSocketHandler:
                 rendered = await _render(socket)
                 socket.prev_rendered = rendered
 
+                hook_events = {} if not socket.pending_events else {"e": socket.pending_events}
+                socket.pending_events = []
+
                 resp = [
                     joinRef,
                     messageRef,
@@ -141,7 +144,7 @@ class LiveSocketHandler:
                     "phx_reply",
                     {
                         "response": {
-                            "rendered": rendered,
+                            "rendered": rendered | hook_events,
                             "liveview_version": PHOENIX_LIVEVIEW_VERSION,
                         },
                         "status": "ok",
@@ -412,6 +415,9 @@ class LiveSocketHandler:
                     rendered = await _render(socket)
                     socket.prev_rendered = rendered
 
+                    hook_events = {} if not socket.pending_events else {"e": socket.pending_events}
+                    socket.pending_events = []
+
                     resp = [
                         joinRef,
                         messageRef,
@@ -419,7 +425,7 @@ class LiveSocketHandler:
                         "phx_reply",
                         {
                             "response": {
-                                "rendered": rendered,
+                                "rendered": rendered | hook_events,
                                 "liveview_version": PHOENIX_LIVEVIEW_VERSION,
                             },
                             "status": "ok",
