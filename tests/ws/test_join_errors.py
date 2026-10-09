@@ -1,6 +1,7 @@
 """A join that fails is answered with an error reply, and the websocket stays open."""
 
 import logging
+from datetime import datetime
 
 from .views import StaticView
 
@@ -70,4 +71,27 @@ async def test_mount_error_on_navigation_join_replies_join_crashed(connect):
 
     # Then the join is answered with an error and the websocket stays open
     assert reply == JOIN_CRASHED
+    assert (await client.heartbeat())["status"] == "ok"
+
+
+async def test_unserializable_join_reply_replies_join_crashed(connect):
+    # Given a view whose mount pushes an event JSON can't encode
+    disconnected = []
+
+    class Broken(StaticView):
+        async def mount(self, socket, session):
+            await super().mount(socket, session)
+            await socket.push_event("loaded", {"at": datetime.now()})
+
+        async def disconnect(self, socket):
+            disconnected.append("Broken")
+
+    client = connect({"/": Broken})
+
+    # When the client joins
+    reply = await client.join("/")
+
+    # Then the join is answered with an error, the view is closed, and the websocket stays open
+    assert reply == JOIN_CRASHED
+    assert disconnected == ["Broken"]
     assert (await client.heartbeat())["status"] == "ok"

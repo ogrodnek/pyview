@@ -177,14 +177,15 @@ class LiveSocketHandler:
                 },
                 "status": "ok",
             }
+            message = json.dumps([joinRef, messageRef, topic, "phx_reply", reply])
         except Exception:
             logger.exception("Error joining LiveView %s", type(socket.liveview).__name__)
             with suppress(Exception):
                 await socket.close()
             reply = {"response": {"reason": "join crashed"}, "status": "error"}
+            message = json.dumps([joinRef, messageRef, topic, "phx_reply", reply])
 
-        resp = [joinRef, messageRef, topic, "phx_reply", reply]
-        await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+        await self.manager.send_personal_message(message, socket.websocket)
 
     async def handle_connected(self, myJoinId, socket: ConnectedLiveViewSocket):
         connection = Connection(socket)
