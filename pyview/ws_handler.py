@@ -52,6 +52,13 @@ class LiveSocketMetrics:
         )
 
 
+@dataclass
+class Connection:
+    """The LiveView currently joined on a websocket."""
+
+    socket: ConnectedLiveViewSocket
+
+
 class LiveSocketHandler:
     def __init__(self, routes: LiveViewLookup, instrumentation: InstrumentationProvider):
         self.routes = routes
@@ -160,7 +167,7 @@ class LiveSocketHandler:
             self.metrics.active_connections.add(-1)
 
     async def handle_connected(self, myJoinId, socket: ConnectedLiveViewSocket):
-        connection = _Connection(socket)
+        connection = Connection(socket)
         try:
             await self._handle_connected_loop(myJoinId, socket, connection)
         finally:
@@ -171,7 +178,7 @@ class LiveSocketHandler:
         self,
         myJoinId,
         socket: ConnectedLiveViewSocket,
-        connection: Optional["_Connection"] = None,
+        connection: Connection,
     ):
         while True:
             message = await socket.websocket.receive()
@@ -391,8 +398,7 @@ class LiveSocketHandler:
                         self.instrumentation,
                         self.routes,
                     )
-                    if connection:
-                        connection.socket = socket
+                    connection.socket = socket
 
                     await call_mount(lv, socket, session)
 
@@ -495,13 +501,6 @@ async def _render(socket: ConnectedLiveViewSocket):
         socket.live_title = None
 
     return rendered
-
-
-@dataclass
-class _Connection:
-    """The LiveView currently joined on a websocket."""
-
-    socket: ConnectedLiveViewSocket
 
 
 class ConnectionManager:
