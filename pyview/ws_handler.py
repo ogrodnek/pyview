@@ -3,7 +3,7 @@ import logging
 from contextlib import suppress
 from dataclasses import dataclass
 from typing import Optional
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import ParseResult, parse_qs, urlparse
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from starlette.websockets import WebSocket, WebSocketDisconnect
@@ -122,36 +122,7 @@ class LiveSocketHandler:
                 view_name = lv_class.__name__
                 self.metrics.mounts.add(1, {"view": view_name})
 
-                await call_mount(lv, socket, session)
-
-                # Parse query parameters and merge with path parameters
-                query_params = parse_qs(url.query)
-                merged_params = {**query_params, **path_params}
-
-                # Pass merged parameters to handle_params
-                await call_handle_params(lv, url, merged_params, socket)
-
-                rendered = await _render(socket)
-                socket.prev_rendered = rendered
-
-                hook_events = {} if not socket.pending_events else {"e": socket.pending_events}
-                socket.pending_events = []
-
-                resp = [
-                    joinRef,
-                    messageRef,
-                    topic,
-                    "phx_reply",
-                    {
-                        "response": {
-                            "rendered": rendered | hook_events,
-                            "liveview_version": PHOENIX_LIVEVIEW_VERSION,
-                        },
-                        "status": "ok",
-                    },
-                ]
-
-                await self.manager.send_personal_message(json.dumps(resp), websocket)
+                await self._join(socket, url, path_params, session, joinRef, messageRef, topic)
                 await self.handle_connected(topic, socket)
 
         except WebSocketDisconnect:
@@ -168,6 +139,53 @@ class LiveSocketHandler:
                     await socket.close()
             self.sessions -= 1
             self.metrics.active_connections.add(-1)
+
+    async def _join(
+        self,
+        socket: ConnectedLiveViewSocket,
+        url: ParseResult,
+        path_params: dict,
+        session: dict,
+        joinRef,
+        messageRef,
+        topic,
+    ):
+        """Mount and render a newly joined view, then reply to the client's phx_join.
+
+        If mount, handle_params, or the first render raises, the view is closed and the
+        join is answered with a "join crashed" error, leaving the websocket open.
+        """
+        try:
+            await call_mount(socket.liveview, socket, session)
+
+            # Parse query parameters and merge with path parameters
+            query_params = parse_qs(url.query)
+            merged_params = {**query_params, **path_params}
+
+            await call_handle_params(socket.liveview, url, merged_params, socket)
+
+            rendered = await _render(socket)
+            socket.prev_rendered = rendered
+
+            hook_events = {} if not socket.pending_events else {"e": socket.pending_events}
+            socket.pending_events = []
+
+            reply = {
+                "response": {
+                    "rendered": rendered | hook_events,
+                    "liveview_version": PHOENIX_LIVEVIEW_VERSION,
+                },
+                "status": "ok",
+            }
+            message = json.dumps([joinRef, messageRef, topic, "phx_reply", reply])
+        except Exception:
+            logger.exception("Error joining LiveView %s", type(socket.liveview).__name__)
+            with suppress(Exception):
+                await socket.close()
+            reply = {"response": {"reason": "join crashed"}, "status": "error"}
+            message = json.dumps([joinRef, messageRef, topic, "phx_reply", reply])
+
+        await self.manager.send_personal_message(message, socket.websocket)
 
     async def handle_connected(self, myJoinId, socket: ConnectedLiveViewSocket):
         connection = Connection(socket)
@@ -404,35 +422,7 @@ class LiveSocketHandler:
                     )
                     connection.socket = socket
 
-                    await call_mount(lv, socket, session)
-
-                    # Parse query parameters and merge with path parameters
-                    query_params = parse_qs(url.query)
-                    merged_params = {**query_params, **path_params}
-
-                    await call_handle_params(lv, url, merged_params, socket)
-
-                    rendered = await _render(socket)
-                    socket.prev_rendered = rendered
-
-                    hook_events = {} if not socket.pending_events else {"e": socket.pending_events}
-                    socket.pending_events = []
-
-                    resp = [
-                        joinRef,
-                        messageRef,
-                        topic,
-                        "phx_reply",
-                        {
-                            "response": {
-                                "rendered": rendered | hook_events,
-                                "liveview_version": PHOENIX_LIVEVIEW_VERSION,
-                            },
-                            "status": "ok",
-                        },
-                    ]
-
-                    await self.manager.send_personal_message(json.dumps(resp), socket.websocket)
+                    await self._join(socket, url, path_params, session, joinRef, messageRef, topic)
 
             if event == "chunk":
                 result = socket.upload_manager.add_chunk(joinRef, payload)  # type: ignore

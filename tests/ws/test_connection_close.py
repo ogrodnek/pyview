@@ -1,7 +1,5 @@
 """Every LiveView joined on a websocket is closed when the websocket closes."""
 
-import pytest
-
 from .views import StaticView
 
 
@@ -71,8 +69,8 @@ async def test_failed_mount_during_live_navigation_closes_navigated_view(connect
     await client.leave()
 
     # When the client navigates to /b
-    with pytest.raises(RuntimeError, match="mount failed"):
-        await client.join("/b", redirect=True)
+    reply = await client.join("/b", redirect=True)
 
-    # Then the partially mounted view is still closed, exactly once
+    # Then the join fails and the partially mounted view is still closed, exactly once
+    assert reply["status"] == "error"
     assert disconnected == ["PageA", "PageB"]
