@@ -74,12 +74,14 @@ class FakeClient:
             self._task = asyncio.create_task(self.handler.handle(cast(WebSocket, self.websocket)))
         return await self._push(ref, "phx_join", payload)
 
-    async def event(self, name: str, value: Any = None, *, type: str = "click") -> dict[str, Any]:
+    async def event(
+        self, name: str, value: Any = None, *, type: str = "click", topic: Optional[str] = None
+    ) -> dict[str, Any]:
         payload = {"type": type, "event": name, "value": {} if value is None else value}
-        return await self._push(self._next_ref(), "event", payload)
+        return await self._push(self._next_ref(), "event", payload, topic)
 
-    async def leave(self) -> dict[str, Any]:
-        return await self._push(self._next_ref(), "phx_leave", {})
+    async def leave(self, *, topic: Optional[str] = None) -> dict[str, Any]:
+        return await self._push(self._next_ref(), "phx_leave", {}, topic)
 
     async def disconnect(self):
         """Close the websocket from the client side and wait for the handler to finish."""
@@ -98,8 +100,11 @@ class FakeClient:
     def _next_ref(self) -> str:
         return str(next(self._refs))
 
-    async def _push(self, ref: str, event: str, payload: dict[str, Any]) -> dict[str, Any]:
-        frame = [self.join_ref, ref, self.topic, event, payload]
+    async def _push(
+        self, ref: str, event: str, payload: dict[str, Any], topic: Optional[str] = None
+    ) -> dict[str, Any]:
+        """Send a frame, by default on the client's own topic, and wait for its reply."""
+        frame = [self.join_ref, ref, topic or self.topic, event, payload]
         await self.websocket.inbox.put({"type": "websocket.receive", "text": json.dumps(frame)})
         return await asyncio.wait_for(self._reply_for(ref), REPLY_TIMEOUT)
 
