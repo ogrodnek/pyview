@@ -92,5 +92,5 @@ async def test_title_set_in_handle_info_is_sent_in_diff_push(connect):
 
     # Then the new title is in the diff pushed to the client
     [push] = client.pushes()
-    assert push[3] == "diff"
-    assert push[4]["t"] == "(1) Inbox"
+    assert push.event == "diff"
+    assert push.payload["t"] == "(1) Inbox"

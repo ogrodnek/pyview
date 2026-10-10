@@ -35,9 +35,10 @@ async def test_broadcast_reaches_view_subscribed_on_another_connection(connect):
     await publisher.event("publish")
 
     # Then the reader's view handles the message and its client gets the change
-    diff = await reader.wait_for_push("diff")
+    diff = await reader.next_push()
+    assert diff.event == "diff"
     assert received == [InfoEvent("news", {"headline": "pyview 1.0"})]
-    assert diff[4] == {"0": "pyview 1.0"}
+    assert diff.payload == {"0": "pyview 1.0"}
 
 
 async def test_broadcast_reaches_the_sending_view_when_it_is_subscribed(connect):
@@ -66,9 +67,10 @@ async def test_broadcast_reaches_the_sending_view_when_it_is_subscribed(connect)
     await client.event("send")
 
     # Then its own handle_info gets the message and its client gets the change
-    diff = await client.wait_for_push("diff")
+    diff = await client.next_push()
+    assert diff.event == "diff"
     assert received == [InfoEvent("chat", {"text": "hello"})]
-    assert diff[4] == {"0": "hello"}
+    assert diff.payload == {"0": "hello"}
 
 
 def news_views(received: list):
@@ -105,7 +107,7 @@ async def test_broadcast_does_not_reach_a_view_that_left(connect):
 
     # When a message is broadcast on the topic, and has reached the publisher's own view
     await publisher.event("publish")
-    await publisher.wait_for_push("diff")
+    assert (await publisher.next_push()).event == "diff"
 
     # Then the view that left never handles it
     assert received == []
@@ -124,7 +126,7 @@ async def test_broadcast_does_not_reach_a_view_whose_connection_closed(connect):
 
     # When a message is broadcast on the topic, and has reached the publisher's own view
     await publisher.event("publish")
-    await publisher.wait_for_push("diff")
+    assert (await publisher.next_push()).event == "diff"
 
     # Then the closed view never handles it
     assert received == []
@@ -169,6 +171,7 @@ async def test_after_live_navigation_only_the_new_view_receives_broadcasts(conne
     await publisher.event("publish")
 
     # Then only the view navigated to handles it, and its client gets the change
-    diff = await reader.wait_for_push("diff")
+    diff = await reader.next_push()
+    assert diff.event == "diff"
     assert received == [("Article", InfoEvent("news", {"headline": "pyview 1.0"}))]
-    assert diff[4] == {"0": "pyview 1.0"}
+    assert diff.payload == {"0": "pyview 1.0"}
