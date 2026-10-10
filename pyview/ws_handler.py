@@ -95,35 +95,31 @@ class LiveSocketHandler:
         socket: Optional[LiveViewSocket] = None
 
         try:
-            data = await websocket.receive_text()
-            [joinRef, messageRef, topic, event, payload] = json.loads(data)
-            if event == "phx_join":
-                if not validate_csrf_token(payload["params"]["_csrf_token"], topic):
-                    raise AuthException("Invalid CSRF token")
+            joinRef, messageRef, topic, payload = await self._wait_for_valid_join(websocket)
 
-                url_str = payload.get("redirect") or payload.get("url")
-                if not url_str:
-                    raise AuthException("Missing 'url' or 'redirect' in phx_join payload")
-                url = urlparse(url_str)
-                lv_class, path_params = self.routes.get(url.path)
-                await self.check_auth(websocket, lv_class)
+            url_str = payload.get("redirect") or payload.get("url")
+            if not url_str:
+                raise AuthException("Missing 'url' or 'redirect' in phx_join payload")
+            url = urlparse(url_str)
+            lv_class, path_params = self.routes.get(url.path)
+            await self.check_auth(websocket, lv_class)
 
-                session = {}
-                if "session" in payload:
-                    session = deserialize_session(payload["session"])
+            session = {}
+            if "session" in payload:
+                session = deserialize_session(payload["session"])
 
-                lv = create_view(lv_class, session)
+            lv = create_view(lv_class, session)
 
-                socket = ConnectedLiveViewSocket(
-                    websocket, topic, lv, self.scheduler, self.instrumentation, self.routes
-                )
+            socket = ConnectedLiveViewSocket(
+                websocket, topic, lv, self.scheduler, self.instrumentation, self.routes
+            )
 
-                # Track mount
-                view_name = lv_class.__name__
-                self.metrics.mounts.add(1, {"view": view_name})
+            # Track mount
+            view_name = lv_class.__name__
+            self.metrics.mounts.add(1, {"view": view_name})
 
-                await self._join(socket, url, path_params, session, joinRef, messageRef, topic)
-                await self.handle_connected(topic, socket)
+            await self._join(socket, url, path_params, session, joinRef, messageRef, topic)
+            await self.handle_connected(topic, socket)
 
         except WebSocketDisconnect:
             pass
@@ -139,6 +135,34 @@ class LiveSocketHandler:
                     await socket.close()
             self.sessions -= 1
             self.metrics.active_connections.add(-1)
+
+    async def _wait_for_valid_join(self, websocket: WebSocket):
+        """Read messages until a phx_join carrying a valid CSRF token, which opens the connection.
+
+        A join with a missing or invalid token is answered "stale", which the client handles
+        with a full page load that picks up a fresh token. The token is checked once per
+        connection: later navigation joins are only reachable after a join passes this check.
+        """
+        while True:
+            [joinRef, messageRef, topic, event, payload] = json.loads(
+                await websocket.receive_text()
+            )
+
+            if event == "heartbeat":
+                resp = [None, messageRef, "phoenix", "phx_reply", {"response": {}, "status": "ok"}]
+                await self.manager.send_personal_message(json.dumps(resp), websocket)
+                continue
+
+            if event == "phx_join":
+                token = (payload.get("params") or {}).get("_csrf_token")
+                if isinstance(token, str) and validate_csrf_token(token, topic):
+                    return joinRef, messageRef, topic, payload
+                reply = {"response": {"reason": "stale"}, "status": "error"}
+            else:
+                reply = {"response": {"reason": "unmatched topic"}, "status": "error"}
+
+            resp = [joinRef, messageRef, topic, "phx_reply", reply]
+            await self.manager.send_personal_message(json.dumps(resp), websocket)
 
     async def _join(
         self,
