@@ -16,7 +16,7 @@ async def connect():
     """Return a factory that builds a FakeClient for a {path: LiveView} route table.
 
     Each client is its own connection with its own topic, as a browser tab would have;
-    pass `topic` to name it.
+    pass `topic` to name it. Its handler's scheduler is running, as after app startup.
     """
     clients: list[FakeClient] = []
 
@@ -25,6 +25,7 @@ async def connect():
         for path, view in routes.items():
             lookup.add(path, view)
         handler = LiveSocketHandler(lookup, NoOpInstrumentation())
+        handler.start_scheduler()
         client = FakeClient(handler, topic or f"lv:phx-{uuid.uuid4().hex[:8]}")
         clients.append(client)
         return client
@@ -34,3 +35,4 @@ async def connect():
     finally:
         for client in clients:
             await client.close()
+            await client.handler.shutdown_scheduler()
