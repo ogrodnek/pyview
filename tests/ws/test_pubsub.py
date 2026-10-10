@@ -2,6 +2,7 @@
 
 from pyview.events import InfoEvent
 
+from .fake_client import FakeClient
 from .views import StaticView, TextRendered
 
 
@@ -175,3 +176,27 @@ async def test_after_live_navigation_only_the_new_view_receives_broadcasts(conne
     assert diff.event == "diff"
     assert received == [("Article", InfoEvent("news", {"headline": "pyview 1.0"}))]
     assert diff.payload == {"0": "pyview 1.0"}
+
+
+async def test_reconnected_view_keeps_its_subscriptions_when_the_old_connection_closes(connect):
+    # Given a page whose browser reconnected before the server noticed the old connection
+    # was gone: two connections to the same app, joined to the same page topic
+    received = []
+    Publisher, Reader = news_views(received)
+    publisher = connect({"/": Publisher}, topic="lv:phx-publisher")
+    old = connect({"/": Reader})
+    new = FakeClient(old.handler, old.topic)
+    try:
+        await publisher.join("/")
+        await old.join("/")
+        await new.join("/")
+
+        # When the old connection finally closes, and then a message is broadcast
+        await old.disconnect()
+        await publisher.event("publish")
+
+        # Then the reconnected view still receives it
+        assert (await new.next_push()).event == "diff"
+        assert received == [InfoEvent("news", {"headline": "pyview 1.0"})]
+    finally:
+        await new.close()

@@ -263,6 +263,8 @@ async def handle_info(self, event: InfoEvent, socket: ConnectedLiveViewSocket[Co
         socket.context["show_welcome"] = True
 ```
 
+A view can have one repeating timer for each event name: calling `schedule_info` again with the same name replaces that timer, with the new interval and payload. Each `schedule_info_once` call schedules its own message. A view's timers stop when it closes.
+
 ## Navigation
 
 ### Within Same LiveView (`push_patch`)
