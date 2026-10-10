@@ -95,9 +95,18 @@ class FakeClient:
         return await self._push(ref, "phx_join", payload)
 
     async def event(
-        self, name: str, value: Any = None, *, type: str = "click", topic: Optional[str] = None
+        self,
+        name: str,
+        value: Any = None,
+        *,
+        type: str = "click",
+        cid: Any = None,
+        topic: Optional[str] = None,
     ) -> dict[str, Any]:
+        """Send an event; `cid` targets a component, as `phx-target` does."""
         payload = {"type": type, "event": name, "value": {} if value is None else value}
+        if cid is not None:
+            payload["cid"] = cid
         return await self._push(self._next_ref(), "event", payload, topic)
 
     async def leave(self, *, topic: Optional[str] = None) -> dict[str, Any]:

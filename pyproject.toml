@@ -92,6 +92,7 @@ exclude = [
     "tests/components/test_statics_sharing.py",
     "tests/components/test_lifecycle.py",
     "tests/components/test_slots.py",
+    "tests/ws/test_component_events.py",
 ]
 
 [tool.pytest.ini_options]
@@ -119,6 +120,7 @@ exclude = [
     "tests/components/test_slots.py",
     "tests/components/test_statics_sharing.py",
     "tests/components/test_lifecycle.py",
+    "tests/ws/test_component_events.py",
 ]
 
 [tool.ruff.lint]
