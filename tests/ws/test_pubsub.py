@@ -128,3 +128,47 @@ async def test_broadcast_does_not_reach_a_view_whose_connection_closed(connect):
 
     # Then the closed view never handles it
     assert received == []
+
+
+async def test_after_live_navigation_only_the_new_view_receives_broadcasts(connect):
+    # Given a client that live-navigated from one subscribed view to another on the same topic
+    received = []
+
+    class Publisher(StaticView):
+        async def handle_event(self, event, payload, socket):
+            await socket.broadcast("news", {"headline": "pyview 1.0"})
+
+    class FrontPage(StaticView):
+        async def mount(self, socket, session):
+            await super().mount(socket, session)
+            await socket.subscribe("news")
+
+        async def handle_info(self, event, socket):
+            received.append(("FrontPage", event))
+
+    class Article(StaticView):
+        async def mount(self, socket, session):
+            socket.context = {"headline": ""}
+            await socket.subscribe("news")
+
+        async def handle_info(self, event, socket):
+            received.append(("Article", event))
+            socket.context["headline"] = event.payload["headline"]
+
+        async def render(self, assigns, meta):
+            return TextRendered(assigns["headline"])
+
+    publisher = connect({"/": Publisher}, topic="lv:phx-publisher")
+    reader = connect({"/": FrontPage, "/article": Article}, topic="lv:phx-reader")
+    await publisher.join("/")
+    await reader.join("/")
+    await reader.leave()
+    await reader.join("/article", redirect=True)
+
+    # When a message is broadcast on the topic
+    await publisher.event("publish")
+
+    # Then only the view navigated to handles it, and its client gets the change
+    diff = await reader.wait_for_push("diff")
+    assert received == [("Article", InfoEvent("news", {"headline": "pyview 1.0"}))]
+    assert diff[4] == {"0": "pyview 1.0"}
