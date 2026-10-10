@@ -58,17 +58,22 @@ class FakeClient:
         self._refs = itertools.count(1)
         self._task: Optional[asyncio.Task] = None
 
-    async def join(self, path: str, *, redirect: bool = False) -> dict[str, Any]:
+    async def join(
+        self, path: str, *, redirect: bool = False, params: Optional[dict[str, Any]] = None
+    ) -> dict[str, Any]:
         """Join the LiveView at `path`.
 
         The first join uses `url`. A join after live navigation (live_redirect)
         sends `redirect` instead, on the same topic with a new join ref.
+        `params` replaces the join params, which by default carry a valid CSRF token.
         """
         ref = self._next_ref()
         self.join_ref = ref
         payload = {
             "redirect" if redirect else "url": f"http://testserver{path}",
-            "params": {"_csrf_token": generate_csrf_token(self.topic)},
+            "params": {"_csrf_token": generate_csrf_token(self.topic)}
+            if params is None
+            else params,
         }
         if self._task is None:
             self._task = asyncio.create_task(self.handler.handle(cast(WebSocket, self.websocket)))
