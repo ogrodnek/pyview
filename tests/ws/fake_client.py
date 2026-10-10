@@ -7,6 +7,7 @@ from starlette.types import Message
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from pyview.csrf import generate_csrf_token
+from pyview.session import serialize_session
 from pyview.ws_handler import LiveSocketHandler
 
 REPLY_TIMEOUT = 1.0
@@ -74,24 +75,30 @@ class FakeClient:
         self._task: Optional[asyncio.Task] = None
 
     async def join(
-        self, path: str, *, redirect: bool = False, params: Optional[dict[str, Any]] = None
+        self,
+        path: str,
+        *,
+        redirect: bool = False,
+        params: Optional[dict[str, Any]] = None,
+        session: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
         """Join the LiveView at `path`.
 
         The first join uses `url`. A join after live navigation (live_redirect)
         sends `redirect` instead, on the same topic with a new join ref.
         `params` replaces the join params, which by default carry a valid CSRF token.
+        `session` is signed and sent the way the page embeds it for the client.
         """
         ref = self._next_ref()
         self.join_ref = ref
-        payload = {
+        payload: dict[str, Any] = {
             "redirect" if redirect else "url": f"http://testserver{path}",
             "params": {"_csrf_token": generate_csrf_token(self.topic)}
             if params is None
             else params,
         }
-        if self._task is None:
-            self._task = asyncio.create_task(self.handler.handle(cast(WebSocket, self.websocket)))
+        if session is not None:
+            payload["session"] = serialize_session(session)
         return await self._push(ref, "phx_join", payload)
 
     async def event(
@@ -156,6 +163,9 @@ class FakeClient:
         return await self._send(Frame(self.join_ref, ref, topic or self.topic, event, payload))
 
     async def _send(self, frame: Frame) -> dict[str, Any]:
+        if self._task is None:
+            # The connection opens with the client's first message, as a websocket does
+            self._task = asyncio.create_task(self.handler.handle(cast(WebSocket, self.websocket)))
         await self.websocket.inbox.put({"type": "websocket.receive", "text": json.dumps(frame)})
         assert frame.ref is not None
         return await asyncio.wait_for(self._reply_for(frame.ref), REPLY_TIMEOUT)
