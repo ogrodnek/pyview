@@ -49,3 +49,56 @@ async def test_event_after_live_navigation_reaches_new_view(connect):
     # Then only the new view handles it
     assert reply["status"] == "ok"
     assert handled == [("PageB", "increment")]
+
+
+async def test_mount_receives_the_session_the_page_was_rendered_with(connect):
+    # Given a view that records the session it mounts with
+    sessions = []
+
+    class Home(StaticView):
+        async def mount(self, socket, session):
+            await super().mount(socket, session)
+            sessions.append(session)
+
+    client = connect({"/": Home})
+
+    # When the client joins with the signed session from the page
+    await client.join("/", session={"user_id": 42})
+
+    # Then mount gets that session
+    assert sessions == [{"user_id": 42}]
+
+
+async def test_navigation_join_passes_the_session_to_the_new_view(connect):
+    # Given a client that navigates from one view to another
+    sessions = []
+
+    class PageA(StaticView):
+        pass
+
+    class PageB(StaticView):
+        async def mount(self, socket, session):
+            await super().mount(socket, session)
+            sessions.append(session)
+
+    client = connect({"/a": PageA, "/b": PageB})
+    await client.join("/a", session={"user_id": 42})
+    await client.leave()
+
+    # When it joins the new view with the signed session
+    await client.join("/b", redirect=True, session={"user_id": 42})
+
+    # Then the new view's mount gets that session
+    assert sessions == [{"user_id": 42}]
+
+
+async def test_message_before_the_first_join_is_unmatched_and_connection_stays_open(connect):
+    # Given a new connection that hasn't joined a view yet
+    client = connect({"/": StaticView})
+
+    # When the client sends an event before joining
+    reply = await client.event("increment")
+
+    # Then it is answered "unmatched topic", and a join afterwards still works
+    assert reply == {"status": "error", "response": {"reason": "unmatched topic"}}
+    assert (await client.join("/"))["status"] == "ok"
