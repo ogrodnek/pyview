@@ -53,10 +53,10 @@ async def test_event_with_a_cid_reaches_that_component_not_the_view(connect):
     # When the client sends an event targeted at the component
     reply = await client.event("increment", cid=cid)
 
-    # Then the component handles it and its new render is in the reply; the view never sees it
+    # Then the component handles it and the reply carries only its change; the view never sees it
     assert reply["status"] == "ok"
     assert view_events == []
-    assert "1" in str(reply["response"]["diff"]["c"][str(cid)])
+    assert reply["response"]["diff"] == {"c": {str(cid): {"0": "1"}}}
 
 
 async def test_event_for_an_unknown_cid_is_ignored(connect):
