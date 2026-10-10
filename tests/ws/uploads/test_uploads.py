@@ -4,8 +4,8 @@ from pathlib import Path
 
 from pyview.uploads import UploadConfig, UploadConstraints
 
-from .fake_upload import FakeUploadClient
-from .views import StaticView
+from ..fake_upload import FakeUploadClient
+from ..views import StaticView
 
 PDF = {
     "path": "document",
