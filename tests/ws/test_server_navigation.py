@@ -28,7 +28,7 @@ async def test_push_navigate_tells_client_to_live_navigate(connect):
     # Then the client is told to live-navigate, pushing a history entry
     assert reply["status"] == "ok"
     [push] = client.pushes()
-    assert push[3:] == ["live_redirect", {"kind": "push", "to": "/users?page=2"}]
+    assert (push.event, push.payload) == ("live_redirect", {"kind": "push", "to": "/users?page=2"})
 
 
 async def test_replace_navigate_tells_client_to_live_navigate_replacing_history(connect):
@@ -41,7 +41,7 @@ async def test_replace_navigate_tells_client_to_live_navigate_replacing_history(
 
     # Then the client is told to live-navigate, replacing the history entry
     [push] = client.pushes()
-    assert push[3:] == ["live_redirect", {"kind": "replace", "to": "/users"}]
+    assert (push.event, push.payload) == ("live_redirect", {"kind": "replace", "to": "/users"})
 
 
 async def test_redirect_tells_client_to_load_page(connect):
@@ -54,7 +54,7 @@ async def test_redirect_tells_client_to_load_page(connect):
 
     # Then the client is told to do a full page load
     [push] = client.pushes()
-    assert push[3:] == ["redirect", {"to": "/login?next=%2Fhome"}]
+    assert (push.event, push.payload) == ("redirect", {"to": "/login?next=%2Fhome"})
 
 
 async def test_push_navigate_from_handle_info_tells_client_to_live_navigate(connect):
@@ -76,7 +76,9 @@ async def test_push_navigate_from_handle_info_tells_client_to_live_navigate(conn
     await sockets[0].send_info(InfoEvent("logged_out"))
 
     # Then the client is told to live-navigate
-    assert ["live_redirect", {"kind": "push", "to": "/users"}] in [p[3:] for p in client.pushes()]
+    assert ("live_redirect", {"kind": "push", "to": "/users"}) in [
+        (p.event, p.payload) for p in client.pushes()
+    ]
 
 
 async def test_push_patch_runs_handle_params_and_tells_client_before_replying(connect):
@@ -101,9 +103,9 @@ async def test_push_patch_runs_handle_params_and_tells_client_before_replying(co
 
     # And the client is told to patch the URL before the event reply arrives
     assert reply["status"] == "ok"
-    events = [frame[3] for frame in client.websocket.sent]
+    events = [frame.event for frame in client.websocket.sent]
     assert events[-2:] == ["live_patch", "phx_reply"]
-    assert client.websocket.sent[-2][4] == {"kind": "push", "to": "/users?page=2"}
+    assert client.websocket.sent[-2].payload == {"kind": "push", "to": "/users?page=2"}
 
 
 async def test_events_pushed_before_navigating_are_sent_before_the_navigation(connect):
@@ -125,13 +127,13 @@ async def test_events_pushed_before_navigating_are_sent_before_the_navigation(co
     carries_track = [
         i for i, frame in enumerate(after_join) if ["track", {"action": "saved"}] in _events(frame)
     ]
-    navigation = [i for i, frame in enumerate(after_join) if frame[3] == "live_redirect"]
+    navigation = [i for i, frame in enumerate(after_join) if frame.event == "live_redirect"]
     assert carries_track and navigation
     assert carries_track[0] < navigation[0]
 
 
 def _events(frame):
     """push_event payloads carried by a diff push or an event reply."""
-    payload = frame[4]
-    diff = payload if frame[3] == "diff" else payload.get("response", {}).get("diff", {})
+    payload = frame.payload
+    diff = payload if frame.event == "diff" else payload.get("response", {}).get("diff", {})
     return diff.get("e", [])
