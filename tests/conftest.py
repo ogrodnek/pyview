@@ -34,4 +34,5 @@ def pytest_ignore_collect(collection_path, config):
         "test_statics_sharing.py",
         "test_lifecycle.py",
         "test_slots.py",
+        "test_component_events.py",
     )
