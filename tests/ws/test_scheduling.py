@@ -7,6 +7,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from pyview.events import InfoEvent
 
+from .fake_client import FakeClient
 from .views import StaticView, TextRendered
 
 
@@ -184,3 +185,26 @@ async def test_rescheduling_an_event_name_with_a_new_payload_replaces_its_timer(
     assert isinstance(job.trigger, IntervalTrigger)
     assert job.trigger.interval == timedelta(seconds=10)
     assert job.args == (InfoEvent("tick", {"rate": "slow"}),)
+
+
+async def test_reconnected_view_keeps_its_timer_when_the_old_connection_closes(connect):
+    # Given a page whose browser reconnected before the server noticed the old connection
+    # was gone: two connections to the same app, joined to the same page topic
+    ticks = []
+    old = connect({"/": ticking_view("Home", ticks)})
+    new = FakeClient(old.handler, old.topic)
+    try:
+        await old.join("/")
+        await new.join("/")
+
+        # When the old connection finally closes
+        await old.disconnect()
+
+        # Then the reconnected view still has its timer, and keeps getting messages
+        [job] = old.handler.scheduler.get_jobs()
+        assert job.args == (InfoEvent("tick"),)
+        handled = len(ticks)
+        await asyncio.sleep(0.2)
+        assert len(ticks) > handled
+    finally:
+        await new.close()
