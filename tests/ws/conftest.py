@@ -1,3 +1,6 @@
+import uuid
+from typing import Optional
+
 import pytest
 
 from pyview.instrumentation import NoOpInstrumentation
@@ -12,16 +15,17 @@ from .fake_client import FakeClient
 async def connect():
     """Return a factory that builds a FakeClient for a {path: LiveView} route table.
 
-    Each client is its own connection; give clients that run side by side distinct topics,
-    as two browser tabs would have.
+    Each client is its own connection with its own topic, as a browser tab would have;
+    pass `topic` to name it.
     """
     clients: list[FakeClient] = []
 
-    def _connect(routes: dict[str, type[LiveView]], topic: str = "lv:phx-test") -> FakeClient:
+    def _connect(routes: dict[str, type[LiveView]], topic: Optional[str] = None) -> FakeClient:
         lookup = LiveViewLookup()
         for path, view in routes.items():
             lookup.add(path, view)
-        client = FakeClient(LiveSocketHandler(lookup, NoOpInstrumentation()), topic)
+        handler = LiveSocketHandler(lookup, NoOpInstrumentation())
+        client = FakeClient(handler, topic or f"lv:phx-{uuid.uuid4().hex[:8]}")
         clients.append(client)
         return client
 
