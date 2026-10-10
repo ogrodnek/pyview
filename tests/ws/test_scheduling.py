@@ -63,3 +63,71 @@ async def test_schedule_info_delivers_repeatedly(connect):
     # Then the view handled the message twice, and its client got each change
     assert (first.event, first.payload) == ("diff", {"0": "1"})
     assert (second.event, second.payload) == ("diff", {"0": "2"})
+
+
+def ticking_view(name: str, ticks: list):
+    """A view that schedules a repeating "tick" when it mounts and records each one it handles."""
+
+    class Ticking(StaticView):
+        async def mount(self, socket, session):
+            await super().mount(socket, session)
+            socket.schedule_info(InfoEvent("tick"), 0.05)
+
+        async def handle_info(self, event, socket):
+            ticks.append(name)
+
+    Ticking.__name__ = name
+    return Ticking
+
+
+async def test_leaving_a_view_stops_its_scheduled_messages(connect):
+    # Given a view whose repeating message has started arriving
+    ticks = []
+    client = connect({"/": ticking_view("Home", ticks)})
+    await client.join("/")
+    await client.next_push()
+
+    # When the client leaves the view
+    await client.leave()
+    handled = len(ticks)
+
+    # Then no more messages reach it, over several intervals
+    await asyncio.sleep(0.2)
+    assert len(ticks) == handled
+
+
+async def test_closing_the_connection_stops_its_scheduled_messages(connect):
+    # Given a view whose repeating message has started arriving
+    ticks = []
+    client = connect({"/": ticking_view("Home", ticks)})
+    await client.join("/")
+    await client.next_push()
+
+    # When the websocket closes
+    await client.disconnect()
+    handled = len(ticks)
+
+    # Then no more messages reach the view, over several intervals
+    await asyncio.sleep(0.2)
+    assert len(ticks) == handled
+
+
+async def test_after_live_navigation_only_the_new_view_gets_scheduled_messages(connect):
+    # Given a view whose repeating "tick" has started arriving
+    ticks = []
+    client = connect(
+        {"/": ticking_view("FrontPage", ticks), "/article": ticking_view("Article", ticks)}
+    )
+    await client.join("/")
+    await client.next_push()
+
+    # When the client live-navigates to a view that schedules the same message
+    await client.leave()
+    navigated_at = len(ticks)
+    reply = await client.join("/article", redirect=True)
+
+    # Then the new view mounts, and over several intervals only it gets the message
+    assert reply["status"] == "ok"
+    await asyncio.sleep(0.2)
+    after = ticks[navigated_at:]
+    assert after and set(after) == {"Article"}
