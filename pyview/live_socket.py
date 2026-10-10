@@ -198,11 +198,22 @@ class ConnectedLiveViewSocket(Generic[T]):
         await self.send_info(InfoEvent(topic, message))
 
     def schedule_info(self, event, seconds):
+        """Deliver `event` to handle_info every `seconds` until the view closes.
+
+        A view can have one repeating timer for each event name: scheduling the same
+        name again replaces that timer, with the new interval and payload.
+        """
         if not self.connected:
             return
-        id = f"{self.topic}:{event}"
+        name = event.name if isinstance(event, InfoEvent) else str(event)
+        id = f"{self.topic}:{name}"
         self.scheduler.add_job(
-            self.send_info, args=[event], id=id, trigger="interval", seconds=seconds
+            self.send_info,
+            args=[event],
+            id=id,
+            trigger="interval",
+            seconds=seconds,
+            replace_existing=True,
         )
         self.scheduled_jobs.add(id)
 

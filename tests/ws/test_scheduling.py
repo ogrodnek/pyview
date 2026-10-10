@@ -1,6 +1,9 @@
 """Messages a view schedules for itself are delivered to its handle_info."""
 
 import asyncio
+from datetime import timedelta
+
+from apscheduler.triggers.interval import IntervalTrigger
 
 from pyview.events import InfoEvent
 
@@ -91,7 +94,8 @@ async def test_leaving_a_view_stops_its_scheduled_messages(connect):
     await client.leave()
     handled = len(ticks)
 
-    # Then no more messages reach it, over several intervals
+    # Then its timer is removed, and no more messages reach it over several intervals
+    assert client.handler.scheduler.get_jobs() == []
     await asyncio.sleep(0.2)
     assert len(ticks) == handled
 
@@ -107,7 +111,8 @@ async def test_closing_the_connection_stops_its_scheduled_messages(connect):
     await client.disconnect()
     handled = len(ticks)
 
-    # Then no more messages reach the view, over several intervals
+    # Then its timer is removed, and no more messages reach the view over several intervals
+    assert client.handler.scheduler.get_jobs() == []
     await asyncio.sleep(0.2)
     assert len(ticks) == handled
 
@@ -131,3 +136,51 @@ async def test_after_live_navigation_only_the_new_view_gets_scheduled_messages(c
     await asyncio.sleep(0.2)
     after = ticks[navigated_at:]
     assert after and set(after) == {"Article"}
+
+
+async def test_scheduling_the_same_event_again_replaces_its_timer(connect):
+    # Given a view ticking every 50 ms, which an event switches to every 10 s
+    class Ticker(StaticView):
+        async def mount(self, socket, session):
+            await super().mount(socket, session)
+            socket.schedule_info(InfoEvent("tick"), 0.05)
+
+        async def handle_event(self, event, payload, socket):
+            socket.schedule_info(InfoEvent("tick"), 10)
+
+    client = connect({"/": Ticker})
+    await client.join("/")
+
+    # When the event reschedules the same message
+    reply = await client.event("slow_down")
+
+    # Then it succeeds, and the view has one timer: the new one
+    assert reply["status"] == "ok"
+    [job] = client.handler.scheduler.get_jobs()
+    assert isinstance(job.trigger, IntervalTrigger)
+    assert job.trigger.interval == timedelta(seconds=10)
+    assert job.args == (InfoEvent("tick"),)
+
+
+async def test_rescheduling_an_event_name_with_a_new_payload_replaces_its_timer(connect):
+    # Given a view ticking fast, which an event reschedules under the same name, slowly
+    class Ticker(StaticView):
+        async def mount(self, socket, session):
+            await super().mount(socket, session)
+            socket.schedule_info(InfoEvent("tick", {"rate": "fast"}), 0.05)
+
+        async def handle_event(self, event, payload, socket):
+            socket.schedule_info(InfoEvent("tick", {"rate": "slow"}), 10)
+
+    client = connect({"/": Ticker})
+    await client.join("/")
+
+    # When the event reschedules the message with a different payload
+    reply = await client.event("slow_down")
+
+    # Then the view has one timer, with the new payload and interval
+    assert reply["status"] == "ok"
+    [job] = client.handler.scheduler.get_jobs()
+    assert isinstance(job.trigger, IntervalTrigger)
+    assert job.trigger.interval == timedelta(seconds=10)
+    assert job.args == (InfoEvent("tick", {"rate": "slow"}),)
