@@ -104,6 +104,18 @@ class FakeClient:
         """Frames the server sent on its own rather than in reply to the client."""
         return [frame for frame in self.websocket.sent if frame[3] != "phx_reply"]
 
+    async def wait_for_push(self, event: str) -> list[Any]:
+        """Wait until the server pushes a frame of `event` on its own, and return the first."""
+
+        async def first():
+            while True:
+                for frame in self.pushes():
+                    if frame[3] == event:
+                        return frame
+                await asyncio.sleep(0)
+
+        return await asyncio.wait_for(first(), REPLY_TIMEOUT)
+
     async def disconnect(self):
         """Close the websocket from the client side and wait for the handler to finish."""
         await self.websocket.inbox.put({"type": "websocket.disconnect", "code": 1001})
