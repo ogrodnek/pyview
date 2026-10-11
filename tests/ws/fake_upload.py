@@ -72,8 +72,11 @@ class FakeUploadClient:
         payload = {"ref": upload_ref, "entries": files}
         return await self.client._push(self.client._next_ref(), "allow_upload", payload)
 
-    async def progress(self, upload_ref: str, entry_ref: str, percent: int) -> dict[str, Any]:
-        payload = {"event": None, "ref": upload_ref, "entry_ref": entry_ref, "progress": percent}
+    async def progress(
+        self, upload_ref: str, entry_ref: str, progress: int | dict[str, Any]
+    ) -> dict[str, Any]:
+        """Report a file's progress: a percentage, or a dict when a cloud upload completes or fails."""
+        payload = {"event": None, "ref": upload_ref, "entry_ref": entry_ref, "progress": progress}
         return await self.client._push(self.client._next_ref(), "progress", payload)
 
     async def join(self, token: Any) -> FakeUpload:
