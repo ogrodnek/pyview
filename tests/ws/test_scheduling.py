@@ -208,3 +208,64 @@ async def test_reconnected_view_keeps_its_timer_when_the_old_connection_closes(c
         assert len(ticks) > handled
     finally:
         await new.close()
+
+
+def listening_view(sockets: list, received: list):
+    """A view that keeps its socket, for scheduling after mount, and records the messages it handles."""
+
+    class Listening(StaticView):
+        async def mount(self, socket, session):
+            await super().mount(socket, session)
+            sockets.append(socket)
+
+        async def handle_info(self, event, socket):
+            received.append(event)
+
+    return Listening
+
+
+async def test_scheduling_a_repeating_message_after_disconnect_adds_no_timer(connect):
+    # Given a view whose browser has disconnected
+    sockets, received = [], []
+    client = connect({"/": listening_view(sockets, received)})
+    await client.join("/")
+    await client.disconnect()
+
+    # When something still holding its socket schedules a repeating message
+    sockets[0].schedule_info(InfoEvent("tick"), 0.05)
+
+    # Then no timer is added, and nothing reaches the view over several intervals
+    assert client.handler.scheduler.get_jobs() == []
+    await asyncio.sleep(0.2)
+    assert received == []
+
+
+async def test_scheduling_a_single_message_after_disconnect_adds_no_timer(connect):
+    # Given a view whose browser has disconnected
+    sockets, received = [], []
+    client = connect({"/": listening_view(sockets, received)})
+    await client.join("/")
+    await client.disconnect()
+
+    # When something still holding its socket schedules a single message
+    sockets[0].schedule_info_once(InfoEvent("remind"), 0.05)
+
+    # Then no timer is added, and the message never reaches the view
+    assert client.handler.scheduler.get_jobs() == []
+    await asyncio.sleep(0.2)
+    assert received == []
+
+
+async def test_message_arriving_after_disconnect_is_not_handled(connect):
+    # Given a view whose browser has disconnected
+    sockets, received = [], []
+    client = connect({"/": listening_view(sockets, received)})
+    await client.join("/")
+    await client.disconnect()
+
+    # When a message for the view arrives anyway, as a pubsub broadcast or timer in flight would
+    await sockets[0].send_info(InfoEvent("late"))
+
+    # Then the view doesn't handle it, and nothing is sent
+    assert received == []
+    assert client.pushes() == []
