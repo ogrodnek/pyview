@@ -1,13 +1,12 @@
 """Upload channels for the test client: one per file, as the Phoenix JS client opens them."""
 
-from __future__ import annotations
-
 import itertools
 import struct
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    from .fake_client import FakeClient
+from pyview.uploads import UploadConfig
+
+from .fake_client import FakeClient
 
 PUSH = 0  # phoenix.js binary message kinds: push, reply, broadcast
 
@@ -71,6 +70,12 @@ class FakeUploadClient:
         """Ask to upload the selected files; the reply has the config and an entry token per file."""
         payload = {"ref": upload_ref, "entries": files}
         return await self.client._push(self.client._next_ref(), "allow_upload", payload)
+
+    async def choose(self, config: UploadConfig, files: list[dict[str, Any]]) -> dict[str, Any]:
+        """Choose files in the upload's input and have them approved; returns each file's token."""
+        await self.select(config.name, config.ref, files)
+        reply = await self.allow(config.ref, files)
+        return reply["response"]["entries"]
 
     async def progress(
         self, upload_ref: str, entry_ref: str, progress: int | dict[str, Any]
