@@ -118,6 +118,31 @@ async def test_closing_the_connection_stops_its_scheduled_messages(connect):
     assert len(ticks) == handled
 
 
+async def test_failed_send_stops_the_views_timers(connect):
+    # Given a view whose repeating message has started arriving
+    ticks = []
+    client = connect({"/": ticking_view("Home", ticks)})
+    await client.join("/")
+    await client.next_push()
+
+    # When its next message is handled but the connection can no longer send the change,
+    # before the disconnect itself has been received
+    client.websocket.send_error = RuntimeError(
+        'Cannot call "send" once a close message has been sent.'
+    )
+    handled = len(ticks)
+    async with asyncio.timeout(1):
+        while len(ticks) == handled:
+            await asyncio.sleep(0.01)
+    await asyncio.sleep(0.01)
+
+    # Then the failed send removes the view's timer, and no more messages reach it
+    assert client.handler.scheduler.get_jobs() == []
+    handled = len(ticks)
+    await asyncio.sleep(0.2)
+    assert len(ticks) == handled
+
+
 async def test_after_live_navigation_only_the_new_view_gets_scheduled_messages(connect):
     # Given a view whose repeating "tick" has started arriving
     ticks = []

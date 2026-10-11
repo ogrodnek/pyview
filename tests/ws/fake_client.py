@@ -28,7 +28,8 @@ class FakeWebSocket:
 
     Frames the client sends are queued for the handler to receive; frames the
     handler sends are decoded and recorded in `sent`. Frames it sends on its own,
-    rather than as a reply, are also queued in `pushed`.
+    rather than as a reply, are also queued in `pushed`. Set `send_error` to make
+    sends fail, as they do once the connection has gone.
     """
 
     def __init__(self):
@@ -36,6 +37,7 @@ class FakeWebSocket:
         self.sent: list[Frame] = []
         self.pushed: asyncio.Queue[Frame] = asyncio.Queue()
         self.closed = False
+        self.send_error: Optional[Exception] = None
 
     async def accept(self):
         pass
@@ -50,6 +52,8 @@ class FakeWebSocket:
         return message["text"]
 
     async def send_text(self, text: str):
+        if self.send_error is not None:
+            raise self.send_error
         frame = Frame(*json.loads(text))
         self.sent.append(frame)
         if frame.event != "phx_reply":
