@@ -132,6 +132,27 @@ async def test_events_pushed_before_navigating_are_sent_before_the_navigation(co
     assert carries_track[0] < navigation[0]
 
 
+async def test_navigation_that_cannot_be_sent_does_not_raise(connect):
+    # Given a joined view whose connection can no longer send
+    sockets = []
+
+    class Home(StaticView):
+        async def mount(self, socket, session):
+            await super().mount(socket, session)
+            sockets.append(socket)
+
+    client = connect({"/": Home})
+    await client.join("/")
+    client.websocket.send_error = RuntimeError(
+        'Cannot call "send" once a close message has been sent.'
+    )
+
+    # When the view patches, navigates, and redirects, none of them raises
+    await sockets[0].push_patch("/", {"page": 2})
+    await sockets[0].push_navigate("/users")
+    await sockets[0].redirect("/login")
+
+
 def _events(frame):
     """push_event payloads carried by a diff push or an event reply."""
     payload = frame.payload
