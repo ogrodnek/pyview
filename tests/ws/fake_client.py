@@ -157,10 +157,16 @@ class FakeClient:
         return str(next(self._refs))
 
     async def _push(
-        self, ref: str, event: str, payload: dict[str, Any], topic: Optional[str] = None
+        self,
+        ref: str,
+        event: str,
+        payload: dict[str, Any],
+        topic: Optional[str] = None,
+        join_ref: Optional[str] = None,
     ) -> dict[str, Any]:
-        """Send a frame, by default on the client's own topic, and wait for its reply."""
-        return await self._send(Frame(self.join_ref, ref, topic or self.topic, event, payload))
+        """Send a frame, by default on the client's own topic and join, and wait for its reply."""
+        frame = Frame(join_ref or self.join_ref, ref, topic or self.topic, event, payload)
+        return await self._send(frame)
 
     async def _send(self, frame: Frame) -> dict[str, Any]:
         if self._task is None:
@@ -169,6 +175,11 @@ class FakeClient:
         await self.websocket.inbox.put({"type": "websocket.receive", "text": json.dumps(frame)})
         assert frame.ref is not None
         return await asyncio.wait_for(self._reply_for(frame.ref), REPLY_TIMEOUT)
+
+    async def _send_bytes(self, data: bytes, ref: str) -> dict[str, Any]:
+        """Send an already-encoded binary frame and wait for the reply to `ref`."""
+        await self.websocket.inbox.put({"type": "websocket.receive", "bytes": data})
+        return await asyncio.wait_for(self._reply_for(ref), REPLY_TIMEOUT)
 
     async def _reply_for(self, ref: str) -> dict[str, Any]:
         while True:

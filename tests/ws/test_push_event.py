@@ -1,5 +1,7 @@
 """Events queued with push_event are delivered with the render that follows them."""
 
+from pyview.events import InfoEvent
+
 from .views import StaticView
 
 
@@ -51,3 +53,63 @@ async def test_events_pushed_in_mount_are_sent_in_navigation_join_reply(connect)
 
     # Then the event is in the rendered join reply
     assert reply["response"]["rendered"]["e"] == [["init_chart", {"points": [1, 2, 3]}]]
+
+
+def ticking_view(sockets: list, pushes: bool):
+    """A view that, on each message, pushes a "tick" event to its hook if `pushes`."""
+
+    class Ticking(StaticView):
+        async def mount(self, socket, session):
+            await super().mount(socket, session)
+            sockets.append(socket)
+
+        async def handle_info(self, event, socket):
+            if pushes:
+                await socket.push_event("tick", {"count": 1})
+
+    return Ticking
+
+
+async def test_events_pushed_in_handle_info_are_sent_in_the_pushed_diff(connect):
+    # Given a joined view that pushes an event when a server-side message arrives
+    sockets = []
+    client = connect({"/": ticking_view(sockets, pushes=True)})
+    await client.join("/")
+
+    # When a message is delivered to the view
+    await sockets[0].send_info(InfoEvent("tick"))
+
+    # Then the pushed diff carries the event
+    push = await client.next_push()
+    assert push.event == "diff"
+    assert push.payload["e"] == [["tick", {"count": 1}]]
+
+
+async def test_events_pushed_in_handle_info_are_not_sent_again(connect):
+    # Given a view whose pushed event was already delivered with a handle_info diff
+    sockets = []
+    client = connect({"/": ticking_view(sockets, pushes=True)})
+    await client.join("/")
+    await sockets[0].send_info(InfoEvent("tick"))
+    await client.next_push()
+
+    # When the client sends an event that pushes nothing
+    reply = await client.event("click")
+
+    # Then the earlier event isn't repeated
+    assert "e" not in reply["response"]["diff"]
+
+
+async def test_pushed_diff_has_no_events_when_none_were_pushed(connect):
+    # Given a joined view that pushes nothing when a server-side message arrives
+    sockets = []
+    client = connect({"/": ticking_view(sockets, pushes=False)})
+    await client.join("/")
+
+    # When a message is delivered to the view
+    await sockets[0].send_info(InfoEvent("tick"))
+
+    # Then the pushed diff has no events key
+    push = await client.next_push()
+    assert push.event == "diff"
+    assert "e" not in push.payload

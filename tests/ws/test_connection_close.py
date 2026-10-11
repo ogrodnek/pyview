@@ -1,5 +1,7 @@
 """Every LiveView joined on a websocket is closed when the websocket closes."""
 
+import pytest
+
 from .views import StaticView
 
 
@@ -74,3 +76,26 @@ async def test_failed_mount_during_live_navigation_closes_navigated_view(connect
     # Then the join fails and the partially mounted view is still closed, exactly once
     assert reply["status"] == "error"
     assert disconnected == ["PageA", "PageB"]
+
+
+async def test_exception_in_handle_event_drops_the_connection_and_closes_the_view(connect):
+    # Given a joined view whose event handler raises
+    disconnected = []
+
+    class Broken(StaticView):
+        async def handle_event(self, event, payload, socket):
+            raise RuntimeError("boom")
+
+        async def disconnect(self, socket):
+            disconnected.append("Broken")
+
+    client = connect({"/": Broken})
+    await client.join("/")
+
+    # When an event reaches it
+    with pytest.raises(RuntimeError, match="boom"):
+        await client.event("click")
+
+    # Then the connection ends, the view is closed exactly once, and it's no longer counted
+    assert disconnected == ["Broken"]
+    assert client.handler.sessions == 0

@@ -1,3 +1,7 @@
+import pytest
+
+from pyview.csrf import generate_csrf_token
+
 from .views import StaticView
 
 
@@ -102,3 +106,29 @@ async def test_message_before_the_first_join_is_unmatched_and_connection_stays_o
     # Then it is answered "unmatched topic", and a join afterwards still works
     assert reply == {"status": "error", "response": {"reason": "unmatched topic"}}
     assert (await client.join("/"))["status"] == "ok"
+
+
+async def test_first_join_can_use_redirect_instead_of_url(connect):
+    # Given a new connection, as when a browser reconnects after a live navigation
+    client = connect({"/": StaticView})
+
+    # When its first join names the page with `redirect` rather than `url`
+    reply = await client.join("/", redirect=True)
+
+    # Then the view is joined and rendered
+    assert reply["status"] == "ok"
+    assert "rendered" in reply["response"]
+
+
+async def test_join_without_url_or_redirect_closes_the_connection(connect):
+    # Given a new connection
+    client = connect({"/": StaticView})
+
+    # When its join names no page at all
+    with pytest.raises(AssertionError, match="without replying"):
+        await client.push(
+            "phx_join", {"params": {"_csrf_token": generate_csrf_token(client.topic)}}
+        )
+
+    # Then the websocket is closed, without a reply
+    assert client.websocket.closed
