@@ -40,10 +40,27 @@ def event(*event_names):
 
 
 def info(*info_names):
-    """Decorator that marks methods as info handlers."""
+    """
+    Decorator that marks methods as info handlers.
 
-    def decorator(func):
-        func._info_names = info_names
+    Can be used with or without explicit names:
+        @info                       # Uses method name as info name
+        @info()                     # Uses method name as info name
+        @info("custom-name")        # Uses "custom-name" as info name
+        @info("name1", "name2")     # Handles multiple info names
+    """
+
+    def decorator(func: Callable) -> Callable:
+        # If no info names provided, use the function name
+        names = info_names if info_names else (func.__name__,)
+        func_any: Any = func
+        func_any._info_names = names
+        return func
+
+    # Handle @info without parentheses (decorator applied directly to function)
+    if len(info_names) == 1 and callable(info_names[0]):
+        func: Any = info_names[0]
+        func._info_names = (func.__name__,)
         return func
 
     return decorator

@@ -92,3 +92,39 @@ async def test_subclass_handlers_do_not_leak_into_the_parent():
 
     # Then the parent has no handler for it
     assert clock.handled == []
+
+
+async def test_bare_info_handles_the_methods_own_name():
+    # Given a view whose handler is marked with @info and no name, as @event allows
+    class Clock(BaseEventHandler):
+        def __init__(self):
+            self.handled = []
+
+        @info
+        async def tick(self, event, socket):
+            self.handled.append(event)
+
+    # When a message named after the method arrives
+    clock = Clock()
+    await clock.handle_info(InfoEvent("tick"), SOCKET)
+
+    # Then that method handles it
+    assert clock.handled == [InfoEvent("tick")]
+
+
+async def test_info_with_empty_parentheses_handles_the_methods_own_name():
+    # Given a view whose handler is marked with @info() and no name
+    class Clock(BaseEventHandler):
+        def __init__(self):
+            self.handled = []
+
+        @info()
+        async def tick(self, event, socket):
+            self.handled.append(event)
+
+    # When a message named after the method arrives
+    clock = Clock()
+    await clock.handle_info(InfoEvent("tick"), SOCKET)
+
+    # Then that method handles it
+    assert clock.handled == [InfoEvent("tick")]
