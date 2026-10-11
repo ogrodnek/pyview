@@ -1,6 +1,5 @@
 """Upload channels for the test client: one per file, as the Phoenix JS client opens them."""
 
-import itertools
 import struct
 from typing import Any
 
@@ -23,7 +22,7 @@ def encode_binary_push(join_ref: str, ref: str, topic: str, event: str, data: by
 
 
 class FakeUpload:
-    """An upload channel (`lvu:N`) with its own join ref, joined with an entry's token."""
+    """An entry's upload channel (`lvu:<entry ref>`) with its own join ref, joined with its token."""
 
     def __init__(self, client: FakeClient, topic: str, join_ref: str, join_reply: dict[str, Any]):
         self.client = client
@@ -47,12 +46,11 @@ class FakeUploadClient:
     """The upload side of a FakeClient, sent on that client's connection.
 
     File selection, allow_upload and progress go on the view's topic; each file then
-    gets its own upload channel (`lvu:N`), returned as a FakeUpload.
+    gets its own upload channel (`lvu:<entry ref>`), returned as a FakeUpload.
     """
 
     def __init__(self, client: FakeClient):
         self.client = client
-        self._topics = itertools.count(0)
 
     async def select(
         self, upload_name: str, upload_ref: str, files: list[dict[str, Any]]
@@ -85,8 +83,8 @@ class FakeUploadClient:
         return await self.client._push(self.client._next_ref(), "progress", payload)
 
     async def join(self, token: Any) -> FakeUpload:
-        """Join an upload channel with an entry's token; it has its own join ref."""
-        topic = f"lvu:{next(self._topics)}"
+        """Join an entry's upload channel (`lvu:<entry ref>`) with its token; it has its own join ref."""
+        topic = f"lvu:{token['ref']}"
         ref = self.client._next_ref()
         reply = await self.client._push(ref, "phx_join", {"token": token}, topic, join_ref=ref)
         return FakeUpload(self.client, topic, ref, reply)

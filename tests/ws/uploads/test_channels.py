@@ -24,15 +24,16 @@ async def test_leaving_an_active_upload_channel_cleans_up_only_that_upload(conne
     await client.join("/")
     config = page.config
     first, second = await start_two_uploads(client, page)
-    first_path = Path(config.uploads.uploads[first.join_ref].file.name)
+    first_file = config.uploads.uploads[first.join_ref].file
 
     # When the browser leaves the first file's channel without the app canceling it first
     reply = await first.leave()
 
-    # Then the leave is acknowledged, and the abandoned file is removed and deleted from disk
+    # Then the leave is acknowledged, and the abandoned file is removed, closed and deleted
     assert reply == {"status": "ok", "response": {}}
     assert set(config.entries_by_ref) == {"1"}
-    assert not first_path.exists()
+    assert first_file.closed
+    assert not Path(first_file.name).exists()
 
     # And the second upload can still finish, and is the only one the view consumes
     assert (await second.chunk(b"cd"))["status"] == "ok"
