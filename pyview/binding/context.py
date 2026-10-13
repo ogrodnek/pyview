@@ -1,10 +1,11 @@
 """Binding context for parameter resolution."""
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar, Union
 from urllib.parse import ParseResult
 
 if TYPE_CHECKING:
+    from pyview.components.base import ComponentSocket
     from pyview.live_socket import LiveViewSocket
 
     from .params import Params
@@ -20,7 +21,7 @@ class BindContext(Generic[T]):
         params: Multi-value parameter container (query/path/form merged)
         payload: Event payload dict (for handle_event)
         url: Parsed URL (for handle_params)
-        socket: LiveView socket instance
+        socket: Socket instance (LiveViewSocket or ComponentSocket)
         event: Event name (for handle_event)
         extra: Additional injectable values
         cache: Dependency cache for Depends() resolution (per-request)
@@ -29,7 +30,7 @@ class BindContext(Generic[T]):
     params: "Params"
     payload: Optional[dict[str, Any]]
     url: Optional[ParseResult]
-    socket: Optional["LiveViewSocket[T]"]
+    socket: Union["LiveViewSocket[T]", "ComponentSocket", None]
     event: Optional[str]
     extra: dict[str, Any] = field(default_factory=dict)
     cache: dict[Callable[..., Any], Any] = field(default_factory=dict)
