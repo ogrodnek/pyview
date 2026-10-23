@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Any, Generic, TypeVar, get_args, get_origin
+import types
+from typing import TYPE_CHECKING, Annotated, Any, Generic, TypeVar, Union, get_args, get_origin
 
 from pyview.depends import _SessionInjector
 
@@ -44,6 +45,8 @@ class InjectableRegistry(Generic[T]):
         # Type-based injection (check annotation first)
         if self._is_session_annotation(annotation):
             return ctx.extra.get("session", _NOT_FOUND)
+        if self._is_socket_annotation(annotation):
+            return ctx.socket
 
         # Name-based injection (backward compatibility)
         if name == "socket":
@@ -56,6 +59,8 @@ class InjectableRegistry(Generic[T]):
             return ctx.payload
         if name == "url":
             return ctx.url
+        if name == "assigns":
+            return ctx.extra.get("assigns", _NOT_FOUND)
         if name == "params":
             # Only inject if typed as Params, dict, or untyped (Any)
             # Otherwise treat "params" as a regular URL param name
@@ -76,6 +81,40 @@ class InjectableRegistry(Generic[T]):
             if len(args) >= 2:
                 return isinstance(args[1], _SessionInjector)
         return False
+
+    def _is_socket_annotation(self, annotation: Any) -> bool:
+        """Check if annotation is a socket type (ComponentSocket or LiveViewSocket)."""
+        from pyview.components.base import ComponentSocket  # noqa: PLC0415
+        from pyview.live_socket import (  # noqa: PLC0415
+            ConnectedLiveViewSocket,
+            UnconnectedSocket,
+        )
+
+        origin = get_origin(annotation)
+
+        # Unwrap Annotated[T, ...]
+        if origin is Annotated:
+            args = get_args(annotation)
+            if args:
+                annotation = args[0]
+                origin = get_origin(annotation)
+
+        # Expand Union/Optional (including PEP 604 `|`)
+        if origin is Union or origin is types.UnionType:
+            return any(
+                self._is_socket_annotation(arg)
+                for arg in get_args(annotation)
+                if arg is not type(None)
+            )
+
+        # Handle generic types like ComponentSocket[T] or LiveViewSocket[T]
+        check_type = origin if origin is not None else annotation
+
+        socket_types = (ComponentSocket, ConnectedLiveViewSocket, UnconnectedSocket)
+        try:
+            return isinstance(check_type, type) and issubclass(check_type, socket_types)
+        except TypeError:
+            return False
 
     def _is_params_annotation(self, annotation: Any) -> bool:
         """Check if annotation indicates params injection vs URL param named 'params'."""
