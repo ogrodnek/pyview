@@ -10,7 +10,7 @@ dependencies = [
     "pyview-web",
     "uvicorn>=0.46.0,<0.47",
     "aiohttp>=3.14.4,<4",
-    "pillow>=12.3.0,<13",
+    "pillow>=13.0.0,<14",
     "psutil>=7.0.0,<8",
     "certifi>=2025.11.12",
 ]
