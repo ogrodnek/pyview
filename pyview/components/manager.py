@@ -18,6 +18,11 @@ import logging
 from typing import TYPE_CHECKING, Any, Protocol
 
 from .base import ComponentMeta, ComponentSocket, LiveComponent
+from .binding import (
+    call_component_handle_event,
+    call_component_mount,
+    call_component_update,
+)
 from .slots import Slots
 
 if TYPE_CHECKING:
@@ -176,7 +181,7 @@ class ComponentsManager:
         component_name = component.__class__.__name__
         try:
             # Pass assigns to mount so component can initialize from parent props
-            await component.mount(socket, assigns)
+            await call_component_mount(component, socket, assigns)
             # Persist context changes
             self._contexts[cid] = socket.context
             logger.debug(f"Component {component_name} (cid={cid}) mounted successfully")
@@ -198,7 +203,7 @@ class ComponentsManager:
 
         component_name = component.__class__.__name__
         try:
-            await component.update(socket, assigns)
+            await call_component_update(component, socket, assigns)
             # Persist context changes
             self._contexts[cid] = socket.context
             logger.debug(
@@ -228,7 +233,7 @@ class ComponentsManager:
 
         component_name = component.__class__.__name__
         try:
-            await component.handle_event(event, payload, socket)
+            await call_component_handle_event(component, event, payload, socket)
             # Persist context changes
             self._contexts[cid] = socket.context
             logger.debug(f"Component {component_name} (cid={cid}) handled event '{event}'")
